@@ -22,7 +22,8 @@ AI 编程 CLI 的会话管理器（macOS）。把 Claude Code、Codex、OpenCode
 需要 **macOS 26** 或更新版本。
 
 1. 从 [Releases](https://github.com/gaoziman/Switchboard/releases) 下载最新的 `Switchboard-x.y.z.zip`，解压后把 `Switchboard.app` 拖进「应用程序」。
-2. 安装包目前没有经过 Apple 公证，第一次打开时在访达里**右键 →「打开」**，再点「打开」。之后的更新由 app 自己完成。
+2. 安装包目前没有经过 Apple 公证，第一次打开会被系统拦下（macOS 15 起右键 →「打开」已经绕不过去）：
+   先双击打开一次，在提示框里点「完成」；再到**「系统设置」›「隐私与安全性」**，往下找到 Switchboard 那一条，点**「仍要打开」**并确认。之后的更新由 app 自己完成。
 
 Switchboard 只读取各 CLI 自己保存在本机的会话文件（`~/.claude`、`~/.codex`、OpenCode 和 omp 的数据目录），不上传任何东西，也不保存你在登录对话框里输入的密码和验证码。
 

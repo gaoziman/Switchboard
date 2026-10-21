@@ -9,7 +9,7 @@
 # 所以 appcast.xml 要作为附件挂在「最新的那个 Release」上（本脚本会挂）。
 #
 # 签名：
-#   APP_SIGN_IDENTITY="Developer ID Application: …"   默认用钥匙串里的 Apple Development（别人电脑上首次打开要右键 → 打开）
+#   APP_SIGN_IDENTITY="Developer ID Application: …"   默认用钥匙串里的 Apple Development（别人电脑上首次打开要去「系统设置 › 隐私与安全性」点「仍要打开」）
 #   NOTARY_PROFILE=<notarytool 钥匙串配置名>            设了就开 hardened runtime、加时间戳、送公证并装订（需要 Developer ID）
 # 更新签名私钥在登录钥匙串（账户 switchboard），备份在 ~/.config/switchboard/sparkle_ed25519_private.key。丢了就再也发不出已装用户能收的更新
 set -euo pipefail

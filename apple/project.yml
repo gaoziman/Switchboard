@@ -14,7 +14,8 @@ packages:
   # 自动更新（MIT）：appcast 和安装包放在 GitHub Releases，scripts/release.sh 生成
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
-    majorVersion: 2.7.0
+    # 锁死版本：工程的 Package.resolved 不进仓库，写范围的话每台机器、每次干净构建可能拿到不同的 Sparkle
+    exactVersion: 2.10.0
 settings:
   base:
     SWIFT_VERSION: "5.0"
