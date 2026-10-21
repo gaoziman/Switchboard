@@ -122,4 +122,23 @@ struct RemoteSessionTests {
         let back = try JSONDecoder().decode(SignInConfig.self, from: JSONEncoder().encode(c))
         #expect(back == c)
     }
+
+    @Test("主机家目录：只认标记行，rc 文件的输出不算")
+    func parseHome() {
+        #expect(SSH.parseHome("Welcome!\n__SB_HOME__/home/leo\n") == "/home/leo")
+        #expect(SSH.parseHome("__SB_HOME__/Users/leo") == "/Users/leo")
+        #expect(SSH.parseHome("__SB_HOME__\n") == nil)          // $HOME 是空的
+        #expect(SSH.parseHome("__SB_HOME__relative") == nil)    // 不是绝对路径
+        #expect(SSH.parseHome("/home/leo\n") == nil)
+    }
+
+    @Test("主机上的 ~ 展开成它自己的家目录")
+    func expandingHome() {
+        #expect(SSH.expandingHome("~/proj", home: "/home/leo") == "/home/leo/proj")
+        #expect(SSH.expandingHome("~", home: "/home/leo") == "/home/leo")
+        #expect(SSH.expandingHome("~/proj/", home: "/home/leo/") == "/home/leo/proj")
+        #expect(SSH.expandingHome("/srv/app", home: "/home/leo") == "/srv/app")
+        #expect(SSH.expandingHome("~other/x", home: "/home/leo") == "~other/x")   // 别人的家目录不猜
+        #expect(SSH.needsHome("~/proj") && SSH.needsHome("~") && !SSH.needsHome("/srv") && !SSH.needsHome("~other"))
+    }
 }

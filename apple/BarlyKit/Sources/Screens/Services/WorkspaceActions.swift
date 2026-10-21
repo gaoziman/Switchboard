@@ -132,7 +132,7 @@ public extension WorkspaceStore {
     func start(_ draft: NewSessionDraft, prompt: String? = nil) {
         // 主动在一个文件夹里开新会话 = 要用它：不在会话库里就加进来（R4）
         if draft.hostID != Host.localID {
-            addFolder(draft.folder.trimmingCharacters(in: .whitespaces), on: draft.hostID, refreshNow: false)
+            Task { await addRemoteFolder(draft.folder, on: draft.hostID, refreshNow: false) }
             startRemote(draft)
             return
         }
@@ -518,7 +518,7 @@ public extension WorkspaceStore {
         if let data = try? JSONEncoder().encode(records) { try? data.write(to: Self.tabsFile, options: .atomic) }
     }
 
-    private func restoreTabs() {
+    internal func restoreTabs() {
         guard UserDefaults.standard.object(forKey: "restoreTabs") as? Bool ?? true,
               let data = try? Data(contentsOf: Self.tabsFile),
               let records = try? JSONDecoder().decode([TabRecord].self, from: data) else { return }

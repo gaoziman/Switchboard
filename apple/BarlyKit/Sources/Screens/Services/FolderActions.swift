@@ -34,6 +34,19 @@ public extension WorkspaceStore {
         }
     }
 
+    /// 主机上的文件夹：`~/x` 先问主机家目录换成绝对路径（会话文件里记的是绝对路径），问不到就不加
+    func addRemoteFolder(_ path: String, on alias: String, refreshNow: Bool = true) async {
+        var p = path.trimmingCharacters(in: .whitespaces)
+        if SSH.needsHome(p) {
+            if data.remoteHomes[alias] == nil, isLive {
+                data.remoteHomes[alias] = await Task.detached(priority: .userInitiated) { SSH.home(alias) }.value
+            }
+            guard let home = data.remoteHomes[alias] else { return }
+            p = SSH.expandingHome(p, home: home)
+        }
+        addFolder(p, on: alias, refreshNow: refreshNow)
+    }
+
     /// 从会话库拿掉：只是不显示，会话文件一个不动；置顶、重命名、归档的记录留着，以后加回来还在
     func removeFolder(_ project: Project) {
         updateLibrary { s in s.folders.removeAll { $0 == project.id } }
@@ -60,7 +73,8 @@ public extension WorkspaceStore {
         updateLibrary { $0.finishFolderMigration(picked: picked) }
         data.migrationCandidates = nil
         if let first = picked.first { expandedProjectIDs.insert(first) }
-        if isLive { Task { await refresh() } }
+        // 启动时挑选还没做完，那次恢复标签时会话库是空的，什么都没接回来：挑完再恢复一次
+        if isLive { Task { await refresh(); restoreTabs() } }
     }
 
     var migrationCandidates: [FolderLibrary.Candidate]? { data.migrationCandidates }
@@ -69,6 +83,9 @@ public extension WorkspaceStore {
     // MARK: 候选索引（按需）
 
     func folderCandidates(on hostID: String) -> [FolderLibrary.Candidate] { data.folderCandidates[hostID] ?? [] }
+
+    /// 读过一次了（哪怕一个都没有）：添加面板不再显示「正在读取」
+    func folderCandidatesLoaded(on hostID: String) -> Bool { data.folderCandidates[hostID] != nil }
 
     /// 本机：全量扫一遍（走摘要缓存，第二次起很快）；SSH 主机：读本机镜像
     func loadFolderCandidates(on hostID: String) async {

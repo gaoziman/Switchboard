@@ -179,6 +179,25 @@ import Testing
         #expect(s.library.folders.count == 2)
     }
 
+    @Test func remoteTildeFolderIsStoredAsAbsolutePath() async {
+        let s = store()
+        s.data.remoteHomes["devbox"] = "/home/leo"
+        await s.addRemoteFolder(" ~/proj ", on: "devbox", refreshNow: false)
+        #expect(s.library.folders.contains("devbox:/home/leo/proj"))
+        await s.addRemoteFolder("/srv/app", on: "devbox", refreshNow: false)
+        #expect(s.library.folders.contains("devbox:/srv/app"))
+        // 不知道家目录（问不到）：不加，也不存成 ~
+        await s.addRemoteFolder("~/x", on: "other", refreshNow: false)
+        #expect(!s.library.folders.contains { $0.hasPrefix("other:") })
+    }
+
+    @Test func emptyCandidateListStillCountsAsLoaded() {
+        let s = store()
+        #expect(!s.folderCandidatesLoaded(on: "devbox"))
+        s.data.folderCandidates["devbox"] = []                // 主机上一个会话都没有
+        #expect(s.folderCandidatesLoaded(on: "devbox"))
+    }
+
     @Test func removeFolderHidesButKeepsLibraryMarks() {
         let s = store()
         s.library.pinnedSessions = ["a1"]

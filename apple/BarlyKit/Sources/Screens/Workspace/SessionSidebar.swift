@@ -102,12 +102,14 @@ public struct SessionSidebar: View {
                 FolderPickerSheet(title: L("添加 \(alias) 上的文件夹"),
                                   subtitle: L("勾选要在侧栏里显示的项目；主机上还没有会话的文件夹可以直接填路径。"),
                                   candidates: store.folderCandidates(on: alias), added: store.folderIDs(on: alias),
-                                  allowsPath: true, loading: true,
+                                  allowsPath: true, loading: !store.folderCandidatesLoaded(on: alias),
                                   secondaryTitle: L("取消"), onSecondary: { store.hostSheet = nil }) { picked, path in
                     store.hostSheet = nil
                     for id in picked { store.addFolder(String(id.dropFirst(alias.count + 1)), on: alias, refreshNow: false) }
-                    if let path { store.addFolder(path, on: alias, refreshNow: false) }
-                    Task { await store.reloadHostSessions(alias) }
+                    Task {
+                        if let path { await store.addRemoteFolder(path, on: alias, refreshNow: false) }
+                        await store.reloadHostSessions(alias)
+                    }
                 }
                 .task { await store.loadFolderCandidates(on: alias) }
             case .signIn(let alias):

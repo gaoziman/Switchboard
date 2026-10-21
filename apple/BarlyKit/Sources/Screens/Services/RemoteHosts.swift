@@ -161,6 +161,30 @@ public enum SSH {
         return Tmux.shellQuote(path)
     }
 
+    /// 只有 `~` 和 `~/…` 要问主机；`~别人` 不猜
+    static func needsHome(_ path: String) -> Bool { path == "~" || path.hasPrefix("~/") }
+
+    /// 会话文件里记的是绝对路径：会话库里的主机文件夹也要存成绝对路径才对得上
+    static func expandingHome(_ path: String, home: String) -> String {
+        guard needsHome(path) else { return path }
+        let joined = (home as NSString).appendingPathComponent(String(path.dropFirst(1)))
+        return joined.count > 1 && joined.hasSuffix("/") ? String(joined.dropLast()) : joined
+    }
+
+    /// 主机的家目录（登录 shell 的 rc 文件可能也往 stdout 打东西：只认带标记的那行）
+    static func home(_ alias: String) -> String? {
+        guard let r = run(["/usr/bin/ssh"] + options(alias) + [alias, #"printf '__SB_HOME__%s\n' "$HOME""#], timeout: 15),
+              r.status == 0 else { return nil }
+        return parseHome(r.stdout)
+    }
+
+    static func parseHome(_ out: String) -> String? {
+        let marker = "__SB_HOME__"
+        guard let line = out.split(separator: "\n").last(where: { $0.hasPrefix(marker) }) else { return nil }
+        let home = String(line.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces)
+        return home.hasPrefix("/") ? home : nil
+    }
+
     // MARK: 进程
 
     struct Output { let status: Int32; let stdout: String; let stderr: String }
