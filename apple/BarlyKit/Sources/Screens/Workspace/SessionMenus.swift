@@ -15,6 +15,28 @@ struct SessionMenu: View {
         if session.cli.branchArguments(session.id) != nil {
             Button("分叉为新会话") { store.branch(session) }
         }
+        if session.cli == .claude {
+            Menu("移到…") {
+                ForEach(store.moveDestinations(for: session)) { p in
+                    Button(p.name) { store.move(session, to: p.path) }
+                }
+                #if os(macOS)
+                if session.hostID == Host.localID {
+                    if !store.moveDestinations(for: session).isEmpty { Divider() }
+                    Button("其他文件夹…") {
+                        let panel = NSOpenPanel()
+                        panel.canChooseDirectories = true
+                        panel.canChooseFiles = false
+                        panel.canCreateDirectories = true
+                        panel.prompt = L("移到这里")
+                        if panel.runModal() == .OK, let url = panel.url { store.move(session, to: url.path) }
+                    }
+                }
+                #endif
+            }
+            .disabled(!store.canMove(session))
+            .help(store.canMove(session) ? L("用 Claude Code 的 /cd 把会话搬到另一个文件夹") : L("先结束这个会话的 CLI 再搬"))
+        }
         Divider()
         Button("重命名…") { store.renaming = session }
         Button(session.isPinned ? "取消置顶" : "置顶") { store.togglePin(session) }
