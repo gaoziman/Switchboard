@@ -501,6 +501,16 @@
         }
       }
     },
+    "Switchboard 在主机上用 python3 给 OpenCode 的库做一份只含会话的快照再拷过来（不拷账号和凭据）。装上 python3 就行。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switchboard uses python3 on the host to make a snapshot of OpenCode’s database with only the sessions, then copies it (accounts and credentials stay on the host). Installing python3 fixes this."
+          }
+        }
+      }
+    },
     "Switchboard 已改用不读交互启动脚本的方式启动 CLI。想恢复正常，把这一行改成只在你自己登录时执行。" : {
       "localizations" : {
         "en" : {
@@ -941,6 +951,36 @@
         }
       }
     },
+    "主机上建 OpenCode 快照超时。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Making the OpenCode snapshot on the host timed out."
+          }
+        }
+      }
+    },
+    "主机上没有 python3，列不出 OpenCode 会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No python3 on the host, so OpenCode sessions can’t be listed"
+          }
+        }
+      }
+    },
+    "主机上没有 python3，列不出 OpenCode 会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No python3 on the host, so OpenCode sessions can’t be listed."
+          }
+        }
+      }
+    },
     "主机上没有 rsync" : {
       "localizations" : {
         "en" : {
@@ -997,16 +1037,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hosts use the CLI’s default command (per-host commands coming later)"
-          }
-        }
-      }
-    },
-    "主机上的 %@ 会话还不能在这里删。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ sessions on a host can’t be deleted here yet."
           }
         }
       }
