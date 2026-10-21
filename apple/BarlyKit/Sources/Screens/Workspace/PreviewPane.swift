@@ -69,6 +69,8 @@ public struct PreviewPane: View {
     private var folderMissing: Bool { project?.folderExists == false }
 
     public var body: some View {
+        // 当前命中算一次：放进 ForEach 里的话每一条都把全部条目查一遍（几千条就是几百万次查找）
+        let current = currentMatch
         VStack(spacing: 0) {
             header
             Hairline()
@@ -77,7 +79,8 @@ public struct PreviewPane: View {
             if findOpen { findBar; Hairline() }
             ScrollViewReader { proxy in
             BarlyScroll {
-                VStack(alignment: .leading, spacing: 18) {
+                // 懒加载：几千条消息时只建屏幕上的
+                LazyVStack(alignment: .leading, spacing: 18) {
                     if folderMissing { missingFolderNote }
                     if hasEarlier {
                         BarlyButton(L("加载更早的消息"), icon: "arrow.up", variant: .ghost, size: .sm, action: onLoadEarlier)
@@ -86,7 +89,7 @@ public struct PreviewPane: View {
                     if entries.isEmpty {
                         Text("这个会话还没有可显示的消息。").barlyText(.product.small, color: t.text3)
                     }
-                    ForEach(entries) { EntryView(entry: $0, textSize: textSize, highlight: activeQuery, isCurrent: $0.id == currentMatch).id($0.id) }
+                    ForEach(entries) { EntryView(entry: $0, textSize: textSize, highlight: activeQuery, isCurrent: $0.id == current).id($0.id) }
                     Text("— 最新消息 · \(RelativeAge.format(session.lastActivity)) —")
                         .barlyText(.product.caption.monospaced, color: t.text4)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -97,7 +100,7 @@ public struct PreviewPane: View {
                 .padding(.vertical, 28)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .onChange(of: currentMatch) { _, id in
+            .onChange(of: current) { _, id in
                 if let id { withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .center) } }
             }
             }
