@@ -46,6 +46,12 @@ targets:
         SUPublicEDKey: erSR49fyPB5DXS6kVsT+dqH4U5FY8eAHsUEmsCPzeQo=
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
+        # 拖动标签用的私有类型（只在 app 内部拖放）
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: design.barly.switchboard.tab
+            UTTypeDescription: Switchboard Tab
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification: {}
     settings:
       base:
         PRODUCT_NAME: Switchboard

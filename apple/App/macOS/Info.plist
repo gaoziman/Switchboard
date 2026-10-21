@@ -26,5 +26,20 @@
 	<string>erSR49fyPB5DXS6kVsT+dqH4U5FY8eAHsUEmsCPzeQo=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Switchboard Tab</string>
+			<key>UTTypeIdentifier</key>
+			<string>design.barly.switchboard.tab</string>
+			<key>UTTypeTagSpecification</key>
+			<dict/>
+		</dict>
+	</array>
 </dict>
 </plist>

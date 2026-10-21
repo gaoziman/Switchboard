@@ -1,5 +1,20 @@
 import SwiftUI
 import BarlyKit
+import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#endif
+
+extension UTType {
+    /// 拖动中的标签（Info.plist 里登记为导出类型）
+    static let switchboardTab = UTType(exportedAs: "design.barly.switchboard.tab")
+}
+
+/// 拖动的标签：只带标签 ID，真正的状态在 WorkspaceStore 里搬（见 TabMoving）
+struct TabDragItem: Codable, Transferable, Identifiable {
+    let id: UUID
+    static var transferRepresentation: some TransferRepresentation { CodableRepresentation(contentType: .switchboardTab) }
+}
 
 /// 顶部标签栏：类 Chrome 标签组。每个项目一组，组前一个组色标签（点一下折叠），
 /// 选中的标签和下面的终端同底色连成一片，顶上一根组色细线。标签随数量收窄，到最窄后横向滚动。
@@ -8,6 +23,7 @@ public struct TabBar: View {
     var sidebarHidden: Bool
     var onNewSession: () -> Void
     @Environment(\.barly) private var t
+    @Environment(\.openWindow) private var openWindow
 
     public init(store: WorkspaceStore, sidebarHidden: Bool = false, onNewSession: @escaping () -> Void = {}) {
         self.store = store
@@ -33,13 +49,19 @@ public struct TabBar: View {
                                     } onClose: {
                                         store.requestClose(tab)
                                     }
+                                    .draggable(TabDragItem.self, item: TabDragItem(id: tab.id))
+                                    .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: tab.id) }
+                                    .contextMenu { tabMenu(tab) }
                                 }
                             }
                         }
                     }
                     .padding(.leading, 6)
+                    .onDragSessionUpdated(dragUpdated)
                 }
                 .frame(height: WorkspaceMetrics.header, alignment: .bottom)
+                // 标签栏空白处：放到最后（别的窗口拖来的进它项目的组）
+                .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: nil) }
                 PaneIcon(symbol: "plus", help: L("新会话（⌘T）"), action: onNewSession)
                     .padding(.horizontal, 8)
                     .frame(height: WorkspaceMetrics.tabHeight)
@@ -49,6 +71,51 @@ public struct TabBar: View {
         .frame(height: WorkspaceMetrics.header)
         .background(t.bg)
         .overlay(alignment: .bottom) { Hairline() }
+    }
+
+    /// 放下一个标签：同一窗口就调顺序（只在同一个项目组里），别的窗口拖来的就搬过来
+    @discardableResult
+    private func drop(_ id: UUID?, before target: UUID?) -> Bool {
+        guard let id, id != target else { return false }
+        if let tab = store.tab(id) {
+            if let target, store.tab(target)?.projectID != tab.projectID { return false }
+            store.moveTab(id, before: target)
+            return true
+        }
+        guard let owner = WorkspaceWindows.owner(ofTab: id), let moving = owner.tab(id) else { return false }
+        let sameGroup = target.flatMap { store.tab($0) }?.projectID == moving.projectID
+        owner.moveTab(id, to: store, before: sameGroup ? target : nil)
+        return true
+    }
+
+    /// 拖到所有窗口外面松手：开一个新窗口放这个标签（像 Chrome）
+    private func dragUpdated(_ session: DragSession) {
+        #if os(macOS)
+        guard case .ended(.cancel) = session.phase,
+              let id = session.draggedItemIDs(for: UUID.self).first, store.tab(id) != nil else { return }
+        let mouse = NSEvent.mouseLocation
+        let insideSomeWindow = NSApp.windows.contains { $0.isVisible && $0.frame.contains(mouse) }
+        guard !insideSomeWindow else { return }
+        tearOff(id)
+        #endif
+    }
+
+    private func tearOff(_ id: UUID) {
+        if store.moveTabToNewWindow(id) { openWindow(id: "workspace") }
+    }
+
+    @ViewBuilder private func tabMenu(_ tab: TerminalTab) -> some View {
+        Button("移到新窗口") { tearOff(tab.id) }
+        let others = store.otherWindows
+        if !others.isEmpty {
+            Menu("移到窗口") {
+                ForEach(Array(others.enumerated()), id: \.offset) { _, other in
+                    Button(other.windowTitle) { store.moveTab(tab.id, to: other) }
+                }
+            }
+        }
+        Divider()
+        Button("关闭标签") { store.requestClose(tab) }
     }
 
     /// 展开的标签平分可用宽度，夹在最窄和最宽之间

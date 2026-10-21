@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "BarlyKit",
-    platforms: [.iOS(.v17), .macOS(.v14)],
+    platforms: [.iOS(.v17), .macOS("26.0")],
     products: [
         .library(name: "BarlyKit", targets: ["BarlyKit"]),
         .library(name: "BarlyExamples", targets: ["BarlyExamples"]),
