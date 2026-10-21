@@ -74,6 +74,52 @@ public enum ActivityMonitor {
         }
         return nil
     }
+
+    private static let rolloutLock = NSLock()
+    nonisolated(unsafe) private static var rolloutCache: [String: (modified: Date, size: Int, activity: Activity?)] = [:]
+
+    /// 同上，但文件没变（修改时间、大小都一样）就用上次的结果：在跑的 Codex 每秒都要看，不用每秒读 256 KB
+    static func cachedRolloutActivity(_ path: String) -> Activity? {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+              let modified = attrs[.modificationDate] as? Date, let size = (attrs[.size] as? NSNumber)?.intValue else {
+            rolloutLock.withLock { rolloutCache[path] = nil }
+            return nil
+        }
+        if let c = rolloutLock.withLock({ rolloutCache[path] }), c.modified == modified, c.size == size { return c.activity }
+        let activity = codexRolloutActivity(path)
+        rolloutLock.withLock { rolloutCache[path] = (modified, size, activity) }
+        return activity
+    }
+}
+
+/// 一次状态轮询要读的外部状态。读文件、起 tmux 都在后台线程做，回主线程只拿结果比较（主线程不碰磁盘和进程）
+public struct ActivityInputs: Sendable {
+    /// 本机 claude 进程报的状态
+    var claude: [String: Activity] = [:]
+    /// OpenCode / omp 扩展报的
+    var reported: [String: Activity] = [:]
+    var tmuxRunning: Set<String> = []
+    /// Codex 会话文件 → 最后一个回合事件推出来的状态
+    var codexRollouts: [String: Activity] = [:]
+    var gatheredAt = Date.distantPast
+
+    /// 要看的 Codex 会话文件；tmuxName 不为空的，只有那个 tmux 会话在跑才看
+    struct CodexProbe: Sendable, Equatable {
+        let path: String
+        let tmuxName: String?
+    }
+
+    static func gather(codex: [CodexProbe]) -> ActivityInputs {
+        var inputs = ActivityInputs()
+        inputs.claude = ActivityMonitor.claudeStatuses()
+        inputs.reported = LiveReporting.statuses()
+        inputs.tmuxRunning = Tmux.runningSessions()
+        for probe in codex where probe.tmuxName.map(inputs.tmuxRunning.contains) ?? true {
+            if let a = ActivityMonitor.cachedRolloutActivity(probe.path) { inputs.codexRollouts[probe.path] = a }
+        }
+        inputs.gatheredAt = Date()
+        return inputs
+    }
 }
 
 /// 一次状态变化，用来决定发不发通知
@@ -85,14 +131,45 @@ public struct ActivityChange: Equatable, Sendable {
 
 @MainActor
 public extension WorkspaceStore {
-    /// 每秒一次：读状态、标「没看过的完成」、返回需要通知的变化
+    /// 在后台读一次各 CLI 的状态（几个窗口一秒内只读一次，读的时候别的窗口不再读）
+    func gatherActivity() async {
+        guard isLive, !data.isGatheringActivity, Date().timeIntervalSince(data.activityInputs.gatheredAt) > 0.8 else { return }
+        data.isGatheringActivity = true
+        defer { data.isGatheringActivity = false }
+        let probes = codexProbes()
+        data.activityInputs = await Task.detached(priority: .utility) { ActivityInputs.gather(codex: probes) }.value
+    }
+
+    /// 要读会话文件才知道状态的 Codex 会话：标签标题里没报状态的；没开标签、在 tmux 里跑着的
+    internal func codexProbes() -> [ActivityInputs.CodexProbe] {
+        var probes: [ActivityInputs.CodexProbe] = []
+        for tab in allTabs {
+            guard case .session(let id, .codex) = tab.kind, terminalTitles[tab.id].flatMap(ActivityMonitor.codexActivity) == nil,
+                  let path = session(id)?.sourcePath else { continue }
+            probes.append(.init(path: path, tmuxName: nil))
+        }
+        for s in sessions where s.cli == .codex && tab(for: s) == nil {
+            guard let path = s.sourcePath else { continue }
+            let name = Tmux.name(for: s.cli, sessionID: s.id)
+            if s.hostID == Host.localID {
+                probes.append(.init(path: path, tmuxName: name))
+            } else if remoteSnapshots[s.hostID]?.tmux.contains(name) == true {
+                probes.append(.init(path: path, tmuxName: nil))     // 主机的 tmux 列表在 remoteSnapshots 里，这里先筛好
+            }
+        }
+        return probes
+    }
+
+    /// 每秒一次：拿后台读好的状态（gatherActivity）标灯、标「没看过的完成」、返回需要通知的变化。不读磁盘、不起进程
     @discardableResult
     func pollActivity(appIsActive: Bool) -> [ActivityChange] {
+        let inputs = data.activityInputs
         let codexTitles = terminalTitles
         // 本机 + 各主机的 claude 进程报的状态
-        let claude = remoteSnapshots.values.reduce(ActivityMonitor.claudeStatuses()) { $0.merging($1.claude) { a, _ in a } }
-        let reported = LiveReporting.statuses()   // OpenCode / omp 扩展报的
-        let tmuxRunning = Tmux.runningSessions()
+        let claude = remoteSnapshots.values.reduce(inputs.claude) { $0.merging($1.claude) { a, _ in a } }
+        let reported = inputs.reported   // OpenCode / omp 扩展报的
+        let tmuxRunning = inputs.tmuxRunning
+        let rollout = { (s: Session?) in s?.sourcePath.flatMap { inputs.codexRollouts[$0] } }
         var changes: [ActivityChange] = []
 
         // 开着的标签各自是什么状态
@@ -103,7 +180,7 @@ public extension WorkspaceStore {
             let reported: Activity? = switch cli {
             case .claude: claude[id]
             case .codex: codexTitles[tab.id].flatMap(ActivityMonitor.codexActivity)
-                ?? session(id)?.sourcePath.flatMap(ActivityMonitor.codexRolloutActivity)
+                ?? rollout(session(id))
             case .opencode, .omp: reported[id]
             }
             tabActivity[tab.id] = reported ?? .idle
@@ -128,7 +205,7 @@ public extension WorkspaceStore {
                 next = a                                   // 在别的终端 / tmux 里跑的也算
             } else if s.hostID == Host.localID ? tmuxRunning.contains(Tmux.name(for: s.cli, sessionID: s.id))
                         : remoteSnapshots[s.hostID]?.tmux.contains(Tmux.name(for: s.cli, sessionID: s.id)) == true {
-                next = s.cli == .codex ? (s.sourcePath.flatMap(ActivityMonitor.codexRolloutActivity) ?? .idle) : .idle
+                next = s.cli == .codex ? (rollout(s) ?? .idle) : .idle
             } else {
                 next = .notRunning
             }

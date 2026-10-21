@@ -24,6 +24,9 @@ public final class WorkspaceData {
     public var migrationPicks: [String] = []
     /// 库外有会话在跑的文件夹（侧栏底部提示）
     public var outsideRunning: [FolderLibrary.Outside] = []
+    /// 状态轮询最近一次在后台读到的（所有窗口共用）
+    @ObservationIgnored var activityInputs = ActivityInputs()
+    @ObservationIgnored var isGatheringActivity = false
     /// 问过的 SSH 主机家目录（主机文件夹里的 ~ 靠它展开）
     @ObservationIgnored var remoteHomes: [String: String] = [:]
     /// 正在读会话库：别的窗口这时再要刷新就跳过

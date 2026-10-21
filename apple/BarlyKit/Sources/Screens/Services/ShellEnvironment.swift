@@ -132,40 +132,50 @@ public enum Tmux {
     }
 
     nonisolated(unsafe) private static var runningCache: (at: Date, names: Set<String>)?
+    private static let runningLock = NSLock()
 
-    /// 当前还在跑的 Switchboard tmux 会话名（每秒轮询会调，缓存 2 秒，别每次都起进程）
+    /// 当前还在跑的 Switchboard tmux 会话名（状态轮询在后台线程调，缓存 2 秒，别每次都起进程）
     public static func runningSessions(fresh: Bool = false) -> Set<String> {
-        if !fresh, let c = runningCache, Date().timeIntervalSince(c.at) < 2 { return c.names }
-        let names = listSessions()
-        runningCache = (Date(), names)
+        if !fresh, let c = runningLock.withLock({ runningCache }), Date().timeIntervalSince(c.at) < 2 { return c.names }
+        // tmux 没响应：沿用上次的，别让所有会话一下子都变成「没在跑」
+        guard let names = listSessions() else { return cachedRunningSessions() }
+        runningLock.withLock { runningCache = (Date(), names) }
         return names
     }
 
-    private static func listSessions() -> Set<String> {
-        guard let tmux = executable else { return [] }
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: tmux)
-        p.arguments = ["-L", socket, "list-sessions", "-F", "#{session_name}"]
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = FileHandle.nullDevice
-        guard (try? p.run()) != nil else { return [] }
-        p.waitUntilExit()
-        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        return Set(out.split(separator: "\n").map(String.init))
+    /// 上次读到的（不起进程；画菜单这类地方用）
+    public static func cachedRunningSessions() -> Set<String> {
+        runningLock.withLock { runningCache?.names } ?? []
+    }
+
+    private static func listSessions() -> Set<String>? {
+        guard let r = exec(["list-sessions", "-F", "#{session_name}"], output: true) else { return nil }
+        // 没有 server（一个会话都没有）也是非 0：当成空
+        return Set(r.stdout.split(separator: "\n").map(String.init))
     }
 
     @discardableResult
     static func run(_ args: [String]) -> Int32 {
-        guard let tmux = executable else { return -1 }
+        exec(args, output: false)?.status ?? -1
+    }
+
+    /// 跑一次 tmux，最多等 timeout 秒：tmux server 卡住时别把调用方（有的在主线程）一起卡死。
+    /// 用信号量等，不用 waitUntilExit（它会转主线程的 run loop，等的时候别的主线程任务插进来跑）
+    private static func exec(_ args: [String], output: Bool, timeout: TimeInterval = 3) -> (status: Int32, stdout: String)? {
+        guard let tmux = executable else { return nil }
         let p = Process()
         p.executableURL = URL(fileURLWithPath: tmux)
         p.arguments = ["-L", socket] + args
-        p.standardOutput = FileHandle.nullDevice
+        let pipe = Pipe()
+        p.standardOutput = output ? pipe : FileHandle.nullDevice
         p.standardError = FileHandle.nullDevice
-        guard (try? p.run()) != nil else { return -1 }
-        p.waitUntilExit()
-        return p.terminationStatus
+        let exited = DispatchSemaphore(value: 0)
+        p.terminationHandler = { _ in exited.signal() }
+        guard (try? p.run()) != nil else { return nil }
+        guard exited.wait(timeout: .now() + timeout) == .success else { p.terminate(); return nil }
+        // 输出只有会话名，几 KB：等它退出再读不会塞满管道
+        let stdout = output ? String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self) : ""
+        return (p.terminationStatus, stdout)
     }
 
     static func shellQuote(_ s: String) -> String {

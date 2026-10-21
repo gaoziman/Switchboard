@@ -137,3 +137,63 @@ struct LiveReportingTests {
         #expect(LiveReporting.launchAdditions(for: .codex) == nil)
     }
 }
+
+/// 每秒的状态轮询：读文件、起 tmux 在后台做（ActivityInputs），主线程只拿结果比较
+@MainActor
+@Suite("状态轮询")
+struct ActivityPollTests {
+    private func codexStore(title: String?) -> (WorkspaceStore, TerminalTab) {
+        let s = Session(id: "cx-1", cli: .codex, hostID: Host.localID, projectPath: "/p", title: "c", lastActivity: .now, messageCount: 1,
+                        sourcePath: "/tmp/rollout-cx-1.jsonl")
+        let t = TerminalTab(kind: .session(id: "cx-1", cli: .codex), projectPath: "/p", title: "c", activity: .idle)
+        let store = WorkspaceStore(hosts: [MockData.local], projects: [Project(hostID: Host.localID, path: "/p")], sessions: [s],
+                                   tabGroups: [TabGroup(projectID: "\(Host.localID):/p", name: "p", tint: 0, tabs: [t])])
+        store.selection = .tab(t.id)
+        if let title { store.terminalTitles[t.id] = title }
+        return (store, t)
+    }
+
+    @Test("Codex 标题读不出状态时，用后台读好的会话文件状态")
+    func usesGatheredRollout() {
+        let (store, t) = codexStore(title: nil)
+        store.data.activityInputs.codexRollouts["/tmp/rollout-cx-1.jsonl"] = .working
+        store.pollActivity(appIsActive: true)
+        #expect(store.session("cx-1")?.activity == .working)
+        #expect(store.tab(t.id)?.activity == .working)
+    }
+
+    @Test("后台要读哪些 Codex 会话文件：标题报了状态的不读")
+    func codexProbes() {
+        let (withoutTitle, _) = codexStore(title: nil)
+        #expect(withoutTitle.codexProbes().map(\.path) == ["/tmp/rollout-cx-1.jsonl"])
+        let (withTitle, _) = codexStore(title: "Ready | p")
+        #expect(withTitle.codexProbes().isEmpty)
+    }
+
+    @Test("tmux 在跑的会话按后台读到的列表算")
+    func usesGatheredTmux() {
+        let s = Session(id: "cl-1", cli: .claude, hostID: Host.localID, projectPath: "/p", title: "c", lastActivity: .now, messageCount: 1)
+        let store = WorkspaceStore(hosts: [MockData.local], projects: [Project(hostID: Host.localID, path: "/p")], sessions: [s])
+        store.pollActivity(appIsActive: true)
+        #expect(store.session("cl-1")?.activity == .notRunning)
+        store.data.activityInputs.tmuxRunning = [Tmux.name(for: .claude, sessionID: "cl-1")]
+        store.pollActivity(appIsActive: true)
+        #expect(store.session("cl-1")?.activity == .idle)
+        #expect(!store.canMove(s))                       // 在 tmux 里跑着：不能搬（不用为了画菜单起 tmux）
+    }
+
+    @Test("Codex 会话文件没变就不重读，变了就重读")
+    func rolloutCacheFollowsFileChanges() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("rollout-cache-\(UUID()).jsonl")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let started = #"{"type":"event_msg","payload":{"type":"task_started"}}"#
+        try (started + "\n").write(to: url, atomically: true, encoding: .utf8)
+        #expect(ActivityMonitor.cachedRolloutActivity(url.path) == .working)
+        let handle = try FileHandle(forWritingTo: url)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data((#"{"type":"event_msg","payload":{"type":"task_complete"}}"# + "\n").utf8))
+        try handle.close()
+        #expect(ActivityMonitor.cachedRolloutActivity(url.path) == .idle)
+        #expect(ActivityMonitor.cachedRolloutActivity(url.path + ".missing") == nil)
+    }
+}

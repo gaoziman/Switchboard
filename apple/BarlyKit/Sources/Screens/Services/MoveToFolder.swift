@@ -9,7 +9,8 @@ public extension WorkspaceStore {
     func canMove(_ session: Session) -> Bool {
         guard session.cli == .claude, tab(for: session) == nil else { return false }
         let name = Tmux.name(for: session.cli, sessionID: session.id)
-        if session.hostID == Host.localID { return !Tmux.runningSessions().contains(name) }
+        // 用状态轮询最近读到的 tmux 列表：菜单每次重画都会问，不能每次起 tmux（真要搬时 move 再确认一次）
+        if session.hostID == Host.localID { return !data.activityInputs.tmuxRunning.contains(name) }
         return remoteSnapshots[session.hostID]?.tmux.contains(name) != true
     }
 
@@ -23,6 +24,8 @@ public extension WorkspaceStore {
 
     func move(_ session: Session, to folder: String) {
         guard canMove(session), (folder as NSString).standardizingPath != (session.projectPath as NSString).standardizingPath else { return }
+        if isLive, session.hostID == Host.localID,
+           Tmux.runningSessions(fresh: true).contains(Tmux.name(for: session.cli, sessionID: session.id)) { return }
         if session.hostID == Host.localID { addFolder(folder, refreshNow: false) }   // 搬过去的目标文件夹进会话库（R4）
         let prompt = "/cd \(folder)"     // /cd 把后面整行当路径，带空格也照原样传
         open(session: session, arguments: session.cli.resumeArguments(session.id) + [prompt],

@@ -230,6 +230,8 @@ public struct WorkspaceView: View {
             #else
             let active = true
             #endif
+            // 读文件、问 tmux 在后台做；app 在后台时每 3 秒读一次就够（通知晚两秒没关系，省电）
+            if active || tick % 3 == 0 { await store.gatherActivity() }
             for change in store.pollActivity(appIsActive: active) {
                 guard let s = store.session(change.sessionID) else { continue }
                 NotificationService.shared.post(change, title: s.displayTitle, project: store.project(for: s)?.name ?? "", cli: s.cli)
