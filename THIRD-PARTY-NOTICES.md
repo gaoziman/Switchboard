@@ -6,11 +6,12 @@ Switchboard 自身以 MIT 许可发布（见 `LICENSE`）。它使用或随 app 
 
 | 组件 | 用途 | 许可证 | 原文 |
 |---|---|---|---|
-| [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) 1.20.0 | 内嵌终端 | MIT | 随 Swift 包分发 |
-| [Sparkle](https://github.com/sparkle-project/Sparkle) 2.x | 自动更新 | MIT | 随 Swift 包分发 |
-| [Ghostty](https://github.com/ghostty-org/ghostty)（libghostty） | 可选的 GPU 终端引擎（静态链接） | MIT | 随 Swift 包分发 |
-| [libghostty-spm](https://github.com/Lakr233/libghostty-spm) | libghostty 的 Swift 包和 AppKit 视图 | MIT | 随 Swift 包分发 |
-| [DisplayLink](https://github.com/Lakr233/DisplayLink) | libghostty-spm 的依赖 | MIT | 随 Swift 包分发 |
+| [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) 1.20.0 | 内嵌终端 | MIT | app 内「关于 Switchboard」（`Contents/Resources/Credits.html`） |
+| [Sparkle](https://github.com/sparkle-project/Sparkle) 2.10.0 | 自动更新 | MIT | app 内「关于 Switchboard」（`Contents/Resources/Credits.html`） |
+| [Ghostty](https://github.com/ghostty-org/ghostty)（libghostty） | 可选的 GPU 终端引擎（静态链接） | MIT | app 内「关于 Switchboard」（`Contents/Resources/Credits.html`） |
+| [libghostty-spm](https://github.com/Lakr233/libghostty-spm) | libghostty 的 Swift 包和 AppKit 视图 | MIT | app 内「关于 Switchboard」（`Contents/Resources/Credits.html`） |
+| [DisplayLink](https://github.com/Lakr233/DisplayLink) | libghostty-spm 的依赖 | MIT | app 内「关于 Switchboard」（`Contents/Resources/Credits.html`） |
+| [bash-preexec](https://github.com/rcaloras/bash-preexec) | Ghostty 引擎的 bash shell 集成（随 libghostty-spm 分发） | MIT | 同上 |
 | [tmux](https://github.com/tmux/tmux) 3.7c | 会话保活（静态编译后打包进 app） | ISC | app 内 `Contents/Resources/Tmux/licenses/tmux.txt` |
 | [libevent](https://libevent.org) 2.1.13 | tmux 依赖 | BSD-3-Clause | `…/Tmux/licenses/libevent.txt` |
 | [ncurses](https://invisible-island.net/ncurses/) 6.6 | tmux 依赖 | MIT-style（X11） | `…/Tmux/licenses/ncurses.txt` |
@@ -19,12 +20,16 @@ Switchboard 自身以 MIT 许可发布（见 `LICENSE`）。它使用或随 app 
 
 ## 字体
 
+三款打包字体的许可证原文也在 app 内的 `Credits.html`。
+
 | 字体 | 文件 | 许可证 | 原文 |
 |---|---|---|---|
 | Inter Tight | `InterTight-Variable.ttf` | SIL Open Font License 1.1 | `LICENSE-fonts/intertight.txt` |
 | Inter | `Inter-Variable.ttf` | SIL Open Font License 1.1 | `LICENSE-fonts/inter.txt` |
 | Geist Mono | `GeistMono-Variable.ttf` | SIL Open Font License 1.1 | `LICENSE-fonts/geistmono.txt` |
 | PingFang SC | （系统字体，不打包） | 系统字体 | — |
+
+更新依赖后运行 `python3 apple/scripts/gen-credits.py` 重新生成 `Credits.html`。
 
 ## 图标
 
