@@ -8,6 +8,9 @@ Switchboard 自身以 MIT 许可发布（见 `LICENSE`）。它使用或随 app 
 |---|---|---|---|
 | [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) 1.20.0 | 内嵌终端 | MIT | 随 Swift 包分发 |
 | [Sparkle](https://github.com/sparkle-project/Sparkle) 2.x | 自动更新 | MIT | 随 Swift 包分发 |
+| [Ghostty](https://github.com/ghostty-org/ghostty)（libghostty） | 可选的 GPU 终端引擎（静态链接） | MIT | 随 Swift 包分发 |
+| [libghostty-spm](https://github.com/Lakr233/libghostty-spm) | libghostty 的 Swift 包和 AppKit 视图 | MIT | 随 Swift 包分发 |
+| [DisplayLink](https://github.com/Lakr233/DisplayLink) | libghostty-spm 的依赖 | MIT | 随 Swift 包分发 |
 | [tmux](https://github.com/tmux/tmux) 3.7c | 会话保活（静态编译后打包进 app） | ISC | app 内 `Contents/Resources/Tmux/licenses/tmux.txt` |
 | [libevent](https://libevent.org) 2.1.13 | tmux 依赖 | BSD-3-Clause | `…/Tmux/licenses/libevent.txt` |
 | [ncurses](https://invisible-island.net/ncurses/) 6.6 | tmux 依赖 | MIT-style（X11） | `…/Tmux/licenses/ncurses.txt` |

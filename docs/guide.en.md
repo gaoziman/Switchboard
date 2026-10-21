@@ -53,6 +53,7 @@ Pins, names and archives are stored in `~/Library/Application Support/Switchboar
 - **Plain terminal**: choose Terminal in New Session for a login shell. It doesn't use tmux and ends when closed.
 - Dropping a file on the terminal pastes its path. ⌘-click a path or link in the terminal to open it (Settings › General decides with what).
 - ⌘F finds; ⌘+ / ⌘− / ⌘0 change the terminal font size.
+- **Terminal engine**: Settings › Terminal offers SwiftTerm (default) or Ghostty (GPU rendering, smoother with heavy output). It applies to tabs opened afterwards. Ghostty tabs don't support ⌘F yet, and with System Monospaced selected they use Ghostty's built-in font.
 
 <a id="status"></a>
 ## Status lights and notifications
