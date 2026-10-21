@@ -6,7 +6,8 @@ project_directory="${script_directory:h:h}"   # apple/
 source "$script_directory/versions.sh"
 source "$script_directory/build-helpers.sh"
 
-build_architecture="$(uname -m)"
+# Architecture to build (default: this Mac's). x86_64 on Apple silicon runs configure checks and tic under Rosetta.
+build_architecture="${1:-$(uname -m)}"
 compiler_sdk_directory="$(xcrun --sdk macosx --show-sdk-path)"
 build_directory="$project_directory/.build/Tmux/$build_architecture"
 downloads_directory="$project_directory/.build/Tmux/downloads"
@@ -19,7 +20,7 @@ build_fingerprint="$(cat "$script_directory/"*.sh "$script_directory/"*.py | sha
 if [[ -f "$runtime_directory/build-fingerprint" ]] \
     && [[ "$(cat "$runtime_directory/build-fingerprint")" == "$build_fingerprint" ]] \
     && [[ -x "$runtime_directory/bin/tmux" ]]; then
-    python3 "$script_directory/verify-runtime.py" "$runtime_directory"
+    python3 "$script_directory/verify-runtime.py" "$runtime_directory" --architectures "$build_architecture"
     print "$runtime_directory"
     exit 0
 fi
@@ -61,6 +62,6 @@ cp "$sources_directory/ncurses-$ncurses_version/COPYING" "$runtime_directory/lic
 cp "$sources_directory/utf8proc-$utf8proc_version/LICENSE.md" "$runtime_directory/licenses/utf8proc.txt"
 python3 "$script_directory/collect-source-notices.py" "$sources_directory/tmux-$tmux_version" "$runtime_directory/licenses/tmux.txt"
 cp "$script_directory/versions.sh" "$runtime_directory/versions.txt"
-python3 "$script_directory/verify-runtime.py" "$runtime_directory"
+python3 "$script_directory/verify-runtime.py" "$runtime_directory" --architectures "$build_architecture"
 print -r -- "$build_fingerprint" > "$runtime_directory/build-fingerprint"
 print "$runtime_directory"

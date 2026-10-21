@@ -57,6 +57,12 @@ xcodegen generate --quiet || fail "xcodegen 失败"
 # ── 2. 单测 ────────────────────────────────────────────────────
 if [[ $SKIP_TESTS -eq 0 ]]; then
     step "运行单测"
+    # 业务逻辑的单测在 BarlyKit 包里（ScreensTests），Xcode scheme 里的只有外壳的
+    if ! (cd "$ROOT/BarlyKit" && swift test) >"$LOGS/screens-test.log" 2>&1; then
+        grep -E "error:|✘" "$LOGS/screens-test.log" | sort -u | head -20
+        fail "单测没过，没有安装。完整日志：${LOGS}/screens-test.log"
+    fi
+    grep -E "Test run with" "$LOGS/screens-test.log" | tail -1 | sed 's/^/  /'
     if ! xcodebuild -skipPackagePluginValidation -skipMacroValidation -project "$NAME.xcodeproj" -scheme "$NAME-macOS" -destination "$DESTINATION" \
             -derivedDataPath "$ROOT/.build/xcode" test >"$LOGS/test.log" 2>&1; then
         grep -E "error:|✘" "$LOGS/test.log" | sort -u | head -20

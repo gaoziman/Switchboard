@@ -44,10 +44,22 @@ def minimum_macos_versions(executable: Path):
     return versions
 
 
-def verify_runtime(runtime_directory: Path):
+def architectures(executable: Path):
+    """Return the CPU architectures in the executable (one, or several for a universal binary)."""
+    return set(subprocess.check_output(["/usr/bin/lipo", "-archs", str(executable)], text=True).split())
+
+
+def verify_runtime(runtime_directory: Path, expected_architectures=None):
     executable = runtime_directory / "bin/tmux"
+    if expected_architectures:
+        # The app is universal: a tmux missing one architecture passes the bundle's executable check but cannot run.
+        actual = architectures(executable)
+        assert actual == set(expected_architectures), f"Runtime architectures are {sorted(actual)}, expected {sorted(expected_architectures)}"
     linkage = subprocess.check_output(["/usr/bin/otool", "-L", str(executable)], text=True)
-    for line in linkage.splitlines()[1:]:
+    for line in linkage.splitlines():
+        # Header lines name the file (once per architecture in a universal binary); dependencies are indented.
+        if not line[:1].isspace():
+            continue
         dependency = line.strip().split(" (", 1)[0]
         assert dependency.startswith(("/usr/lib/", "/System/Library/")), f"Non-system runtime dependency: {dependency}"
     deployment_target = pinned_value(runtime_directory, "macos_deployment_target")
@@ -128,4 +140,7 @@ def verify_runtime(runtime_directory: Path):
 
 
 if __name__ == "__main__":
-    verify_runtime(Path(sys.argv[1]).resolve())
+    expected = None
+    if len(sys.argv) == 4 and sys.argv[2] == "--architectures":
+        expected = sys.argv[3].split(",")
+    verify_runtime(Path(sys.argv[1]).resolve(), expected)

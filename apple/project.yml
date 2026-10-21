@@ -72,9 +72,10 @@ targets:
       - name: Bundle tmux
         basedOnDependencyAnalysis: false
         script: |
-          # 静态编译的 tmux（scripts/tmux/build-runtime.sh，第一次要下载源码编译几分钟）拷进 Resources/Tmux
-          RUNTIME="${PROJECT_DIR}/.build/Tmux/$(uname -m)/runtime"
-          if [ ! -x "$RUNTIME/bin/tmux" ]; then zsh "${PROJECT_DIR}/scripts/tmux/build-runtime.sh" >/dev/null || exit 1; fi
+          # 静态编译的 tmux（scripts/tmux/build-universal.sh，第一次要下载源码、两种架构各编译一遍，几分钟）拷进 Resources/Tmux
+          # app 是 universal 的，tmux 也要两种架构都有：只有 arm64 的话 Intel Mac 上 tmux 起不来
+          RUNTIME="${PROJECT_DIR}/.build/Tmux/universal/runtime"
+          if [ ! -x "$RUNTIME/bin/tmux" ]; then zsh "${PROJECT_DIR}/scripts/tmux/build-universal.sh" >/dev/null || exit 1; fi
           DEST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Tmux"
           rm -rf "$DEST" && mkdir -p "$DEST"
           cp -R "$RUNTIME/bin" "$RUNTIME/share" "$RUNTIME/licenses" "$RUNTIME/versions.txt" "$DEST/"

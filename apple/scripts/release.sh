@@ -57,6 +57,12 @@ else
     SIGN_OPTS+=(--timestamp=none)
 fi
 
+# ── 单测：没过不发 ──
+step "运行单测"
+(cd "$ROOT/BarlyKit" && swift test) >"$LOGS/release-test.log" 2>&1 \
+    || { grep -E "error:|✘" "$LOGS/release-test.log" | sort -u | head -20; fail "单测没过：$LOGS/release-test.log"; }
+grep -E "Test run with" "$LOGS/release-test.log" | tail -1 | sed 's/^/  /'
+
 # ── 构建 ──
 BUILD_NUMBER="$(date +%Y%m%d%H%M)"
 step "构建 $NAME ${VERSION}（build ${BUILD_NUMBER}）"
@@ -70,7 +76,13 @@ xcodebuild -skipPackagePluginValidation -skipMacroValidation -project "$NAME.xco
 step "签名：$IDENTITY"
 sign() { codesign "${SIGN_OPTS[@]}" "$@" >>"$LOGS/release-sign.log" 2>&1 || fail "签名失败：$* （$LOGS/release-sign.log）"; }
 : >"$LOGS/release-sign.log"
-[[ -x "$APP/Contents/Resources/Tmux/bin/tmux" ]] && sign "$APP/Contents/Resources/Tmux/bin/tmux"
+# 包里必须有 tmux，而且架构和 app 一样（只有 arm64 的 tmux 在 Intel Mac 上起不来）
+TMUX_BIN="$APP/Contents/Resources/Tmux/bin/tmux"
+[[ -x "$TMUX_BIN" ]] || fail "包里没有 tmux"
+archs() { lipo -archs "$1" | tr ' ' '\n' | sort | tr '\n' ' '; }
+[[ "$(archs "$APP/Contents/MacOS/$NAME")" == "$(archs "$TMUX_BIN")" ]] \
+    || fail "tmux 的架构（$(archs "$TMUX_BIN")）和 app（$(archs "$APP/Contents/MacOS/$NAME")）不一样"
+sign "$TMUX_BIN"
 SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 for item in "$SPARKLE"/Versions/B/XPCServices/*.xpc "$SPARKLE/Versions/B/Autoupdate" "$SPARKLE/Versions/B/Updater.app" "$SPARKLE"; do
     [[ -e "$item" ]] && sign --preserve-metadata=entitlements "$item"
