@@ -73,7 +73,7 @@ public struct SplitPane: View {
                 .overlay {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(hovered ? t.text3 : t.borderStrong)
-                        .frame(width: 3, height: 28)
+                        .frame(width: BarlyScale.pt(3), height: BarlyScale.pt(28))
                 }
                 .onHover { hovered = $0 }
                 .contentShape(Rectangle())
@@ -102,7 +102,7 @@ private struct PaneToolbar: View {
                 .scaleEffect(0.85)
         }
         .padding(.leading, 10).padding(.trailing, 4)
-        .frame(height: 30)
+        .frame(height: BarlyScale.pt(30))
         .background(focused ? t.fill1 : t.bg)
         .overlay(alignment: .bottom) { Hairline() }
     }
@@ -142,7 +142,7 @@ private struct TabChooser: View {
                         ActivityLamp(tab.activity, size: 6)
                     }
                     .padding(.horizontal, 12)
-                    .frame(height: 34)
+                    .frame(height: BarlyScale.pt(34))
                     .barlySelected(index == 0, radius: BarlyRadius.sm, idleBorder: .clear)
                     .contentShape(Rectangle())
                     .onTapGesture { pick(tab) }

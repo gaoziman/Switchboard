@@ -134,7 +134,7 @@ struct PaneIcon: View {
             Image(systemName: symbol)
                 .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(hovered ? t.text : t.text2)
-                .frame(width: 28, height: 28)
+                .frame(width: BarlyScale.pt(28), height: BarlyScale.pt(28))
                 .background(hovered ? t.fill2 : .clear, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
                 .overlay(alignment: .topTrailing) {
                     if badge { Circle().fill(t.accent).frame(width: 6, height: 6).offset(x: -6, y: 6) }

@@ -26,9 +26,9 @@ struct SheetFrame<Content: View, Buttons: View>: View {
             Hairline()
             HStack(spacing: 8) { buttons }
                 .padding(.horizontal, 16)
-                .frame(height: 56)
+                .frame(height: BarlyScale.pt(56))
         }
-        .frame(width: width)
+        .frame(width: BarlyScale.pt(width))
         .background(t.surface)
     }
 }
@@ -62,7 +62,7 @@ struct FieldRow<Control: View>: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             Text(label).barlyText(.product.small, color: t.text2)
-                .frame(width: 72, alignment: .leading)
+                .frame(width: BarlyScale.pt(72), alignment: .leading)
             VStack(alignment: .leading, spacing: 6) {
                 control
                 if let note { Text(note).barlyText(.product.caption, color: t.text3).fixedSize(horizontal: false, vertical: true) }
@@ -90,7 +90,7 @@ struct ValueBox: View {
             if let icon { Image(systemName: icon).font(.system(size: 10, weight: .medium)).foregroundStyle(t.text3) }
         }
         .padding(.horizontal, 10)
-        .frame(height: 30)
+        .frame(height: BarlyScale.pt(30))
         .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
         .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(error ? t.danger : t.borderStrong))
         .handCursor()
@@ -178,7 +178,7 @@ public struct NewSessionSheet: View {
                                 BarlyBareField(placeholder: L("~/code/项目"), text: $draft.folder, style: .product.small.monospaced)
                             }
                             .padding(.horizontal, 10)
-                            .frame(height: 30)
+                            .frame(height: BarlyScale.pt(30))
                             .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
                             .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm)
                                 .stroke(!folderExists ? t.danger : t.borderStrong))
@@ -189,7 +189,7 @@ public struct NewSessionSheet: View {
                                 ForEach(folders.prefix(4), id: \.self) { folder in
                                     Text((folder as NSString).lastPathComponent)
                                         .barlyText(.product.caption, color: t.text2)
-                                        .padding(.horizontal, 8).frame(height: 22)
+                                        .padding(.horizontal, 8).frame(height: BarlyScale.pt(22))
                                         .barlySelected(expandedFolder == folder || draft.folder == folder, radius: BarlyRadius.xs, idleFill: t.fill1)
                                         .onTapGesture { draft.folder = isRemote ? folder : abbreviate(folder) }
                                         .handCursor()
@@ -238,7 +238,7 @@ public struct NewSessionSheet: View {
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 56)
+                .frame(height: BarlyScale.pt(56))
                 .barlySelectCard(on, radius: BarlyRadius.sm, mark: false, idleFill: t.fill1)
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -278,7 +278,7 @@ public struct NewSessionSheet: View {
                     BarlyBareField(placeholder: draft.effectiveCommand, text: editing, style: .product.small.monospaced)
                 }
                 .padding(.horizontal, 10)
-                .frame(height: 30)
+                .frame(height: BarlyScale.pt(30))
                 .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
                 .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(invalid ? t.danger : t.text3, lineWidth: invalid ? 1 : 1.5))
                 BarlyButton(L("取消"), variant: .ghost, size: .sm) { draft.editingCommand = nil }

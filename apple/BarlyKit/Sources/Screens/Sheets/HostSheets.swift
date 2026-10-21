@@ -50,7 +50,7 @@ public struct AddHostSheet: View {
                             BarlyBareField(placeholder: L("~/.ssh/config 里的别名，或 user@hostname"), text: $alias, style: .product.small.monospaced)
                         }
                         .padding(.horizontal, 10)
-                        .frame(height: 30)
+                        .frame(height: BarlyScale.pt(30))
                         .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
                         .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm)
                             .stroke(phase == .unreachable ? t.danger : phase == .typing ? t.text3 : t.borderStrong,
@@ -180,7 +180,7 @@ struct CheckSteps: View {
                     Spacer()
                     Text(step.2).barlyText(.product.caption.monospaced, color: t.text4)
                 }
-                .frame(height: 28)
+                .frame(height: BarlyScale.pt(28))
                 .padding(.horizontal, 10)
                 .overlay(alignment: .bottom) { Hairline().opacity(0.6) }
             }
@@ -287,7 +287,7 @@ public struct ConnectSheet: View {
                 Spacer()
             }
             .padding(.horizontal, 10)
-            .frame(height: 32)
+            .frame(height: BarlyScale.pt(32))
             .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
             .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(t.text3, lineWidth: 1.5))
             if let note { Text(note).barlyText(.product.caption, color: t.text3) }
@@ -357,7 +357,7 @@ public struct LiveConnectSheet: View {
                         .focused($focused)
                         .onSubmit(send)
                         .padding(.horizontal, 10)
-                        .frame(height: 32)
+                        .frame(height: BarlyScale.pt(32))
                         .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
                         .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(session.rejected ? t.danger : t.text3, lineWidth: 1.5))
                         if session.rejected {

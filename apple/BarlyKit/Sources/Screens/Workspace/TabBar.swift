@@ -149,7 +149,7 @@ private struct GroupLabel: View {
                 }
             }
             .padding(.horizontal, 7)
-            .frame(height: 20)
+            .frame(height: BarlyScale.pt(20))
             .background(c.opacity(0.13), in: RoundedRectangle(cornerRadius: BarlyRadius.xs))
             .fixedSize()
             .contentShape(Rectangle())

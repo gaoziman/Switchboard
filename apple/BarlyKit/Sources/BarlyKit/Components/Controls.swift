@@ -33,8 +33,14 @@ public enum BarlyButtonSize: Sendable {
     case lg
     /// 47 / 16pt（移动端全宽主 CTA：Lumix New Chat）
     case xl
-    var height: CGFloat { switch self { case .sm: 30; case .md: 36; case .lg: 44; case .xl: 47 } }
-    var padX: CGFloat { switch self { case .sm: 12; case .md: 14; case .lg: 16; case .xl: 18 } }
+    var height: CGFloat {
+        let base: CGFloat = switch self { case .sm: 30; case .md: 36; case .lg: 44; case .xl: 47 }
+        return BarlyScale.pt(base)
+    }
+    var padX: CGFloat {
+        let base: CGFloat = switch self { case .sm: 12; case .md: 14; case .lg: 16; case .xl: 18 }
+        return BarlyScale.pt(base)
+    }
     var text: BarlyTextStyle {
         switch self {
         case .sm: BarlyTokens.Product.small.weight(500)

@@ -21,7 +21,7 @@ struct TerminalBannerView: View {
             buttons
         }
         .padding(.horizontal, 16)
-        .frame(height: 52)
+        .frame(height: BarlyScale.pt(52))
         .background(tint.opacity(0.07))
         .overlay(alignment: .leading) { Rectangle().fill(tint).frame(width: 2) }
         .overlay(alignment: .bottom) { Hairline() }

@@ -137,7 +137,7 @@ public struct PortForwardSheet: View {
                         MonoLabel("WHAT", color: t.text4)
                         Spacer()
                     }
-                    .padding(.horizontal, 12).frame(height: 30)
+                    .padding(.horizontal, 12).frame(height: BarlyScale.pt(30))
                     Hairline()
                     ForEach(Array(ports.enumerated()), id: \.offset) { i, p in
                         let on = i == 0
@@ -147,7 +147,7 @@ public struct PortForwardSheet: View {
                             Text(p.2).barlyText(.product.small, color: p.1.isEmpty ? t.text4 : t.text3).lineLimit(1)
                             Spacer()
                         }
-                        .padding(.horizontal, 12).frame(height: 30)
+                        .padding(.horizontal, 12).frame(height: BarlyScale.pt(30))
                         .barlySelected(on, radius: 0, idleBorder: .clear)
                         .handCursor()
                     }
@@ -196,7 +196,7 @@ public struct ReadingWindow: View {
                     Color.clear.frame(width: 60)
                 }
                 .padding(.horizontal, 16)
-                .frame(height: 40)
+                .frame(height: BarlyScale.pt(40))
                 .background(t.bg)
                 .overlay(alignment: .bottom) { Hairline() }
                 findBar
@@ -216,7 +216,7 @@ public struct ReadingWindow: View {
                 Text("3 / 12").barlyText(.product.caption.monospaced, color: t.text3)
             }
             .padding(.horizontal, 8)
-            .frame(width: 280, height: 28)
+            .frame(width: BarlyScale.pt(280), height: BarlyScale.pt(28))
             .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
             .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(t.text3, lineWidth: 1.5))
             PaneIcon(symbol: "chevron.up", help: L("上一个（⇧⌘G）"))
@@ -226,7 +226,7 @@ public struct ReadingWindow: View {
             PaneIcon(symbol: "xmark", help: L("关闭查找（Esc）"))
         }
         .padding(.horizontal, 12)
-        .frame(height: 44)
+        .frame(height: BarlyScale.pt(44))
         .background(t.bg)
         .overlay(alignment: .bottom) { Hairline() }
     }
@@ -265,7 +265,7 @@ public struct LivePortForwardSheet: View {
                                     Text(p.program ?? "—").barlyText(.product.small.monospaced, color: p.program == nil ? t.text4 : t.text2)
                                     Spacer()
                                 }
-                                .padding(.horizontal, 12).frame(height: 30)
+                                .padding(.horizontal, 12).frame(height: BarlyScale.pt(30))
                                 .barlySelected(on, radius: 0, idleBorder: .clear)
                                 .contentShape(Rectangle())
                                 .onTapGesture { remote = String(p.port); local = String(p.port); error = nil }
@@ -311,7 +311,7 @@ public struct LivePortForwardSheet: View {
             .textFieldStyle(.plain)
             .font(.system(size: 13, design: .monospaced))
             .padding(.horizontal, 10)
-            .frame(width: 120, height: 30)
+            .frame(width: BarlyScale.pt(120), height: BarlyScale.pt(30))
             .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
             .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(t.borderStrong))
     }
@@ -422,7 +422,7 @@ public struct SignInSettingsSheet: View {
             .textFieldStyle(.plain)
             .font(.system(size: 13, design: .monospaced))
             .padding(.horizontal, 10)
-            .frame(height: 30)
+            .frame(height: BarlyScale.pt(30))
             .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
             .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(t.borderStrong))
     }

@@ -11,7 +11,7 @@ public struct SessionSidebar: View {
     @Environment(\.barly) private var t
     @State private var addingHost = false
 
-    public static let width: CGFloat = 288
+    public static var width: CGFloat { BarlyScale.pt(288) }
 
     public init(store: WorkspaceStore, onNewSession: @escaping () -> Void = {}) {
         self.store = store
@@ -228,7 +228,7 @@ public struct SessionSidebar: View {
                                     Text("再显示 \(min(20, visible.hidden)) 个")
                                         .barlyText(.product.caption, color: t.text3)
                                         .padding(.leading, 34)
-                                        .frame(height: 24)
+                                        .frame(height: BarlyScale.pt(24))
                                 }
                                 .buttonStyle(.plain)
                                 .handCursor()
@@ -253,7 +253,7 @@ public struct SessionSidebar: View {
                 }
                 .foregroundStyle(t.text2)
                 .padding(.horizontal, 8)
-                .frame(height: 28)
+                .frame(height: BarlyScale.pt(28))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -262,7 +262,7 @@ public struct SessionSidebar: View {
             PaneIcon(symbol: "gearshape", help: L("设置（⌘,）"))
         }
         .padding(.horizontal, 8)
-        .frame(height: 44)
+        .frame(height: BarlyScale.pt(44))
     }
 }
 
@@ -316,7 +316,7 @@ private struct MultiSelectBar: View {
             PaneIcon(symbol: "xmark", help: L("取消选择（Esc）")) { store.clearMultiSelection() }
         }
         .padding(.horizontal, 10)
-        .frame(height: 44)
+        .frame(height: BarlyScale.pt(44))
         .background(t.fill1)
         .overlay(alignment: .top) { Hairline() }
     }
@@ -325,11 +325,12 @@ private struct MultiSelectBar: View {
 /// 外壳尺寸（Mac 主窗口比 Web 紧一档，mac-native.md §3）
 public enum WorkspaceMetrics {
     /// 侧栏栏头 / 标签栏高度（和红绿灯同一行）
-    public static let header: CGFloat = 48
-    public static let row: CGFloat = 28
-    public static let tabHeight: CGFloat = 34
-    public static let tabMin: CGFloat = 104
-    public static let tabMax: CGFloat = 200
+    // 跟着界面缩放（BarlyScale）
+    public static var header: CGFloat { BarlyScale.pt(48) }
+    public static var row: CGFloat { BarlyScale.pt(28) }
+    public static var tabHeight: CGFloat { BarlyScale.pt(34) }
+    public static var tabMin: CGFloat { BarlyScale.pt(104) }
+    public static var tabMax: CGFloat { BarlyScale.pt(200) }
 }
 
 // MARK: - 行
@@ -382,7 +383,7 @@ private struct HostHeading: View {
             switch host.connection {
             case .needsConnect:
                 Text("连接…").barlyText(.product.caption.weight(500), color: t.text)
-                    .padding(.horizontal, 7).frame(height: 20)
+                    .padding(.horizontal, 7).frame(height: BarlyScale.pt(20))
                     .overlay(RoundedRectangle(cornerRadius: BarlyRadius.xs).stroke(t.borderStrong))
                     .contentShape(Rectangle())
                     .onTapGesture(perform: onConnect)
@@ -396,7 +397,7 @@ private struct HostHeading: View {
                 MonoLabel("OFFLINE", color: t.text4)
             case .needsSignIn:
                 Text("登录…").barlyText(.product.caption.weight(500), color: t.accentText)
-                    .padding(.horizontal, 7).frame(height: 20)
+                    .padding(.horizontal, 7).frame(height: BarlyScale.pt(20))
                     .overlay(RoundedRectangle(cornerRadius: BarlyRadius.xs).stroke(t.borderStrong))
                     .contentShape(Rectangle())
                     .onTapGesture(perform: onSignIn)
@@ -562,7 +563,7 @@ private struct ModeSwitch: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 24)
+            .frame(height: BarlyScale.pt(24))
             .background(on ? t.fill3 : .clear, in: RoundedRectangle(cornerRadius: max(BarlyRadius.sm - 2, 1)))
             .contentShape(Rectangle())
         }
@@ -587,7 +588,7 @@ private struct SidebarSearchField: View {
             }
         }
         .padding(.horizontal, 8)
-        .frame(height: 28)
+        .frame(height: BarlyScale.pt(28))
         .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
         .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(t.borderStrong))
     }

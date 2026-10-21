@@ -41,9 +41,12 @@ struct MacRoot: View {
     /// 每个窗口一个工作区：标签各自的，会话库所有窗口共用一份。
     /// 在 onAppear 里建：@State 的初始值表达式每次重建视图都会再算一遍，会多登记出没用的窗口
     @State private var workspace: WorkspaceStore?
+    /// 界面缩放改了：窗口内容整个重建（尺寸是按缩放算出来的常量）；store 和终端进程都不受影响
+    @AppStorage(BarlyScale.defaultsKey) private var interfaceScale = 1.0
     var body: some View {
         if let workspace {
             WorkspaceView(store: workspace)
+                .id(interfaceScale)
                 .task { CrashReportOffer.checkOnce() }
         } else {
             Color.clear.onAppear { workspace = WorkspaceStore.live() }

@@ -43,7 +43,7 @@ struct OpenTabsList: View {
             BarlyButton(L("关闭 \(store.openTabSelection.count) 个标签…"), variant: .outline, size: .sm)
         }
         .padding(.horizontal, 12)
-        .frame(height: 44)
+        .frame(height: BarlyScale.pt(44))
         .background(t.fill1)
         .overlay(alignment: .top) { Hairline() }
     }
@@ -152,7 +152,7 @@ struct BellPopover: View {
                 Text("\(sessions.count)").barlyText(.product.caption.monospaced, color: t.text3)
             }
             .padding(.horizontal, 14)
-            .frame(height: 40)
+            .frame(height: BarlyScale.pt(40))
             Hairline()
             if sessions.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {

@@ -188,7 +188,7 @@ public struct PreviewPane: View {
             }
         }
         .padding(.horizontal, 16)
-        .frame(height: 36)
+        .frame(height: BarlyScale.pt(36))
     }
 
     private func openFind() {
@@ -219,7 +219,7 @@ public struct PreviewPane: View {
                     .barlyText(.product.caption.monospaced, color: t.text3)
             }
             .padding(.horizontal, 8)
-            .frame(width: 300, height: 28)
+            .frame(width: BarlyScale.pt(300), height: BarlyScale.pt(28))
             .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
             .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(t.text3, lineWidth: 1.5))
             PaneIcon(symbol: "chevron.up", help: L("上一个（⇧⌘G）")) { step(-1) }
@@ -229,7 +229,7 @@ public struct PreviewPane: View {
             PaneIcon(symbol: "xmark", help: L("关闭查找（Esc）")) { findOpen = false; findQuery = "" }
         }
         .padding(.horizontal, 12)
-        .frame(height: 44)
+        .frame(height: BarlyScale.pt(44))
         .onExitCommand { findOpen = false; findQuery = "" }
     }
 
@@ -286,7 +286,7 @@ private struct EntryView: View {
                 Text(summary).barlyText(.product.caption.monospaced, color: t.text4).lineLimit(1)
             }
             .padding(.horizontal, 10)
-            .frame(height: 28)
+            .frame(height: BarlyScale.pt(28))
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(RoundedRectangle(cornerRadius: BarlyRadius.xs).stroke(t.hairline))
             .handCursor()

@@ -32,6 +32,15 @@ public struct BarlyTextStyle: Sendable, Hashable {
     /// 用展示字体（BarlyTokens.Font.display）
     public var display: Self { var s = self; s.family = BarlyTokens.Font.display; return s }
 
+    /// 界面缩放：字号和（绝对值的）行高一起乘
+    public func scaled(_ f: CGFloat) -> Self {
+        guard f != 1 else { return self }
+        var s = self
+        s.size = (size * f * 2).rounded() / 2
+        if lineHeight > 4 { s.lineHeight = (lineHeight * f).rounded() }
+        return s
+    }
+
     public var resolvedFamily: String { family ?? (mono ? BarlyTokens.Font.mono : BarlyTokens.Font.ui) }
     public var font: Font { BarlyFonts.font(resolvedFamily, size: size, weight: weight) }
 
@@ -127,11 +136,28 @@ extension Int {
 
 // MARK: - .barlyText 修饰符
 
+/// 界面缩放（设置 › 外观，90%–150%）：所有 barlyText 的字号、以及要装下文字的尺寸（行高、按钮、栏头）都乘它。
+/// 存在 UserDefaults 的 interfaceScale；截图时可以用环境变量 BARLY_SCALE 指定。改了之后窗口内容整个重建（见 App 的 .id）
+public enum BarlyScale {
+    public static let defaultsKey = "interfaceScale"
+    public static let range: ClosedRange<Double> = 0.9...1.5
+
+    public static var factor: CGFloat {
+        if let env = ProcessInfo.processInfo.environment["BARLY_SCALE"], let v = Double(env) { return CGFloat(min(max(v, range.lowerBound), range.upperBound)) }
+        let v = UserDefaults.standard.double(forKey: defaultsKey)
+        return v == 0 ? 1 : CGFloat(min(max(v, range.lowerBound), range.upperBound))
+    }
+
+    /// 按缩放取整后的点数
+    public static func pt(_ x: CGFloat) -> CGFloat { (x * factor).rounded() }
+}
+
 public struct BarlyTextModifier: ViewModifier {
     let style: BarlyTextStyle
     let color: Color?
     @Environment(\.barlySystemUIFont) private var systemUI
     public func body(content: Content) -> some View {
+        let style = self.style.scaled(BarlyScale.factor)
         // Mac 工具形态（菜单栏 / 面板 / 货架 / 设置）的界面字用系统字体 SF Pro（references/mac-native.md）；
         // mono 和指定了字族的（品牌标题）不换
         let useSystem = systemUI && !style.mono && style.family == nil
