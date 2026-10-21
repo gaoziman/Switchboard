@@ -31,12 +31,14 @@ Install the CLIs you use yourself; they only need to be on the `PATH` of your lo
 ## The session library
 
 - **Projects / Open**: switch between all sessions by project and only the tabs that are open.
-- **Right-click a session**: Resume, Fork as a new session (Claude Code, Codex, OpenCode), Rename, Pin, Archive, copy or export the conversation as Markdown, copy the session ID, show in Finder, Delete.
+- **Right-click a session**: Resume, Fork as a new session (Claude Code, Codex, OpenCode), Move To (Claude Code only, see below), Rename, Pin, Archive, copy or export the conversation as Markdown, copy the session ID, show in Finder, Delete.
 - **Multiple selection**: ⌘-click or ⇧-click; actions for the selection appear at the bottom. Esc clears it.
 - **Search** (magnifier at the top of the sidebar): searches titles and the full text of every message. The first search builds an index; later searches are fast.
 - **Filter**: last 7 days, one CLI, running, or waiting for you.
 - **Subagents**: turn them on in Settings › General › Session Library to list Claude Code subagent sessions under the session that started them.
 - **Delete**: Claude Code and omp session files go to the Trash. Codex and OpenCode are deleted with their own delete commands, which is permanent. SSH hosts have no Trash, so deleting there is permanent too. The confirmation says which.
+
+**Moving to another folder** (Claude Code only): right-click a session › Move To, then pick another project on the same machine (or Other Folder… on this Mac). Switchboard resumes the session in its original folder and sends Claude Code's own `/cd <folder>` as the first message, so Claude Code moves the transcript itself; in a folder the session hasn't worked in, it asks you first in the terminal. A session can't be moved while its CLI is running; end it first.
 
 Pins, names and archives are stored in `~/Library/Application Support/Switchboard/`. Switchboard never changes the CLIs' own files.
 
@@ -45,6 +47,8 @@ Pins, names and archives are stored in `~/Library/Application Support/Switchboar
 
 - Tabs are grouped by project, like Chrome tab groups. ⌘1–8 jumps to a tab, ⌘9 to the last one; ⇧⌘[ / ⇧⌘] or ⌃Tab cycle through them.
 - **Split**: ⌥⌘N, then pick a tab for the right side.
+- **Dragging tabs**: drag within a project's group to reorder; drop on another window's tab bar to move it there; release outside every window to open it in a new window. Right-click a tab for Move to New Window and Move to Window. A moved terminal keeps running; it isn't restarted.
+- **Several windows**: ⇧⌘N opens a new window. All windows share one session library; each has its own tabs. Closing a window leaves its tabs' CLIs running in tmux.
 - **Keep alive**: CLIs run inside Switchboard's own tmux. When you close a tab you can let the CLI keep running, or set a default per machine in Settings › Host. Quitting Switchboard doesn't end them either. Clicking the session again (or relaunching, which restores tabs) reattaches.
 - **Plain terminal**: choose Terminal in New Session for a login shell. It doesn't use tmux and ends when closed.
 - Dropping a file on the terminal pastes its path. ⌘-click a path or link in the terminal to open it (Settings › General decides with what).
