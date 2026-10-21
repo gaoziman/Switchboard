@@ -35,4 +35,34 @@ import Testing
         #expect(await index.update([s], freshFor: 0, progress: { _, _ in }) == 1)
         #expect(await index.search("brand new", in: [s])[s.id] != nil)
     }
+
+    @Test("内存里只留查找用的小写文字，片段从缓存的原文截（大小写照原样）")
+    func snippetKeepsOriginalText() async throws {
+        let (s, _, dir) = try sessionFile()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let index = MessageIndex(directory: dir.appendingPathComponent("cache"))
+        await index.update([s], progress: { _, _ in })
+        #expect(await index.search("NEEDLE", in: [s])[s.id] == "hello needle")
+    }
+
+    @Test("会话不在了（删掉、不在库里），它的缓存文件也删掉")
+    func prunesCacheOfGoneSessions() async throws {
+        let (a, _, dir) = try sessionFile()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let other = dir.appendingPathComponent("b.jsonl")
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: a.sourcePath!), to: other)
+        let b = Session(id: "idx-\(UUID())", cli: .claude, hostID: Host.localID, projectPath: "/p", title: "t", lastActivity: .now,
+                        messageCount: 1, sourcePath: other.path)
+        let cache = dir.appendingPathComponent("cache")
+        let index = MessageIndex(directory: cache)
+        await index.update([a, b], progress: { _, _ in })
+        let count = { (try? FileManager.default.contentsOfDirectory(atPath: cache.path).count) ?? -1 }
+        #expect(count() == 2)
+        // 只搜 a（比如 b 归档了、没显示）：b 还在库里，缓存留着
+        await index.update([a], retaining: [a, b], progress: { _, _ in })
+        #expect(count() == 2)
+        // b 删掉了
+        await index.update([a], retaining: [a], progress: { _, _ in })
+        #expect(count() == 1)
+    }
 }

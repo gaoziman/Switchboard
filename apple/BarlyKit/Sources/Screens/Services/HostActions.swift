@@ -125,11 +125,11 @@ public extension WorkspaceStore {
     }
 
     /// 每 5 秒：问每台连着的主机「哪些 claude 在干什么、tmux 里有什么」（没断开、上次没失败的才问）
-    /// 一台主机上一次还没问完（网络慢、主机卡住）就跳过它，不叠着起 ssh
+    /// 一台主机上一次还没问完（网络慢、主机卡住）就跳过它，不叠着起 ssh；连续问不到的越隔越久再问
     func pollRemoteStatus() async {
         for host in hosts where !host.isLocal && host.connection == .connected {
             let alias = host.id
-            guard beginHostJob(.poll, alias) else { continue }
+            guard shouldPoll(alias), beginHostJob(.poll, alias) else { continue }
             let snap = await SSH.offPool { RemoteSessions.snapshot(alias) }
             endHostJob(.poll, alias)
             recordSnapshot(snap, for: alias)
@@ -148,16 +148,32 @@ public extension WorkspaceStore {
         data.hostJobs.remove("\(job):\(alias)")
     }
 
-    /// 问不到（nil）先留着上次的：偶尔一次超时灯不闪；连续 3 次问不到就清掉，别一直显示主机掉线前的状态
-    func recordSnapshot(_ snap: RemoteSessions.Snapshot?, for alias: String) {
+    /// 问不到（nil）先留着上次的：偶尔一次超时灯不闪；连续 3 次问不到就清掉，别一直显示主机掉线前的状态。
+    /// 问不到还要退避：主机关机、VPN 断了的时候别每 5 秒起一次 ssh（每次最长 15 秒）
+    func recordSnapshot(_ snap: RemoteSessions.Snapshot?, for alias: String, now: Date = Date()) {
         if let snap {
             remoteSnapshots[alias] = snap
             data.snapshotFailures[alias] = nil
+            data.nextPollAt[alias] = nil
             return
         }
         let failures = (data.snapshotFailures[alias] ?? 0) + 1
         data.snapshotFailures[alias] = failures
+        data.nextPollAt[alias] = now.addingTimeInterval(Self.pollBackoff(failures: failures))
         if failures >= 3 { remoteSnapshots[alias] = nil }
+    }
+
+    func shouldPoll(_ alias: String, now: Date = Date()) -> Bool { (data.nextPollAt[alias] ?? .distantPast) <= now }
+
+    /// 远程新会话等认领时隔几秒刷新那台主机：每次刷新都是整机 rsync + OpenCode 快照（6 次以上 ssh），
+    /// Codex 要发出第一条消息才写文件，你一直不打字就会一直等：等得越久刷得越慢
+    static func claimRefreshInterval(age: TimeInterval) -> Int {
+        age < 60 ? 10 : age < 600 ? 30 : 120
+    }
+
+    /// 连续问不到 n 次后隔多久再问：10、20、40… 秒，最多 5 分钟
+    static func pollBackoff(failures: Int) -> TimeInterval {
+        min(300, 10 * pow(2, Double(max(0, failures - 1))))
     }
 
     /// 所有没断开的 SSH 主机一起刷新

@@ -275,8 +275,12 @@ public extension WorkspaceStore {
             // tmux 会话也改成这个会话的名字：关标签后点会话能接回同一个（主机上的不改：它在主机的 tmux 里）
             if claim.hostID == Host.localID, let old = launches[tabID]?.tmuxName {
                 let new = Tmux.name(for: found.cli, sessionID: found.id)
-                // 改名失败（比如别的窗口已经改走了）就还记旧名字，免得结束这个标签时结束掉别人的
-                if Tmux.run(["rename-session", "-t", Tmux.target(old), new]) == 0 { launches[tabID]?.tmuxName = new }
+                // 改名失败（比如别的窗口已经改走了）就还记旧名字，免得结束这个标签时结束掉别人的。
+                // 在后台改：tmux server 卡住时要等满 3 秒超时
+                Task {
+                    let renamed = await SSH.offPool { Tmux.run(["rename-session", "-t", Tmux.target(old), new]) == 0 }
+                    if renamed, launches[tabID]?.tmuxName == old { launches[tabID]?.tmuxName = new; saveTabs() }
+                }
             }
             expandedProjectIDs.insert(found.projectID)
         }
@@ -400,8 +404,9 @@ public extension WorkspaceStore {
         relaunch(tab, session: session)
     }
 
-    /// Mac 唤醒、回到 app：所有在等重连的标签马上试一次
+    /// Mac 唤醒、回到 app：所有在等重连的标签马上试一次，连不上而在退避的主机也马上再问
     func retryReconnects() {
+        data.nextPollAt = [:]
         for (id, banner) in tabBanners { if case .reconnecting = banner { reconnectNow(id) } }
     }
 
@@ -464,9 +469,7 @@ public extension WorkspaceStore {
             // 远程：本机只断开 ssh；结束会话要到主机上结束它的 tmux
             TerminalRuntime.close(tab.id, endingTmux: nil)
             if !keepRunning, let tmuxName {
-                Task.detached {
-                    _ = SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, SSH.killTmuxCommand(tmuxName)], timeout: 20)
-                }
+                Task { _ = await SSH.offPool { SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, SSH.killTmuxCommand(tmuxName)], timeout: 20) } }
             }
         } else {
             TerminalRuntime.close(tab.id, endingTmux: keepRunning ? nil : tmuxName)
@@ -492,14 +495,26 @@ public extension WorkspaceStore {
     /// CLI 退出：标签不关，留着它打印的内容，上面加一条横条
     func processExited(_ tabID: UUID, code: Int32) {
         guard tab(tabID) != nil else { return }
-        // tmux 里 CLI 还活着、只是终端断开了（比如 tmux server 被别处结束）就不报
-        if launches[tabID]?.remoteHost == nil, let name = launches[tabID]?.tmuxName, Tmux.isRunning(name) { return }
+        // tmux 里 CLI 还活着、只是终端断开了（比如 tmux server 被别处结束）就不报。
+        // 问 tmux 放到后台：tmux server 卡住时 has-session 要等满 3 秒超时，别卡住主线程
+        if launches[tabID]?.remoteHost == nil, let name = launches[tabID]?.tmuxName {
+            Task {
+                guard !(await SSH.offPool { Tmux.isRunning(name) }) else { return }
+                showExit(tabID, code: code)
+            }
+            return
+        }
         // ssh 掉线（255）：CLI 多半还在主机的 tmux 里，自动重连
         if launches[tabID]?.remoteHost != nil, code == 255 {
             setActivity(.ended, forTab: tabID)
             scheduleReconnect(tabID)
             return
         }
+        showExit(tabID, code: code)
+    }
+
+    private func showExit(_ tabID: UUID, code: Int32) {
+        guard tab(tabID) != nil else { return }
         tabBanners[tabID] = code == 0 ? .exited(code: 0) : .failed(code: code, hint: L("退出码 \(code)"))
         setActivity(.ended, forTab: tabID)
         saveTabs()

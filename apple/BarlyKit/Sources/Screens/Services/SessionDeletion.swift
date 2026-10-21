@@ -108,7 +108,7 @@ public extension WorkspaceStore {
         for (i, s) in targets.enumerated() {
             if deletion?.cancelling == true { break }
             if let tab = tab(for: s) { close(tab, keepRunning: false) } else { endTmux(of: s) }
-            if let error = await Task.detached(priority: .userInitiated, operation: { SessionDeletion.delete(s, using: backend) }).value {
+            if let error = await SSH.offPool({ SessionDeletion.delete(s, using: backend) }) {
                 failures[s.id] = error
             } else {
                 sessions.removeAll { $0.id == s.id }

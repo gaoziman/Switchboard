@@ -193,4 +193,22 @@ struct RemoteSessionTests {
         for _ in 0..<50 where !manager.forwards(on: "devbox").isEmpty { try await Task.sleep(for: .milliseconds(100)) }
         #expect(manager.forwards(on: "devbox").isEmpty)
     }
+
+    @Test("转发建起来以后 ssh 的报错有人读走：管道写满（64 KB）ssh 会卡住，转发就停了")
+    func stderrIsDrained() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("fake-ssh-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let script = dir.appendingPathComponent("ssh.sh"), marker = dir.appendingPathComponent("wrote")
+        // 建起来之后（2 秒）连着报错 200 KB，写完才留记号
+        try "#!/bin/sh\nsleep 2.2\nhead -c 200000 /dev/zero >&2\ntouch '\(marker.path)'\nsleep 30\n"
+            .write(to: script, atomically: true, encoding: .utf8)
+        chmod(script.path, 0o755)
+        let manager = PortForwardManager()
+        manager.executable = script.path
+        #expect(await manager.start(host: "devbox", local: 18_081, remote: 8080) == nil)
+        defer { manager.stopAll() }
+        for _ in 0..<50 where !FileManager.default.fileExists(atPath: marker.path) { try await Task.sleep(for: .milliseconds(100)) }
+        #expect(FileManager.default.fileExists(atPath: marker.path))
+    }
 }

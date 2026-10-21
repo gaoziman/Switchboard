@@ -11,9 +11,9 @@ public actor MessageIndex {
     /// 单条消息最多收多少字
     static let maxCharsPerEntry = 4_000
 
+    /// 内存里只留查找用的文字；原文在磁盘缓存里，命中了才读出来截片段（几千个会话的全文不存两份）
     private struct Entry {
         let version: String
-        let text: String
         /// 转小写、去重音之后的文字：搜索时直接做普通查找，比每次带选项比较快一个数量级
         let folded: String
         /// 什么时候读进内存的
@@ -21,7 +21,6 @@ public actor MessageIndex {
 
         init(version: String, text: String) {
             self.version = version
-            self.text = text
             folded = MessageIndex.fold(text)
         }
     }
@@ -32,6 +31,8 @@ public actor MessageIndex {
 
     private var entries: [String: Entry] = [:]
     private let dir: URL
+    /// 上次清理磁盘缓存时库里有哪些会话：没变就不再列目录
+    private var prunedFor: Set<String>?
 
     init(directory: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("design.barly.switchboard/messages", isDirectory: true)) {
@@ -41,9 +42,12 @@ public actor MessageIndex {
 
     /// 让索引跟上这批会话。progress(已完成, 总数)；返回本次重读了几个。
     /// freshFor：这么多秒内读过的会话，文件变了也先不重读——正在跑的会话文件一直在变，
-    /// 不然每搜一次都要把它（最多 24 MB）重新解析一遍；新消息最多晚这么久搜得到
+    /// 不然每搜一次都要把它（最多 24 MB）重新解析一遍；新消息最多晚这么久搜得到。
+    /// retaining：库里所有的会话（含这次没搜的归档会话）；不在里面的会话删掉它的缓存文件
     @discardableResult
-    public func update(_ sessions: [Session], freshFor: TimeInterval = 30, progress: @Sendable (Int, Int) -> Void) -> Int {
+    public func update(_ sessions: [Session], retaining all: [Session]? = nil, freshFor: TimeInterval = 30,
+                       progress: @Sendable (Int, Int) -> Void) -> Int {
+        if let all { prune(keeping: Set(all.map(key))) }
         var reread = 0
         let live = Set(sessions.map(key))
         for (i, s) in sessions.enumerated() {
@@ -56,11 +60,11 @@ public actor MessageIndex {
             let v = version(s)
             if entries[k]?.version == v { if i % 50 == 0 { progress(i + 1, sessions.count) }; continue }
             if let cached = readCache(k), cached.version == v {
-                entries[k] = cached
+                entries[k] = Entry(version: cached.version, text: cached.text)
             } else {
                 let text = Self.extract(s)
                 entries[k] = Entry(version: v, text: text)
-                writeCache(k, Entry(version: v, text: text))
+                writeCache(k, version: v, text: text)
                 reread += 1
             }
             if i % 10 == 0 || i == sessions.count - 1 { progress(i + 1, sessions.count) }
@@ -77,11 +81,12 @@ public actor MessageIndex {
         var hits: [String: String] = [:]
         for s in sessions {
             guard let entry = entries[key(s)], entry.folded.contains(fq) else { continue }
-            // 只对命中的会话再用原文定位，截出那一句
-            if let r = entry.text.range(of: q, options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive]) {
-                hits[s.id] = Self.snippet(entry.text, around: r)
+            // 只对命中的会话再读原文定位，截出那一句（缓存读不到就用查找用的文字）
+            let text = readCache(key(s))?.text ?? entry.folded
+            if let r = text.range(of: q, options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive]) {
+                hits[s.id] = Self.snippet(text, around: r)
             } else {
-                hits[s.id] = String(entry.text.prefix(80))
+                hits[s.id] = String(text.prefix(80))
             }
         }
         return hits
@@ -130,13 +135,23 @@ public actor MessageIndex {
         return "\(Int(v.contentModificationDate?.timeIntervalSince1970 ?? 0))-\(v.fileSize ?? 0)"
     }
 
-    private func readCache(_ key: String) -> Entry? {
+    private func readCache(_ key: String) -> (version: String, text: String)? {
         guard let data = try? String(contentsOf: dir.appendingPathComponent(key + ".txt"), encoding: .utf8),
               let newline = data.firstIndex(of: "\n") else { return nil }
-        return Entry(version: String(data[..<newline]), text: String(data[data.index(after: newline)...]))
+        return (String(data[..<newline]), String(data[data.index(after: newline)...]))
     }
 
-    private func writeCache(_ key: String, _ entry: Entry) {
-        try? (entry.version + "\n" + entry.text).write(to: dir.appendingPathComponent(key + ".txt"), atomically: true, encoding: .utf8)
+    private func writeCache(_ key: String, version: String, text: String) {
+        try? (version + "\n" + text).write(to: dir.appendingPathComponent(key + ".txt"), atomically: true, encoding: .utf8)
+    }
+
+    /// 删掉不在库里的会话的缓存文件（会话删了、文件夹移出了库），不然缓存目录只增不减。库里的会话没变就不列目录
+    private func prune(keeping keys: Set<String>) {
+        guard keys != prunedFor else { return }
+        prunedFor = keys
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
+        for file in files where file.hasSuffix(".txt") && !keys.contains(String(file.dropLast(4))) {
+            try? FileManager.default.removeItem(at: dir.appendingPathComponent(file))
+        }
     }
 }

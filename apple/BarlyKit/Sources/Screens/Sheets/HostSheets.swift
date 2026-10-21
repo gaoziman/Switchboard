@@ -126,7 +126,7 @@ public struct AddHostSheet: View {
             Task {
                 try? await Task.sleep(for: .milliseconds(350))
                 guard a == normalized, !a.isEmpty else { return }
-                let resolved = await Task.detached { SSH.resolve(a) }.value
+                let resolved = await SSH.offPool { SSH.resolve(a) }
                 if a == normalized { target = resolved }
             }
         }

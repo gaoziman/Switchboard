@@ -210,7 +210,7 @@ public struct WorkspaceView: View {
             if (!store.pendingClaims.isEmpty && tick % 5 == 0) || (primary && tick % 60 == 0) {
                 Task { await store.refresh() }
             }
-            // SSH 主机：每 5 秒问一次状态；有远程新会话等认领时每 10 秒刷新那台主机
+            // SSH 主机：每 5 秒问一次状态；有远程新会话等认领时刷新那台主机（刚开每 10 秒，等久了放慢）
             if primary, tick % 5 == 0 { Task { await store.pollRemoteStatus() } }
             // 会话库外（没添加的文件夹）有 Claude 在跑：每 5 秒看一次，侧栏底部提示
             if primary, tick % 5 == 2 { store.checkOutsideRunning() }
@@ -218,10 +218,10 @@ public struct WorkspaceView: View {
             if primary, tick % 300 == 3, !store.signInConfigs.isEmpty {
                 Task { for alias in await store.checkSignIns() { NotificationService.shared.postSignInDue(alias) } }
             }
-            if tick % 10 == 0 {
-                for host in Set(store.pendingClaims.values.map(\.hostID)) where host != Host.localID {
-                    Task { await store.refreshHost(host); store.claimNewSessions() }
-                }
+            for host in Set(store.pendingClaims.values.map(\.hostID)) where host != Host.localID {
+                let newest = store.pendingClaims.values.filter { $0.hostID == host }.map(\.startedAt).max() ?? .now
+                guard tick % WorkspaceStore.claimRefreshInterval(age: Date().timeIntervalSince(newest)) == 0 else { continue }
+                Task { await store.refreshHost(host); store.claimNewSessions() }
             }
             #if os(macOS)
             // 这个窗口在屏幕上（没最小化）、app 在前台，才算「你看得到这个窗口里的标签」

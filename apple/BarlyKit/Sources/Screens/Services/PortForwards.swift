@@ -87,6 +87,11 @@ public final class PortForwardManager {
             let msg = String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
             return msg.isEmpty ? L("ssh 退出码 \(p.terminationStatus)") : String(msg.suffix(300))
         }
+        // 之后 ssh 每次本地连接失败都会报一行（主机上的服务没起来、浏览器还会重试）：没人读的话管道写满 64 KB，
+        // ssh 卡在 write 上，转发就停了、列表里还显示开着。读走丢掉，读到头就不再读
+        err.fileHandleForReading.readabilityHandler = { handle in
+            if handle.availableData.isEmpty { handle.readabilityHandler = nil }
+        }
         processes[forward.id] = p
         forwards.append(forward)
         // ssh 自己退出了（断线、主机重启）：从列表里拿掉，不再显示成开着

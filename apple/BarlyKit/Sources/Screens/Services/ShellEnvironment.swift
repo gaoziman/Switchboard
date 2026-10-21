@@ -126,7 +126,7 @@ public enum Tmux {
         run(["has-session", "-t", target(name)]) == 0
     }
 
-    /// 结束会话（End session）
+    /// 结束会话（End session）。故意同步：放到后台的话，结束后马上点会话接着跑，晚到的 kill 会把刚建的同名会话结束掉
     public static func kill(_ name: String) {
         _ = run(["kill-session", "-t", target(name)])
     }

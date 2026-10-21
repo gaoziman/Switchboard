@@ -42,6 +42,8 @@ public final class WorkspaceData {
     /// 主机上正在做的活（「poll:别名」「refresh:别名」）、状态连续问不到的次数
     @ObservationIgnored var hostJobs: Set<String> = []
     @ObservationIgnored var snapshotFailures: [String: Int] = [:]
+    /// 连续问不到的主机下次什么时候再问（退避）
+    @ObservationIgnored var nextPollAt: [String: Date] = [:]
     /// 上次开着、还没恢复的主机标签（那台主机的会话读进来后恢复）
     @ObservationIgnored var pendingRemoteTabs: [WorkspaceStore.TabRecord] = []
     /// 问过的 SSH 主机家目录（主机文件夹里的 ~ 靠它展开）

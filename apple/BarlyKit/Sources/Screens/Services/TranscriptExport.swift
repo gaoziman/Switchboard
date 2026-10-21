@@ -58,6 +58,23 @@ public enum TranscriptExport {
         case markdown, plainText, original
     }
 
+    /// 先拷到目标旁边再换过去：拷失败（源文件没了、磁盘满）时目标位置原来的文件还在
+    static func copyOriginal(from source: URL, to destination: URL) throws {
+        let fm = FileManager.default
+        let temp = destination.deletingLastPathComponent().appendingPathComponent(".\(destination.lastPathComponent).\(UUID().uuidString).tmp")
+        try fm.copyItem(at: source, to: temp)
+        do {
+            if fm.fileExists(atPath: destination.path) {
+                _ = try fm.replaceItemAt(destination, withItemAt: temp)
+            } else {
+                try fm.moveItem(at: temp, to: destination)
+            }
+        } catch {
+            try? fm.removeItem(at: temp)
+            throw error
+        }
+    }
+
     /// 读整个会话（最多 256 MB）
     static func fullEntries(_ session: Session) async -> [TranscriptEntry] {
         await Task.detached(priority: .userInitiated) { TranscriptLoader.load(session, maxBytes: 256 << 20) }.value
@@ -90,17 +107,26 @@ public extension WorkspaceStore {
         let safe = session.displayTitle.replacingOccurrences(of: "/", with: "-").prefix(60)
         panel.nameFieldStringValue = "\(safe).\(ext)"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        switch format {
-        case .original:
-            guard let path = session.sourcePath else { return }
-            try? FileManager.default.removeItem(at: url)          // 保存面板已经问过要不要覆盖
-            try? FileManager.default.copyItem(at: URL(fileURLWithPath: path), to: url)
-        case .markdown, .plainText:
-            let entries = await TranscriptExport.fullEntries(session)
-            let text = format == .markdown
-                ? TranscriptExport.markdown(session, project: project(for: session), entries: entries)
-                : TranscriptExport.plainText(session, project: project(for: session), entries: entries)
-            try? text.write(to: url, atomically: true, encoding: .utf8)
+        do {
+            switch format {
+            case .original:
+                guard let path = session.sourcePath else { return }
+                // 保存面板已经问过要不要覆盖
+                try TranscriptExport.copyOriginal(from: URL(fileURLWithPath: path), to: url)
+            case .markdown, .plainText:
+                let entries = await TranscriptExport.fullEntries(session)
+                let text = format == .markdown
+                    ? TranscriptExport.markdown(session, project: project(for: session), entries: entries)
+                    : TranscriptExport.plainText(session, project: project(for: session), entries: entries)
+                try text.write(to: url, atomically: true, encoding: .utf8)
+            }
+        } catch {
+            // 磁盘满、没权限、源文件被删了：别让人以为导出好了
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = L("没能导出「\(session.displayTitle)」")
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
         }
         #endif
     }

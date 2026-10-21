@@ -4171,6 +4171,16 @@
         }
       }
     },
+    "没能导出「%@」" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t export “%@”"
+          }
+        }
+      }
+    },
     "深色" : {
       "localizations" : {
         "en" : {

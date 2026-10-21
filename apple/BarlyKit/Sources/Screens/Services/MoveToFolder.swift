@@ -24,8 +24,19 @@ public extension WorkspaceStore {
 
     func move(_ session: Session, to folder: String) {
         guard canMove(session), (folder as NSString).standardizingPath != (session.projectPath as NSString).standardizingPath else { return }
-        if isLive, session.hostID == Host.localID,
-           Tmux.runningSessions(fresh: true).contains(Tmux.name(for: session.cli, sessionID: session.id)) { return }
+        // 正在跑就不搬。问 tmux 放到后台：tmux server 卡住时要等满 3 秒超时
+        if isLive, session.hostID == Host.localID {
+            let name = Tmux.name(for: session.cli, sessionID: session.id)
+            Task {
+                guard !(await SSH.offPool { Tmux.runningSessions(fresh: true).contains(name) }) else { return }
+                resumeMoved(session, to: folder)
+            }
+            return
+        }
+        resumeMoved(session, to: folder)
+    }
+
+    private func resumeMoved(_ session: Session, to folder: String) {
         if session.hostID == Host.localID { addFolder(folder, refreshNow: false) }   // 搬过去的目标文件夹进会话库（R4）
         let prompt = "/cd \(folder)"     // /cd 把后面整行当路径，带空格也照原样传
         open(session: session, arguments: session.cli.resumeArguments(session.id) + [prompt],

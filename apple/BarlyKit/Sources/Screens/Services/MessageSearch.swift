@@ -12,12 +12,13 @@ public extension WorkspaceStore {
             return
         }
         let targets = sessions.filter { $0.parentSessionID == nil && (showsArchived || !$0.isArchived) }
+        let all = sessions
         // @MainActor 的类本身是 Sendable，任务跑完就释放，不会循环引用
         let store = self
         searchTask = Task {
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
-            await MessageIndex.shared.update(targets) { done, total in
+            await MessageIndex.shared.update(targets, retaining: all) { done, total in
                 Task { @MainActor in
                     guard store.trimmedQuery == query else { return }
                     store.indexProgress = done < total ? (done, total) : nil

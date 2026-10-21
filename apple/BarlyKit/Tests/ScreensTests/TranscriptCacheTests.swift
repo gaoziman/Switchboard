@@ -51,3 +51,23 @@ import Testing
         #expect(TranscriptLoader.stamp(s) != first)
     }
 }
+
+@Suite("导出原始文件")
+struct ExportOriginalTests {
+    @Test("拷不过去（源文件没了）时，目标位置原来的文件不动，并且报错")
+    func failedCopyKeepsExistingFile() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sb-export-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let dest = dir.appendingPathComponent("out.jsonl")
+        try "old".write(to: dest, atomically: true, encoding: .utf8)
+        #expect(throws: (any Error).self) { try TranscriptExport.copyOriginal(from: dir.appendingPathComponent("gone.jsonl"), to: dest) }
+        #expect(try String(contentsOf: dest, encoding: .utf8) == "old")
+
+        let source = dir.appendingPathComponent("s.jsonl")
+        try "new".write(to: source, atomically: true, encoding: .utf8)
+        try TranscriptExport.copyOriginal(from: source, to: dest)
+        #expect(try String(contentsOf: dest, encoding: .utf8) == "new")
+        try TranscriptExport.copyOriginal(from: source, to: dir.appendingPathComponent("fresh.jsonl"))   // 目标不存在也行
+    }
+}

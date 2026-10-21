@@ -27,6 +27,8 @@ public final class HostCheck {
     public private(set) var findings: [HostFinding] = []
     public private(set) var running = false
     public private(set) var finishedAt: Date?
+    /// 这台 Mac 的 ssh 版本：体检时在后台读好，「复制报告」「用 agent 修复」是按钮动作，不在主线程上起 ssh
+    private var localSSH = ""
 
     public init(alias: String) {
         self.alias = alias
@@ -41,6 +43,7 @@ public final class HostCheck {
         findings = []
         for i in steps.indices { steps[i].status = .pending; steps[i].seconds = nil }
         defer { running = false; finishedAt = Date() }
+        localSSH = await SSH.offPool { SSH.run(["/usr/bin/ssh", "-V"], timeout: 5)?.stderr.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" }
 
         // 1. 登录
         guard let first = await step(0, "echo __SB_OK__") else {
@@ -101,7 +104,7 @@ public final class HostCheck {
         // OpenCode 的会话要在主机上用 python3 做快照才能列出来
         if found.contains(where: { $0.hasPrefix(CLIKind.opencode.title) }) {
             let alias = self.alias
-            let py = await Task.detached { SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, "command -v python3"], timeout: 15) }.value
+            let py = await SSH.offPool { SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, "command -v python3"], timeout: 15) }
             if py?.status != 0 {
                 findings.append(HostFinding(level: .warning, title: L("主机上没有 python3，列不出 OpenCode 会话"),
                                             detail: L("Switchboard 在主机上用 python3 给 OpenCode 的库做一份只含会话的快照再拷过来（不拷账号和凭据）。装上 python3 就行。"),
@@ -120,7 +123,7 @@ public final class HostCheck {
         steps[i].status = .running
         let start = Date()
         let alias = self.alias
-        let r = await Task.detached { SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, script], timeout: timeout) }.value
+        let r = await SSH.offPool { SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, script], timeout: timeout) }
         steps[i].seconds = Date().timeIntervalSince(start)
         steps[i].status = r == nil ? .failed : .done
         return r
@@ -129,8 +132,7 @@ public final class HostCheck {
     /// 「复制报告」：先写这台 Mac 的版本，再列发现
     public var report: String {
         let mac = ProcessInfo.processInfo.operatingSystemVersionString
-        let ssh = SSH.run(["/usr/bin/ssh", "-V"], timeout: 5)?.stderr.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        var lines = [L("Switchboard 主机体检：\(alias)"), "macOS \(mac) · \(ssh)", ""]
+        var lines = [L("Switchboard 主机体检：\(alias)"), "macOS \(mac) · \(localSSH)", ""]
         for f in findings {
             let tag = f.level == .problem ? L("[问题]") : f.level == .warning ? L("[提醒]") : L("[正常]")
             lines.append("\(tag) \(f.title)")

@@ -318,7 +318,7 @@ public struct LivePortForwardSheet: View {
         }
         .task {
             let alias = self.alias
-            ports = await Task.detached { PortForwarding.listPorts(alias) ?? [] }.value
+            ports = await SSH.offPool { PortForwarding.listPorts(alias) ?? [] }
         }
     }
 
