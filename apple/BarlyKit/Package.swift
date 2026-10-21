@@ -25,7 +25,7 @@ let package = Package(
             resources: [.copy("Resources/Fonts"), .copy("Resources/Brand")]
         ),
         .target(name: "BarlyExamples", dependencies: ["BarlyKit"]),
-        .target(name: "Screens", dependencies: ["BarlyKit", "BarlyExamples",
+        .target(name: "Screens", dependencies: ["BarlyKit",
                                                .product(name: "SwiftTerm", package: "SwiftTerm", condition: .when(platforms: [.macOS])),
                                                .product(name: "GhosttyTerminal", package: "libghostty-spm", condition: .when(platforms: [.macOS]))]),
         .executableTarget(name: "barly-snap", dependencies: ["BarlyKit", "BarlyExamples", "Screens"]),

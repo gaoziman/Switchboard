@@ -1,26 +1,6 @@
 import SwiftUI
 import BarlyKit
 
-/// 示例屏目录：snap 和两个 App 都从这里取
-public struct ExampleScreen: Identifiable, Sendable {
-    public enum Platform: String, Sendable { case ios, macos }
-    public let id: String
-    public let title: String
-    public let platform: Platform
-    public let make: @Sendable @MainActor () -> AnyView
-    /// 自定义尺寸：菜单栏弹窗（如 360×480）、浮动面板（如 680×420）、设置窗口（如 640×440）、复刻屏
-    public var customSize: CGSize? = nil
-    public var size: CGSize { customSize ?? (platform == .ios ? CGSize(width: 393, height: 852) : CGSize(width: 1440, height: 1024)) }
-    /// 产品屏（Sources/Screens/ProductScreens.swift）也用它登记；id 以 ios- / mac- 开头，截图名 = id-light|dark.png
-    public init(id: String, title: String, platform: Platform, make: @escaping @Sendable @MainActor () -> AnyView) {
-        self.id = id; self.title = title; self.platform = platform; self.make = make
-    }
-    public init(id: String, title: String, platform: Platform, size: CGSize, make: @escaping @Sendable @MainActor () -> AnyView) {
-        self.id = id; self.title = title; self.platform = platform; self.make = make; self.customSize = size
-    }
-    public var scale: CGFloat { platform == .ios ? 3 : 2 }
-}
-
 @MainActor
 public enum ExampleCatalog {
     public static let all: [ExampleScreen] = [

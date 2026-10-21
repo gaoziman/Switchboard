@@ -1,0 +1,31 @@
+# 每次推送到 main、每个 PR：跑业务逻辑的单测（BarlyKit 包里的 ScreensTests，190 多个）。
+# 需要真实数据、SSH 主机、Ghostty 的测试按环境变量门控（SB_REAL / SB_HOST / SB_GHOSTTY），这里不设，会跳过。
+# 完整的 app 构建（xcodegen + 静态编译 tmux，几分钟）留在本地的 scripts/install.sh、scripts/release.sh
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # 包的最低系统是 macOS 26，要 Xcode 26 以上的工具链
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: 工具链
+        run: xcodebuild -version && swift --version
+      - name: 缓存 SwiftPM 依赖
+        uses: actions/cache@v4
+        with:
+          path: apple/BarlyKit/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('apple/BarlyKit/Package.resolved') }}
+      - name: 单测
+        working-directory: apple/BarlyKit
+        run: swift test

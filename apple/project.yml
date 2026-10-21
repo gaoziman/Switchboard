@@ -36,8 +36,6 @@ targets:
       - package: BarlyKit
         product: BarlyKit
       - package: BarlyKit
-        product: BarlyExamples
-      - package: BarlyKit
         product: Screens
       - package: Sparkle
     info:
@@ -77,7 +75,8 @@ targets:
           # 静态编译的 tmux（scripts/tmux/build-universal.sh，第一次要下载源码、两种架构各编译一遍，几分钟）拷进 Resources/Tmux
           # app 是 universal 的，tmux 也要两种架构都有：只有 arm64 的话 Intel Mac 上 tmux 起不来
           RUNTIME="${PROJECT_DIR}/.build/Tmux/universal/runtime"
-          if [ ! -x "$RUNTIME/bin/tmux" ]; then zsh "${PROJECT_DIR}/scripts/tmux/build-universal.sh" >/dev/null || exit 1; fi
+          # 每次都跑：没改过就直接用缓存（按指纹），改了 scripts/tmux/versions.sh 才重新编译（只判断文件在不在的话，升级 tmux 后还会打包旧的）
+          zsh "${PROJECT_DIR}/scripts/tmux/build-universal.sh" >/dev/null || exit 1
           DEST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Tmux"
           rm -rf "$DEST" && mkdir -p "$DEST"
           cp -R "$RUNTIME/bin" "$RUNTIME/share" "$RUNTIME/licenses" "$RUNTIME/versions.txt" "$DEST/"

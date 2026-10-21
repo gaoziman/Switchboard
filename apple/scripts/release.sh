@@ -41,6 +41,11 @@ fail() { echo "❌ $1"; exit 1; }
 
 if [[ $PUBLISH -eq 1 ]]; then
     gh release view "v$VERSION" --repo "$REPO" >/dev/null 2>&1 && fail "v$VERSION 已经发过了"
+    # 发出去的二进制要能对上 tag 指的源码：工作区干净、HEAD 已经推上去，tag 打在 HEAD 上（不带 --target 会打在远端默认分支的最新提交上）。
+    # BarlyKit/Package.resolved 每次 xcodebuild 都会被写进 Sparkle（app 的依赖），不算改动
+    git diff --quiet HEAD -- ':(exclude)BarlyKit/Package.resolved' || fail "工作区有没提交的改动，先提交再发"
+    git fetch --quiet origin || fail "连不上 origin，确认不了 HEAD 有没有推上去"
+    [[ -n "$(git branch -r --contains HEAD)" ]] || fail "HEAD（$(git rev-parse --short HEAD)）还没推到远端，先 git push"
 fi
 
 # ── 签名身份 ──
@@ -128,6 +133,6 @@ fi
 step "发布到 GitHub：v$VERSION"
 NOTES_ARGS=(--notes "Switchboard $VERSION")
 [[ -n "$NOTES" ]] && NOTES_ARGS=(--notes-file "$NOTES")
-gh release create "v$VERSION" --repo "$REPO" --title "Switchboard $VERSION" "${NOTES_ARGS[@]}" "$ZIP" "$OUT/appcast.xml"
+gh release create "v$VERSION" --repo "$REPO" --target "$(git rev-parse HEAD)" --title "Switchboard $VERSION" "${NOTES_ARGS[@]}" "$ZIP" "$OUT/appcast.xml"
 echo
 echo "✅ 已发布：https://github.com/$REPO/releases/tag/v$VERSION"

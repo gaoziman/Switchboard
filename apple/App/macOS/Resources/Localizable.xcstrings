@@ -1363,16 +1363,6 @@
         }
       }
     },
-    "保存失败：%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t save: %@"
-          }
-        }
-      }
-    },
     "信任并连接" : {
       "localizations" : {
         "en" : {
@@ -3363,16 +3353,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Increase Terminal Font Size (=)"
-          }
-        }
-      }
-    },
-    "数据文件读不出来，已保留原文件：%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't read the data file. The original was kept: %@"
           }
         }
       }

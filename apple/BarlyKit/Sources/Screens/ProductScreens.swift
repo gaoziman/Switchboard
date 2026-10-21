@@ -1,6 +1,5 @@
 import SwiftUI
 import BarlyKit
-import BarlyExamples
 
 /// 产品屏登记处（barly-snap 的截图入口）。id 以 mac- 开头，截图文件名就是 `<id>-light.png` / `<id>-dark.png`。
 /// 和 design/brief.md 的屏幕清单一一对应。App 入口优先展示 `macos.first`（工作区）。
