@@ -28,9 +28,10 @@ public enum TranscriptLoader {
         let url = URL(fileURLWithPath: path)
         var builder = Builder()
         switch session.cli {
-        case .claude: claude(JSONLines.trailing(url, maxBytes: maxBytes), &builder, subagent: session.parentSessionID != nil)
-        case .codex: codex(JSONLines.trailing(url, maxBytes: maxBytes), &builder)
-        case .omp: omp(JSONLines.trailing(url, maxBytes: maxBytes), &builder)
+        // 边读边解析：导出时读最多 256 MB，不把整块和每行的拷贝同时留在内存里
+        case .claude: claude(JSONLines.trailingLines(url, maxBytes: maxBytes), &builder, subagent: session.parentSessionID != nil)
+        case .codex: codex(JSONLines.trailingLines(url, maxBytes: maxBytes), &builder)
+        case .omp: omp(JSONLines.trailingLines(url, maxBytes: maxBytes), &builder)
         case .opencode: opencode(database: url, sessionID: session.id, &builder)
         }
         return builder.finish()
@@ -97,7 +98,7 @@ public enum TranscriptLoader {
     // MARK: Claude Code
 
     /// subagent = 子代理自己的记录：每一行都标着 isSidechain，不能过滤
-    static func claude(_ lines: [Data], _ b: inout Builder, subagent: Bool = false) {
+    static func claude(_ lines: some Sequence<Data>, _ b: inout Builder, subagent: Bool = false) {
         for line in lines {
             guard let r = JSONLines.object(line), subagent || r["isSidechain"] as? Bool != true, r["isMeta"] as? Bool != true,
                   let message = r["message"] as? [String: Any] else { continue }
@@ -130,7 +131,7 @@ public enum TranscriptLoader {
 
     // MARK: Codex
 
-    static func codex(_ lines: [Data], _ b: inout Builder) {
+    static func codex(_ lines: some Sequence<Data>, _ b: inout Builder) {
         for line in lines {
             guard let r = JSONLines.object(line), r["type"] as? String == "response_item",
                   let p = r["payload"] as? [String: Any] else { continue }
@@ -160,7 +161,7 @@ public enum TranscriptLoader {
 
     // MARK: omp（Pi 格式）
 
-    static func omp(_ lines: [Data], _ b: inout Builder) {
+    static func omp(_ lines: some Sequence<Data>, _ b: inout Builder) {
         for line in lines {
             guard let r = JSONLines.object(line), r["type"] as? String == "message",
                   let m = r["message"] as? [String: Any] else { continue }
