@@ -76,7 +76,7 @@ Switchboard 把 Claude Code、Codex、OpenCode、omp 留在这台 Mac 和 SSH �
 
 1. 侧栏底部「添加 SSH 主机…」，填 `~/.ssh/config` 里的别名，或 `user@hostname`。端口、密钥、跳板机这些写在 `~/.ssh/config` 里。
 2. Switchboard 用后台方式（不弹密码）试连一次，查主机上有没有 rsync、tmux 和各个 CLI。
-3. 主机上的 **Claude Code 和 Codex** 会话会镜像到这台 Mac（需要主机上有 `rsync`），列在主机名下面，同样可以读、接着跑、删除。OpenCode 和 omp 在主机上的会话目前不列出。
+3. 主机上四个 CLI 的会话都会镜像到这台 Mac（需要主机上有 `rsync`），列在主机名下面，同样可以读、接着跑、删除。OpenCode 的库里还有它的账号和凭据，所以不整个拷：Switchboard 在主机上用 `python3` 做一份只含会话的快照再拷过来。
 4. 主机上装了 tmux 时，远程会话同样保活；没装的话连接断开 CLI 就会结束。
 
 **要密码或验证码的主机**：在主机标题上点「连接…」，Switchboard 会把 ssh 的提问（密码、验证码、主机指纹）搬进对话框。登录一次之后，后台刷新、删除、标签都共用这条连接，不会再问。Switchboard 不保存你输入的任何东西。

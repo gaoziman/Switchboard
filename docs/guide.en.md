@@ -76,7 +76,7 @@ The light in front of each session (colors as in the default theme):
 
 1. Click Add SSH Host… at the bottom of the sidebar and enter an alias from `~/.ssh/config`, or `user@hostname`. Ports, keys and jump hosts belong in `~/.ssh/config`.
 2. Switchboard connects once in the background (without prompting) and checks for rsync, tmux and each CLI on the host.
-3. **Claude Code and Codex** sessions on the host are mirrored to this Mac (the host needs `rsync`) and listed under the host's name, where you can read, resume and delete them as usual. OpenCode and omp sessions on hosts are not listed yet.
+3. Sessions of all four CLIs on the host are mirrored to this Mac (the host needs `rsync`) and listed under the host's name, where you can read, resume and delete them as usual. OpenCode's database also holds its accounts and credentials, so it isn't copied whole: Switchboard uses `python3` on the host to make a snapshot with only the sessions, and copies that.
 4. If the host has tmux, remote sessions are kept alive too; without it, the CLI ends when the connection drops.
 
 **Hosts that ask for a password or a code**: click Connect… on the host's heading. Switchboard brings ssh's questions (password, verification code, host key fingerprint) into a dialog. After one sign-in, background refreshes, deletes and tabs share that connection and won't ask again. Switchboard doesn't store anything you type.
