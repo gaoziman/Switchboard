@@ -181,16 +181,19 @@ struct RemoteSessionTests {
 @Suite struct PortForwardLifecycleTests {
     @Test("转发的 ssh 自己退出了（断线、主机重启）就从列表里拿掉，不再显示成开着")
     func exitedForwardIsRemoved() async throws {
-        let script = FileManager.default.temporaryDirectory.appendingPathComponent("fake-ssh-\(UUID()).sh")
-        defer { try? FileManager.default.removeItem(at: script) }
-        try "#!/bin/sh\nsleep 2.6\n".write(to: script, atomically: true, encoding: .utf8)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("fake-ssh-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let script = dir.appendingPathComponent("ssh.sh"), quit = dir.appendingPathComponent("quit")
+        // 什么时候退出由测试说了算（等记号文件），不靠固定的秒数：机器忙时 2 秒的启动确认会拖得比它活得还久
+        try "#!/bin/sh\nwhile [ ! -e '\(quit.path)' ]; do sleep 0.05; done\n".write(to: script, atomically: true, encoding: .utf8)
         chmod(script.path, 0o755)
         let manager = PortForwardManager()
         manager.executable = script.path
         #expect(await manager.start(host: "devbox", local: 18_080, remote: 8080) == nil)   // 2 秒还活着 = 建起来了
         #expect(manager.forwards(on: "devbox").count == 1)
-        // 假 ssh 2.6 秒后退出；并行跑满时进程调度会慢，最多等 5 秒
-        for _ in 0..<50 where !manager.forwards(on: "devbox").isEmpty { try await Task.sleep(for: .milliseconds(100)) }
+        FileManager.default.createFile(atPath: quit.path, contents: nil)                   // 断线：ssh 自己退出
+        for _ in 0..<100 where !manager.forwards(on: "devbox").isEmpty { try await Task.sleep(for: .milliseconds(50)) }
         #expect(manager.forwards(on: "devbox").isEmpty)
     }
 

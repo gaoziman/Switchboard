@@ -81,7 +81,8 @@ import Testing
         let st = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [])
         st.data.isRefreshing = true                       // 假装别的窗口正在读
         let waiter = Task { await st.refresh() }
-        try await Task.sleep(for: .milliseconds(120))
+        // 等它进到「排队」那一步（机器忙时任务起得慢，不用固定的毫秒数）
+        for _ in 0..<500 where !st.data.refreshQueued { try await Task.sleep(for: .milliseconds(10)) }
         #expect(st.data.refreshQueued)
         st.data.isRefreshing = false                      // 那次读完了
         await waiter.value                                // 这时才返回
