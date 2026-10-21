@@ -16,8 +16,9 @@ struct TabDragItem: Codable, Transferable, Identifiable {
     static var transferRepresentation: some TransferRepresentation { CodableRepresentation(contentType: .switchboardTab) }
 }
 
-/// 顶部标签栏：类 Chrome 标签组。每个项目一组，组前一个组色标签（点一下折叠），
-/// 选中的标签和下面的终端同底色连成一片，顶上一根组色细线。标签随数量收窄，到最窄后横向滚动。
+/// 顶部标签栏：按项目分组。每组上面一行「跨栏组头」——组色小字项目名 + 一根同色细线横跨整组（点一下折叠），
+/// 下面一行是这组的标签（26pt，同组之间细竖线，选中是一块浅底）。项目名在标签之上、不和标签抢同一行，
+/// 一个项目开多个对话也一眼看出归属。标签随数量收窄，到最窄后横向滚动。
 public struct TabBar: View {
     @Bindable var store: WorkspaceStore
     var sidebarHidden: Bool
@@ -35,42 +36,53 @@ public struct TabBar: View {
         GeometryReader { proxy in
             let width = tabWidth(available: proxy.size.width)
             HStack(alignment: .bottom, spacing: 0) {
-                if sidebarHidden { TrafficLights().padding(.leading, 16).frame(height: WorkspaceMetrics.tabHeight) }
+                if sidebarHidden { TrafficLights().padding(.leading, 16).frame(height: WorkspaceMetrics.tabBar) }
                 BarlyScroll(.horizontal) {
-                    HStack(alignment: .bottom, spacing: 0) {
+                    HStack(alignment: .bottom, spacing: 14) {
                         ForEach(store.tabGroups) { group in
-                            GroupLabel(group: group) { store.toggleCollapsed(group) }
-                            if !group.isCollapsed {
-                                ForEach(group.tabs) { tab in
-                                    TabItem(tab: tab, tint: group.tint,
-                                            selected: store.selectedTab?.id == tab.id || store.activeSplit?.contains(tab.id) == true,
-                                            width: width) {
-                                        store.selection = .tab(tab.id)
-                                    } onClose: {
-                                        store.requestClose(tab)
+                            if group.isCollapsed {
+                                CollapsedGroup(group: group) { store.toggleCollapsed(group) }
+                            } else {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    GroupHeader(group: group) { store.toggleCollapsed(group) }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    HStack(spacing: 0) {
+                                        ForEach(Array(group.tabs.enumerated()), id: \.element.id) { index, tab in
+                                            let selected = isSelected(tab)
+                                            TabItem(tab: tab, selected: selected,
+                                                    divider: index > 0 && !selected && !isSelected(group.tabs[index - 1]),
+                                                    width: width) {
+                                                store.selection = .tab(tab.id)
+                                            } onClose: {
+                                                store.requestClose(tab)
+                                            }
+                                            .draggable(TabDragItem.self, item: TabDragItem(id: tab.id))
+                                            .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: tab.id) }
+                                            .contextMenu { tabMenu(tab) }
+                                        }
                                     }
-                                    .draggable(TabDragItem.self, item: TabDragItem(id: tab.id))
-                                    .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: tab.id) }
-                                    .contextMenu { tabMenu(tab) }
                                 }
+                                // 组头横跨整组：组宽 = 标签总宽和项目名里较宽的那个，横线铺满
+                                .fixedSize(horizontal: true, vertical: false)
                             }
                         }
                     }
+                    .padding(.bottom, 5)
+                    .frame(height: WorkspaceMetrics.tabBar, alignment: .bottom)
                     .padding(.leading, 6)
                     .onDragSessionUpdated(dragUpdated)
                 }
-                .frame(height: WorkspaceMetrics.header, alignment: .bottom)
+                .frame(height: WorkspaceMetrics.tabBar)
                 // 标签栏空白处：放到最后（别的窗口拖来的进它项目的组）
                 .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: nil) }
                 PaneIcon(symbol: "plus", help: L("新会话（⌘T）"), action: onNewSession)
                     .padding(.horizontal, 8)
                     .frame(height: WorkspaceMetrics.tabHeight)
             }
-            .frame(height: WorkspaceMetrics.header, alignment: .bottom)
+            .frame(height: WorkspaceMetrics.tabBar, alignment: .bottom)
         }
-        .frame(height: WorkspaceMetrics.header)
-        .background(t.bg)
-        .overlay(alignment: .bottom) { Hairline() }
+        .frame(height: WorkspaceMetrics.tabBar)
+        .background(t.shellBase)
     }
 
     /// 放下一个标签：同一窗口就调顺序（只在同一个项目组里），别的窗口拖来的就搬过来
@@ -118,54 +130,103 @@ public struct TabBar: View {
         Button("关闭标签") { store.requestClose(tab) }
     }
 
+    /// 单个标签选中，或在当前分屏里
+    private func isSelected(_ tab: TerminalTab) -> Bool {
+        store.selectedTab?.id == tab.id || store.activeSplit?.contains(tab.id) == true
+    }
+
     /// 展开的标签平分可用宽度，夹在最窄和最宽之间
     private func tabWidth(available: CGFloat) -> CGFloat {
         let visible = store.tabGroups.filter { !$0.isCollapsed }.reduce(0) { $0 + $1.tabs.count }
         guard visible > 0 else { return WorkspaceMetrics.tabMax }
-        let labels = CGFloat(store.tabGroups.count) * 110
+        // 组间距 14；折叠的组只剩一个小块 ≈ 100
+        let labels = store.tabGroups.reduce(CGFloat(0)) { $0 + ($1.isCollapsed ? 114 : 14) }
         let share = (available - labels - 60) / CGFloat(visible)
         return min(WorkspaceMetrics.tabMax, max(WorkspaceMetrics.tabMin, share))
     }
 }
 
-/// 组色：取身份的图标色池，按项目稳定分配（不是强调色）
+/// 组色：标签栏组头、面板头、已打开视图共用的 5 种项目色（不是强调色）。
+/// 不用蓝 / 靛（深色底上发闷、和强调色撞）；深色用提亮的一套，浅色用压暗的一套，小字也读得清
 extension BarlyPalette {
-    func groupColor(_ tint: Int) -> Color { chipIcon(tint, force: true) }
+    func groupColor(_ tint: Int) -> Color {
+        // 5 种色相互相拉开 ≥ 50°（青和绿太近，深色底上分不清，去掉了）
+        //            珊瑚橙     绿        玫红      紫        金
+        let dark:  [UInt32] = [0xF0915E, 0x5DC28B, 0xEC7FA9, 0xB48CF0, 0xD8B14E]
+        let light: [UInt32] = [0xC4602C, 0x2E8A57, 0xC2497A, 0x7B54C9, 0x977112]
+        let i = ((tint % dark.count) + dark.count) % dark.count
+        return Color(hex: isDark ? dark[i] : light[i])
+    }
 }
 
-private struct GroupLabel: View {
+/// 组头：组色小字项目名 + 一根组色细线横跨整组，右端一个小竖钩收尾（像表格的分组表头）
+private struct GroupHeader: View {
     let group: TabGroup
     let action: () -> Void
     @Environment(\.barly) private var t
+    @State private var hovered = false
+
+    var body: some View {
+        let c = t.groupColor(group.tint)
+        HStack(spacing: 6) {
+            Button(action: action) {
+                Text(group.name)
+                    .barlyText(.product.caption.size(11).weight(600), color: hovered ? c.barlyMix(t.text, 0.35) : c)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { hovered = $0 }
+            .handCursor()
+            .help(L("折叠 \(group.name)"))
+            Rectangle().fill(c.opacity(0.45)).frame(height: 1)
+                .overlay(alignment: .trailing) { Rectangle().fill(c.opacity(0.45)).frame(width: 1, height: 5).offset(y: 2) }
+        }
+        .padding(.leading, 10).padding(.trailing, 4)
+        .frame(height: WorkspaceMetrics.groupHeader - 2, alignment: .center)
+    }
+}
+
+/// 折叠的组：组头那行照样是项目名，下面一行是「N 个 · 最紧急的状态」
+private struct CollapsedGroup: View {
+    let group: TabGroup
+    let action: () -> Void
+    @Environment(\.barly) private var t
+    @State private var hovered = false
 
     var body: some View {
         let c = t.groupColor(group.tint)
         Button(action: action) {
-            HStack(spacing: 5) {
-                Text(group.name).barlyText(.product.caption.weight(500), color: c)
-                if group.isCollapsed {
-                    Text("\(group.tabs.count)").barlyText(.product.caption.monospaced, color: c.opacity(0.8))
+            VStack(alignment: .leading, spacing: 0) {
+                Text(group.name).barlyText(.product.caption.size(11).weight(600), color: c)
+                    .padding(.leading, 8)
+                    .frame(height: WorkspaceMetrics.groupHeader - 2)
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).foregroundStyle(t.text4)
+                    Text(verbatim: L("\(group.tabs.count) 个标签")).barlyText(.product.caption, color: t.text3)
                     ActivityLamp(group.mostUrgent, size: 5)
                 }
+                .padding(.horizontal, 8)
+                .frame(height: WorkspaceMetrics.tabHeight)
+                .background(hovered ? t.fill1 : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
             }
-            .padding(.horizontal, 7)
-            .frame(height: BarlyScale.pt(20))
-            .background(c.opacity(0.13), in: RoundedRectangle(cornerRadius: BarlyRadius.xs))
+            .padding(.leading, 2)
             .fixedSize()
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { hovered = $0 }
         .handCursor()
-        .padding(.horizontal, 6)
-        .frame(height: WorkspaceMetrics.tabHeight)
-        .help(group.isCollapsed ? "展开 \(group.name)" : "折叠 \(group.name)")
+        .help(L("展开 \(group.name)"))
     }
 }
 
 private struct TabItem: View {
     let tab: TerminalTab
-    let tint: Int
     let selected: Bool
+    /// 左边一根细竖线（同组相邻、两边都没选中）
+    var divider = false
     let width: CGFloat
     let action: () -> Void
     var onClose: () -> Void = {}
@@ -173,25 +234,25 @@ private struct TabItem: View {
     @State private var hovered = false
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 6) {
             if tab.isPlainTerminal {
-                Image(systemName: "terminal").font(.system(size: 10)).foregroundStyle(t.text3)
+                Image(systemName: "terminal").font(.system(size: 9)).foregroundStyle(t.text3)
             } else {
-                ActivityLamp(tab.activity, size: 6)
+                ActivityLamp(tab.activity, size: 5)
             }
             Color.clear.frame(maxWidth: .infinity).overlay(alignment: .leading) {
                 Text(tab.title)
-                    .barlyText(.product.small.weight(selected ? 500 : 400), color: selected ? t.text : t.text3)
+                    .barlyText(.product.caption.size(12).weight(selected ? 500 : 400), color: selected ? t.text : hovered ? t.text2 : t.text3)
                     .lineLimit(1).fixedSize()
             }
             .clipped()
-            .mask(LinearGradient(stops: [.init(color: .black, location: 0.78), .init(color: .clear, location: 1)],
+            .mask(LinearGradient(stops: [.init(color: .black, location: 0.8), .init(color: .clear, location: 1)],
                                  startPoint: .leading, endPoint: .trailing))
             if selected || hovered {
                 Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .bold))
+                    .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(t.text3)
-                    .frame(width: 16, height: 16)
+                    .frame(width: 14, height: 14)
                     .contentShape(Rectangle())
                     .onTapGesture(perform: onClose)
                     .handCursor()
@@ -200,9 +261,10 @@ private struct TabItem: View {
         }
         .padding(.horizontal, 10)
         .frame(width: width, height: WorkspaceMetrics.tabHeight)
-        .background { background }
-        .overlay(alignment: .trailing) {
-            if !selected { Rectangle().fill(t.hairline).frame(width: 1, height: 14) }
+        .background(selected ? t.shellSelected : hovered ? t.fill1 : .clear,
+                    in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
+        .overlay(alignment: .leading) {
+            if divider { Rectangle().fill(t.hairline).frame(width: 1, height: 12) }
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: action)
@@ -211,18 +273,6 @@ private struct TabItem: View {
         .help(tab.title)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
-    }
-
-    @ViewBuilder private var background: some View {
-        if selected {
-            UnevenRoundedRectangle(topLeadingRadius: BarlyRadius.sm, topTrailingRadius: BarlyRadius.sm)
-                .fill(t.canvas)
-                .overlay(alignment: .top) { Rectangle().fill(t.groupColor(tint)).frame(height: 2) }
-                .clipShape(UnevenRoundedRectangle(topLeadingRadius: BarlyRadius.sm, topTrailingRadius: BarlyRadius.sm))
-                .padding(.bottom, -1)
-        } else if hovered {
-            RoundedRectangle(cornerRadius: BarlyRadius.sm).fill(t.fill1).padding(.vertical, 4)
-        }
     }
 }
 

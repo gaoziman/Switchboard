@@ -8,21 +8,37 @@ public enum ActivityMonitor {
     /// 让 Codex 把状态写进终端标题：Ready / Working / Action Required
     public static let codexTitleArguments = ["-c", #"tui.terminal_title=["activity","run-state","thread-id"]"#]
 
-    /// 所有活着的 claude 进程报的状态：会话 ID → 状态
-    public static func claudeStatuses(root: URL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"]
-        ?? NSHomeDirectory() + "/.claude")) -> [String: Activity] {
+    public static var claudeRoot: URL {
+        URL(fileURLWithPath: ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"] ?? NSHomeDirectory() + "/.claude")
+    }
+
+    /// 活着的 claude 进程各自的状态文件（`~/.claude/sessions/<pid>.json`）
+    static func claudeRecords(root: URL) -> [[String: Any]] {
         let dir = root.appendingPathComponent("sessions")
-        guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return [:] }
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return [] }
+        return files.compactMap { name in
+            guard name.hasSuffix(".json"), let pid = Int32(name.dropLast(5)), kill(pid, 0) == 0 || errno == EPERM,
+                  let data = try? Data(contentsOf: dir.appendingPathComponent(name)) else { return nil }
+            return JSONLines.object(data)
+        }
+    }
+
+    /// 所有活着的 claude 进程报的状态：会话 ID → 状态
+    public static func claudeStatuses(root: URL = claudeRoot) -> [String: Activity] {
         var out: [String: Activity] = [:]
-        for name in files where name.hasSuffix(".json") {
-            guard let pid = Int32(name.dropLast(5)), kill(pid, 0) == 0 || errno == EPERM,
-                  let data = try? Data(contentsOf: dir.appendingPathComponent(name)),
-                  let record = JSONLines.object(data),
-                  let id = record["sessionId"] as? String,
-                  let activity = claudeActivity(status: record["status"] as? String) else { continue }
+        for record in claudeRecords(root: root) {
+            guard let id = record["sessionId"] as? String, let activity = claudeActivity(status: record["status"] as? String) else { continue }
             out[id] = activity
         }
         return out
+    }
+
+    /// 活着的 claude 进程：会话 ID + 工作目录（会话库外在跑的提示用）
+    public static func claudeRunning(root: URL = claudeRoot) -> [(sessionID: String, cwd: String)] {
+        claudeRecords(root: root).compactMap { r in
+            guard let id = r["sessionId"] as? String, let cwd = r["cwd"] as? String, cwd.hasPrefix("/") else { return nil }
+            return (id, cwd)
+        }
     }
 
     static func claudeActivity(status: String?) -> Activity? {

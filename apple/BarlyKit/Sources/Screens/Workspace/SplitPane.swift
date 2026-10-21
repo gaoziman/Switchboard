@@ -19,7 +19,7 @@ public struct SplitPane: View {
 
     public var body: some View {
         GeometryReader { proxy in
-            let usable = proxy.size.width - 16 - 12
+            let usable = proxy.size.width - 12
             HStack(spacing: 0) {
                 pane(for: split.left, focused: store.selectedTab?.id == split.left)
                     .frame(width: usable * split.ratio)
@@ -38,25 +38,24 @@ public struct SplitPane: View {
                     if let right = split.right {
                         pane(for: right, focused: store.selectedTab?.id == right)
                     } else {
-                        TabChooser(candidates: store.splitCandidates, groupFor: store.group(for:)) { store.fillSplit(with: $0) }
+                        TerminalPanel {
+                            TabChooser(candidates: store.splitCandidates, groupFor: store.group(for:)) { store.fillSplit(with: $0) }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
-            .padding(8)
         }
-        .background(t.canvas)
     }
 
     @ViewBuilder private func pane(for id: UUID, focused: Bool) -> some View {
         if let tab = store.tab(id) {
-            VStack(spacing: 0) {
-                PaneToolbar(tab: tab, tint: store.group(for: tab)?.tint ?? 0, focused: focused) { store.closeSplitSide(id) }
-                terminal(tab)
+            TerminalPanel(focused: focused, showsFocus: true) {
+                VStack(spacing: 0) {
+                    PanelHeader(tab: tab, group: store.group(for: tab), focused: focused) { store.closeSplitSide(id) }
+                    terminal(tab)
+                }
             }
-            .clipShape(RoundedRectangle(cornerRadius: BarlyRadius.md))
-            .overlay(RoundedRectangle(cornerRadius: BarlyRadius.md)
-                .stroke(focused ? t.borderStrong : t.hairline, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { store.selection = .tab(id) }
         }
@@ -82,33 +81,6 @@ public struct SplitPane: View {
     }
 }
 
-/// 窗格角上的小工具条：组色细点 · 标题 · 状态 · 关闭
-private struct PaneToolbar: View {
-    let tab: TerminalTab
-    let tint: Int
-    let focused: Bool
-    var onClose: () -> Void = {}
-    @Environment(\.barly) private var t
-
-    var body: some View {
-        HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 1).fill(t.groupColor(tint)).frame(width: 3, height: 12)
-            if case .session(_, let cli) = tab.kind { CLIMark(cli, size: 14) }
-            Text(tab.title).barlyText(.product.caption.weight(focused ? 500 : 400), color: focused ? t.text : t.text3)
-                .lineLimit(1)
-            ActivityLamp(tab.activity, size: 6)
-            Spacer(minLength: 8)
-            PaneIcon(symbol: "xmark", help: L("这一边不分屏了（标签还开着）"), action: onClose)
-                .scaleEffect(0.85)
-        }
-        .padding(.leading, 10).padding(.trailing, 4)
-        .frame(height: BarlyScale.pt(30))
-        .background(focused ? t.fill1 : t.bg)
-        .overlay(alignment: .bottom) { Hairline() }
-    }
-}
-
-/// 分屏右边的「选一个标签」：本窗口不在分屏里的其他标签，↑↓ + Return 选
 private struct TabChooser: View {
     let candidates: [TerminalTab]
     let groupFor: (TerminalTab) -> TabGroup?

@@ -16,6 +16,14 @@ public final class WorkspaceData {
     public var library = LibraryState()
     public var remoteSnapshots: [String: RemoteSessions.Snapshot] = [:]
     public var signInConfigs: [String: SignInConfig] = [:]
+    /// 每台主机上发现过会话的文件夹（候选索引，按需算：添加列表、空状态推荐、升级挑选）
+    public var folderCandidates: [String: [FolderLibrary.Candidate]] = [:]
+    /// 升级到「手动添加文件夹」：不为空时弹一次挑选
+    public var migrationCandidates: [FolderLibrary.Candidate]?
+    /// 升级挑选的默认勾选
+    public var migrationPicks: [String] = []
+    /// 库外有会话在跑的文件夹（侧栏底部提示）
+    public var outsideRunning: [FolderLibrary.Outside] = []
     /// 正在读会话库：别的窗口这时再要刷新就跳过
     @ObservationIgnored var isRefreshing = false
 

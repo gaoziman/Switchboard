@@ -44,18 +44,25 @@ public struct SessionSidebar: View {
                 }
             }
             .frame(maxHeight: .infinity, alignment: .top)
+            // 从访达拖文件夹进来 = 添加到会话库
+            .dropDestination(for: URL.self) { urls, _ in
+                let folders = urls.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+                for url in folders { store.addProject(url.path) }
+                return !folders.isEmpty
+            }
             if store.selectedSessionIDs.count > 1 {
                 MultiSelectBar(store: store)
             } else if let deletion = store.deletion {
                 DeletionBar(progress: deletion) { store.deletion?.cancelling = true }
+            } else if let outside = store.outsideRunning.first {
+                OutsideRunningBar(outside: outside, onAdd: { store.addFolder(outside.path) }, onDismiss: { store.dismissOutside(outside) })
             } else if let tip = store.tip {
                 TipCard(text: tip, onClose: { store.tip = nil }, onNext: { store.nextTip() })
             }
-            Hairline()
             footer
         }
         .frame(width: Self.width)
-        .background(t.bg)
+        .background(t.shellBase)
         .clipped()
         .onExitCommand { store.clearMultiSelection() }
         .sheet(isPresented: $addingHost) {
@@ -91,6 +98,18 @@ public struct SessionSidebar: View {
                     store.hostSheet = nil
                     if config != store.signInConfigs[alias] { store.setSignIn(config, for: alias) }
                 }
+            case .addFolder(let alias):
+                FolderPickerSheet(title: L("添加 \(alias) 上的文件夹"),
+                                  subtitle: L("勾选要在侧栏里显示的项目；主机上还没有会话的文件夹可以直接填路径。"),
+                                  candidates: store.folderCandidates(on: alias), added: store.folderIDs(on: alias),
+                                  allowsPath: true, loading: true,
+                                  secondaryTitle: L("取消"), onSecondary: { store.hostSheet = nil }) { picked, path in
+                    store.hostSheet = nil
+                    for id in picked { store.addFolder(String(id.dropFirst(alias.count + 1)), on: alias, refreshNow: false) }
+                    if let path { store.addFolder(path, on: alias, refreshNow: false) }
+                    Task { await store.reloadHostSessions(alias) }
+                }
+                .task { await store.loadFolderCandidates(on: alias) }
             case .signIn(let alias):
                 if let config = store.signInConfigs[alias] {
                     LiveConnectSheet(alias: alias, command: config.command) { ok in
@@ -114,7 +133,6 @@ public struct SessionSidebar: View {
                 .opacity(store.canGoForward ? 1 : 0.35)
             Spacer()
             PaneIcon(symbol: "magnifyingglass", help: L("搜索项目、会话和消息（⌘F）")) { store.isSearching.toggle() }
-            PaneIcon(symbol: "bell", help: L("等待你的会话"), badge: !store.waitingSessions.isEmpty) { store.isBellOpen.toggle() }
             PaneIcon(symbol: "plus", help: L("新会话（⌘N）"), action: onNewSession)
         }
         .padding(.leading, 16).padding(.trailing, 8)
@@ -140,11 +158,6 @@ public struct SessionSidebar: View {
             SidebarMessage(symbol: "exclamationmark.triangle", title: L("读不到会话"), detail: message) {
                 BarlyButton(L("重试"), icon: "arrow.clockwise", variant: .outline, size: .sm) { store.retry() }
             }
-        case .loaded where !store.hasAnySession:
-            SidebarMessage(symbol: "rectangle.stack", title: L("还没有会话"),
-                           detail: L("在 Claude Code、Codex、OpenCode 或 omp 里聊过一次，会话就会按项目出现在这里。")) {
-                BarlyButton(L("新会话"), icon: "plus", variant: .outline, size: .sm, action: onNewSession)
-            }
         case .loaded where store.isFiltering && !store.hasSearchResults:
             SidebarMessage(symbol: "magnifyingglass", title: L("没有匹配「\(store.trimmedQuery)」的会话"),
                            detail: L("搜索会查项目名、路径、会话标题和会话 ID。消息全文第一次搜索要先建索引。")) {
@@ -157,8 +170,9 @@ public struct SessionSidebar: View {
 
     private var library: some View {
         BarlyScroll {
-            LazyVStack(alignment: .leading, spacing: 1) {
+            LazyVStack(alignment: .leading, spacing: 2) {
                 ForEach(store.hosts) { host in
+                    let duplicateNames = Set(Dictionary(grouping: store.projects(on: host.id), by: \.name).filter { $0.value.count > 1 }.keys)
                     let collapsed = store.collapsedHostIDs.contains(host.id) && !store.isFiltering
                     HostHeading(host: host, collapsed: collapsed, count: store.projects(on: host.id).count,
                                 onConnect: { store.connectingHost = host.id },
@@ -167,19 +181,26 @@ public struct SessionSidebar: View {
                     }
                     .contextMenu {
                         if host.isLocal {
-                            Button("添加项目文件夹…") { addProjectFolder() }
+                            Button("添加文件夹…") { addProjectFolder() }
                         } else {
                             HostMenu(store: store, host: host)
                         }
                     }
-                    if !collapsed, !host.isLocal, store.projects(on: host.id).isEmpty, !store.isFiltering {
-                        HostEmptyNote(host: host)
+                    if !collapsed, store.projects(on: host.id).isEmpty, !store.isFiltering {
+                        if host.isLocal {
+                            FolderEmptyState(store: store, onAdd: addProjectFolder)
+                        } else {
+                            HostEmptyNote(host: host)
+                        }
                     }
                     ForEach(collapsed ? [] : store.projects(on: host.id)) { project in
                         ProjectRow(project: project,
                                    expanded: store.isExpanded(project),
                                    activity: store.activity(of: project),
-                                   count: store.sessionCount(of: project)) {
+                                   count: store.sessionCount(of: project),
+                                   showsParent: duplicateNames.contains(project.name) || ProjectRow.looksGenerated(project.name),
+                                   menu: { AnyView(ProjectMenu(store: store, project: project)) },
+                                   quickStart: { AnyView(NewSessionItems(store: store, project: project, includesTerminal: true)) }) {
                             store.toggleExpanded(project)
                         }
                         .contextMenu { ProjectMenu(store: store, project: project) }
@@ -201,14 +222,10 @@ public struct SessionSidebar: View {
                                     store.click(session, command: Self.modifier(.command), shift: Self.modifier(.shift))
                                 } onOpen: {
                                     store.resume(session)
+                                } menu: {
+                                    AnyView(sessionMenu(session))
                                 }
-                                .contextMenu {
-                                    if store.selectedSessionIDs.count > 1, store.selectedSessionIDs.contains(session.id) {
-                                        MultiSessionMenu(store: store)
-                                    } else {
-                                        SessionMenu(store: store, session: session)
-                                    }
-                                }
+                                .contextMenu { sessionMenu(session) }
                                 .draggable(session.id)
                                 .dropDestination(for: String.self) { ids, _ in
                                     guard session.isPinned, let id = ids.first, store.session(id) != nil else { return false }
@@ -227,8 +244,10 @@ public struct SessionSidebar: View {
                                 Button { store.showMore(in: project) } label: {
                                     Text("再显示 \(min(20, visible.hidden)) 个")
                                         .barlyText(.product.caption, color: t.text3)
-                                        .padding(.leading, 34)
-                                        .frame(height: BarlyScale.pt(24))
+                                        .padding(.leading, WorkspaceMetrics.sessionInset)
+                                        .frame(maxWidth: .infinity, minHeight: BarlyScale.pt(24), alignment: .leading)
+                                        .background { TreeRowBackground() }
+                                        .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                                 .handCursor()
@@ -244,22 +263,14 @@ public struct SessionSidebar: View {
 
     // MARK: 底部
 
+    /// 底栏：添加主机 · 设置 ｜ 右边是全部会话的状态计数（等你 · 工作中 · 没看过的完成），点一下打开「等待你的会话」
     private var footer: some View {
-        HStack(spacing: 4) {
-            Button { addingHost = true } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "plus").font(.system(size: 11, weight: .medium))
-                    Text("添加 SSH 主机…").barlyText(.product.small)
-                }
-                .foregroundStyle(t.text2)
-                .padding(.horizontal, 8)
-                .frame(height: BarlyScale.pt(28))
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .handCursor()
-            Spacer()
+        HStack(spacing: 2) {
+            PaneIcon(symbol: "folder.badge.plus", help: L("添加文件夹…")) { addProjectFolder() }
+            PaneIcon(symbol: "server.rack", help: L("添加 SSH 主机…")) { addingHost = true }
             PaneIcon(symbol: "gearshape", help: L("设置（⌘,）"))
+            Spacer()
+            StatusCounts(sessions: store.sessions) { store.isBellOpen.toggle() }
         }
         .padding(.horizontal, 8)
         .frame(height: BarlyScale.pt(44))
@@ -267,6 +278,15 @@ public struct SessionSidebar: View {
 }
 
 extension SessionSidebar {
+    /// 会话的右键菜单（悬停「…」也用它）：多选时是批量菜单
+    @ViewBuilder func sessionMenu(_ session: Session) -> some View {
+        if store.selectedSessionIDs.count > 1, store.selectedSessionIDs.contains(session.id) {
+            MultiSessionMenu(store: store)
+        } else {
+            SessionMenu(store: store, session: session)
+        }
+    }
+
     /// 选一个文件夹加成项目（还没有会话也列出来，可以从它的「新会话…」开始）
     func addProjectFolder() {
         #if os(macOS)
@@ -289,6 +309,42 @@ extension SessionSidebar {
     }
 }
 
+/// 底栏右边的状态计数：只列有的那几种，全是 0 时只留一个安静的铃铛
+private struct StatusCounts: View {
+    let sessions: [Session]
+    let action: () -> Void
+    @Environment(\.barly) private var t
+    @State private var hovered = false
+
+    var body: some View {
+        let counts: [(Activity, Int)] = [Activity.waitingForAnswer, .working, .doneUnseen].map { a in
+            (a, sessions.reduce(0) { $0 + ($1.activity == a ? 1 : 0) })
+        }.filter { $0.1 > 0 }
+        Button(action: action) {
+            HStack(spacing: 10) {
+                if counts.isEmpty {
+                    Image(systemName: "bell").font(.system(size: 13)).foregroundStyle(t.text3)
+                }
+                ForEach(counts, id: \.0) { activity, n in
+                    HStack(spacing: 4) {
+                        ActivityLamp(activity, size: 7)
+                        Text("\(n)").barlyText(.product.caption.monospaced.weight(500),
+                                               color: activity == .waitingForAnswer ? t.accentText : t.text2)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+            .frame(height: BarlyScale.pt(28))
+            .background(hovered ? t.fill2 : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .handCursor()
+        .help(L("等待你的会话"))
+    }
+}
+
 /// 多选时侧栏底部：已选几个 · 归档 · 删除 · 结束运行 · 取消
 private struct MultiSelectBar: View {
     let store: WorkspaceStore
@@ -302,7 +358,7 @@ private struct MultiSelectBar: View {
             Spacer()
             if !running.isEmpty {
                 BarlyButton(L("结束 \(running.count) 个"), variant: .ghost, size: .sm) {
-                    for s in running { if let tab = store.tab(for: s) { store.close(tab, keepRunning: false) } else { Tmux.kill(Tmux.name(for: s.cli, sessionID: s.id)) } }
+                    for s in running { store.endSession(s) }
                 }
             }
             BarlyButton(L("归档"), variant: .ghost, size: .sm) {
@@ -328,9 +384,34 @@ public enum WorkspaceMetrics {
     // 跟着界面缩放（BarlyScale）
     public static var header: CGFloat { BarlyScale.pt(48) }
     public static var row: CGFloat { BarlyScale.pt(28) }
-    public static var tabHeight: CGFloat { BarlyScale.pt(34) }
-    public static var tabMin: CGFloat { BarlyScale.pt(104) }
-    public static var tabMax: CGFloat { BarlyScale.pt(200) }
+    public static var tabHeight: CGFloat { BarlyScale.pt(26) }
+    /// 标签栏：上面组头一行 + 下面标签一行，比侧栏栏头高一点，组头不贴窗口顶边
+    public static var tabBar: CGFloat { BarlyScale.pt(52) }
+    /// 标签栏组头（项目名 + 横线）那一行
+    public static var groupHeader: CGFloat { BarlyScale.pt(16) }
+    public static var tabMin: CGFloat { BarlyScale.pt(96) }
+    public static var tabMax: CGFloat { BarlyScale.pt(180) }
+    /// 终端面板离窗口边、面板之间的距离
+    public static var gutter: CGFloat { BarlyScale.pt(8) }
+    /// 面板头：标题 · 路径 · CLI
+    public static var panelHeader: CGFloat { BarlyScale.pt(34) }
+    /// 面板 8、行和标签 6（审美底线的圆角阶梯）
+    public static let panelRadius: CGFloat = 8
+    public static let rowRadius: CGFloat = 6
+    /// 项目行的文件夹图标宽；会话行的树形引导线对准它的中线
+    public static let folderIcon: CGFloat = 16
+    /// 引导线离行左边的距离：行内边距 8 + 箭头 10 + 间距 6 + 图标一半 8
+    public static let guideX: CGFloat = 32
+    /// 会话行内容的起点（引导线右边留一点）
+    public static let sessionInset: CGFloat = 42
+}
+
+/// 外壳的两层底：窗口底（侧栏、标签栏）更暗，终端面板浮在上面。浅色时底是浅灰、面板是白
+extension BarlyPalette {
+    var shellBase: Color { isDark ? bg : fill1 }
+    var panelBg: Color { canvas }
+    /// 底上的选中块：深色抬一级，浅色用白
+    var shellSelected: Color { isDark ? fill2 : canvas }
 }
 
 // MARK: - 行
@@ -350,7 +431,7 @@ private struct HostEmptyNote: View {
         case .connected:
             return host.installedCLIs.isEmpty
                 ? L("主机上没有找到 Claude Code、Codex，也没有它们的会话。")
-                : L("主机上还没有 \(host.installedCLIs.map(\.title).formatted(.list(type: .and))) 的会话。")
+                : L("还没有添加这台主机上的文件夹：右键主机名 →「添加文件夹…」。")
         }
     }
 
@@ -417,13 +498,26 @@ private struct ProjectRow: View {
     let expanded: Bool
     let activity: Activity
     let count: Int
+    /// 名字分不清时（同一台主机上重名、或者是 UUID 这类看不出是什么的）在下面写上一级路径
+    var showsParent = false
+    /// 悬停时右边换成「…」（项目菜单）和「+」（快速新建）
+    var menu: (() -> AnyView)? = nil
+    var quickStart: (() -> AnyView)? = nil
     let action: () -> Void
     @Environment(\.barly) private var t
     @State private var hovered = false
 
+    private var showsActions: Bool { hovered && menu != nil }
+
+    /// 上一级目录的最后两段：「Sam990/ProjectDock」
+    private var parent: String {
+        let dir = (project.shortPath as NSString).deletingLastPathComponent
+        return dir.split(separator: "/").suffix(2).joined(separator: "/")
+    }
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 7) {
+            HStack(spacing: 6) {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(t.text4)
@@ -432,26 +526,52 @@ private struct ProjectRow: View {
                 Image(systemName: project.folderExists ? "folder" : "questionmark.folder")
                     .font(.system(size: 12))
                     .foregroundStyle(project.folderExists ? t.text3 : t.warning)
-                Text(project.name)
-                    .barlyText(.product.small.weight(500), color: t.text)
-                    .lineLimit(1).truncationMode(.middle)
+                    .frame(width: WorkspaceMetrics.folderIcon)
+                    .help(project.folderExists ? project.path : L("文件夹已经不在了"))
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(project.name)
+                        .barlyText(.product.small.weight(600), color: t.text)
+                        .lineLimit(1).truncationMode(.middle)
+                    if showsParent, !parent.isEmpty {
+                        Text(parent).barlyText(.product.caption.size(11), color: t.text4).lineLimit(1).truncationMode(.head)
+                    }
+                }
+                .layoutPriority(1)
                 if project.isPinned {
                     Image(systemName: "pin.fill").font(.system(size: 7)).foregroundStyle(t.text4)
                 }
-                Spacer(minLength: 4)
+                Spacer(minLength: 6)
                 ActivityLamp(activity, size: 6)
+                // 会话数靠右成一列；悬停时让位给「… +」
                 Text("\(count)").barlyText(.product.caption.monospaced, color: t.text4)
-                    .frame(minWidth: 14, alignment: .trailing)
+                    .frame(minWidth: 22, alignment: .trailing)
+                    .opacity(showsActions ? 0 : 1)
+                    .frame(width: showsActions ? RowAction.size * 2 + 2 : nil, alignment: .trailing)
             }
             .padding(.horizontal, 8)
-            .frame(height: WorkspaceMetrics.row)
-            .background(hovered ? t.fill1 : .clear, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
+            .frame(minHeight: WorkspaceMetrics.row)
+            .padding(.vertical, showsParent ? 3 : 0)
+            .background(hovered ? t.fill1 : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .trailing) {
+            if showsActions, let menu, let quickStart {
+                HStack(spacing: 2) {
+                    RowAction(symbol: "ellipsis", help: L("更多"), content: menu)
+                    RowAction(symbol: "plus", help: L("新会话"), content: quickStart)
+                }
+                .padding(.trailing, 6)
+            }
+        }
         .onHover { hovered = $0 }
         .handCursor()
         .help(project.path)
+    }
+
+    /// 只有十六进制和横线、又很长：多半是工具生成的 UUID 目录
+    static func looksGenerated(_ name: String) -> Bool {
+        name.count >= 16 && name.allSatisfy { $0.isHexDigit || $0 == "-" }
     }
 }
 
@@ -470,6 +590,8 @@ struct SessionRow: View {
     let action: () -> Void
     /// 双击：在原目录里接着跑
     var onOpen: () -> Void = {}
+    /// 悬停时右边换成「…」，点开就是右键菜单
+    var menu: (() -> AnyView)? = nil
     @Environment(\.barly) private var t
     @State private var hovered = false
 
@@ -497,9 +619,9 @@ struct SessionRow: View {
                         .help("\(childCount) 个子代理会话")
                         .padding(.leading, -18)
                 }
-                CLIMark(session.cli)
+                CLIMark(session.cli, size: 14)
                 Text(session.displayTitle)
-                    .barlyText(.product.small.weight(selected ? 500 : 400), color: selected ? t.selectedFg : t.text2)
+                    .barlyText(.product.small.weight(selected ? 500 : 400), color: selected ? t.text : t.text2)
                     .lineLimit(1)
                 if session.isPinned {
                     Image(systemName: "pin.fill").font(.system(size: 7)).foregroundStyle(t.text4)
@@ -508,32 +630,90 @@ struct SessionRow: View {
                     Image(systemName: "archivebox").font(.system(size: 9)).foregroundStyle(t.text4)
                 }
                 Spacer(minLength: 6)
-                if session.activity == .notRunning {
-                    RelativeAge(session.lastActivity)
-                } else {
-                    ActivityLamp(session.activity)
+                Group {
+                    if session.activity == .notRunning {
+                        RelativeAge(session.lastActivity)
+                    } else {
+                        ActivityLamp(session.activity)
+                    }
                 }
+                .opacity(hovered && menu != nil ? 0 : 1)
             }
-            .padding(.leading, 26 + indent).padding(.trailing, 8)
+            .padding(.leading, WorkspaceMetrics.sessionInset + indent).padding(.trailing, 8)
             .frame(height: WorkspaceMetrics.row)
             .overlay(alignment: .bottomLeading) {
                 if let snippet {
                     Text(highlighted(snippet)).barlyText(.product.caption, color: t.text3).lineLimit(1)
-                        .padding(.leading, 50).padding(.trailing, 8)
+                        .padding(.leading, WorkspaceMetrics.sessionInset + indent + 22).padding(.trailing, 8)
                         .offset(y: 14)
                 }
             }
             .padding(.bottom, snippet == nil ? 0 : 16)
-            .background(!selected && hovered ? t.fill1 : .clear, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
-            .barlySelected(selected, radius: BarlyRadius.sm, idleBorder: .clear)
+            .background { TreeRowBackground(selected: selected, hovered: hovered) }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .trailing) {
+            if hovered, let menu {
+                RowAction(symbol: "ellipsis", help: L("更多"), content: menu)
+                    .padding(.trailing, 6)
+            }
+        }
         .simultaneousGesture(TapGesture(count: 2).onEnded { onOpen() })
         .onHover { hovered = $0 }
         .handCursor()
         .help("\(session.displayTitle)\n单击预览，双击接着跑")
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// 行尾悬停出现的小按钮，点开是一个菜单（项目的「…」「+」）
+struct RowAction: View {
+    static let size: CGFloat = 22
+    let symbol: String
+    let help: String
+    let content: () -> AnyView
+    @Environment(\.barly) private var t
+    @State private var hovered = false
+
+    var body: some View {
+        Menu { content() } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(hovered ? t.text : t.text2)
+                .frame(width: Self.size, height: 20)
+                .background(hovered ? t.fill2 : .clear, in: RoundedRectangle(cornerRadius: 5))
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        .onHover { hovered = $0 }
+        .handCursor()
+        .help(help)
+    }
+}
+
+/// 会话行的底：左边一根树形引导线（对准项目的文件夹图标，相邻行连成一条），选中时这一段变成强调色短条；
+/// 浅底从引导线右边开始，树的线条始终露在外面
+struct TreeRowBackground: View {
+    var selected = false
+    var hovered = false
+    @Environment(\.barly) private var t
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius)
+                .fill(selected ? t.shellSelected : hovered ? t.fill1 : .clear)
+                .padding(.leading, WorkspaceMetrics.guideX + 5)
+            Rectangle().fill(t.hairline)
+                .frame(width: 1)
+                .padding(.vertical, -1)
+                .padding(.leading, WorkspaceMetrics.guideX)
+            if selected {
+                RoundedRectangle(cornerRadius: 1.5).fill(t.accent)
+                    .frame(width: 3, height: 16)
+                    .padding(.leading, WorkspaceMetrics.guideX - 1)
+            }
+        }
     }
 }
 
@@ -549,8 +729,7 @@ private struct ModeSwitch: View {
             segment(.openTabs, L("已打开"), count: openTabs)
         }
         .padding(2)
-        .background(t.fill1, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
-        .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(t.hairline))
+        .background(t.isDark ? t.fill1 : t.fill2, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
     }
 
     private func segment(_ mode: SidebarMode, _ title: String, count: Int? = nil) -> some View {
@@ -564,7 +743,7 @@ private struct ModeSwitch: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: BarlyScale.pt(24))
-            .background(on ? t.fill3 : .clear, in: RoundedRectangle(cornerRadius: max(BarlyRadius.sm - 2, 1)))
+            .background(on ? (t.isDark ? t.fill3 : t.canvas) : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius - 2))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

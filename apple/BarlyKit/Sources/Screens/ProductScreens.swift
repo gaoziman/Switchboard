@@ -73,6 +73,26 @@ public enum ProductScreens {
         ExampleScreen(id: "mac-tour-2", title: "首启引导 · 2 新会话", platform: .macos) { AnyView(workspace("tour2")) },
         ExampleScreen(id: "mac-tour-3", title: "首启引导 · 3 SSH 主机", platform: .macos) { AnyView(workspace("tour3")) },
         ExampleScreen(id: "mac-tip", title: "侧栏小贴士", platform: .macos) { AnyView(workspace("tip")) },
+        // 第 5 批：会话库只显示添加的文件夹
+        ExampleScreen(id: "mac-folders-empty", title: "会话库 · 还没有文件夹", platform: .macos) { AnyView(workspace("folders-empty")) },
+        ExampleScreen(id: "mac-folders-migration", title: "会话库 · 升级挑选", platform: .macos) {
+            AnyView(SheetOverlay { workspace("folders-empty") } sheet: {
+                FolderPickerSheet(title: L("侧栏改为只显示你添加的文件夹"),
+                                  subtitle: L("从发现过会话的文件夹里挑要保留的；以后可以随时添加或移除，会话文件不受影响。"),
+                                  candidates: MockData.folderCandidates,
+                                  initial: Array(MockData.folderCandidates.prefix(3).map(\.id)),
+                                  secondaryTitle: L("全都不要"), onSecondary: {}) { _, _ in }
+            })
+        },
+        ExampleScreen(id: "mac-folders-host", title: "会话库 · 添加主机上的文件夹", platform: .macos) {
+            AnyView(SheetOverlay { workspace("default") } sheet: {
+                FolderPickerSheet(title: L("添加 devbox 上的文件夹"),
+                                  subtitle: L("勾选要在侧栏里显示的项目；主机上还没有会话的文件夹可以直接填路径。"),
+                                  candidates: MockData.devboxCandidates, added: Set(MockData.devboxCandidates.prefix(1).map(\.id)),
+                                  allowsPath: true, secondaryTitle: L("取消"), onSecondary: {}) { _, _ in }
+            })
+        },
+        ExampleScreen(id: "mac-outside-running", title: "会话库外有会话在跑", platform: .macos) { AnyView(workspace("outside-running")) },
     ] + HostCheckSheet.Phase.allCases.map { phase in
         ExampleScreen(id: "mac-host-check-\(phase.rawValue)", title: "主机体检 · \(phase.rawValue)", platform: .macos) {
             AnyView(SheetOverlay { workspace("default") } sheet: { HostCheckSheet(phase: phase) })

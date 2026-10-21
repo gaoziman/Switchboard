@@ -61,3 +61,27 @@ import Testing
         #expect(fresh.allTabs.map(\.id) == [a.id] && fresh.selection == .tab(a.id))
     }
 }
+
+/// 组色：按项目路径稳定分配，但避开已打开的组正在用的颜色
+@Suite struct GroupTintTests {
+    @Test func stableForSameProject() {
+        #expect(WorkspaceStore.tint(for: "local:/a/b", avoiding: []) == WorkspaceStore.tint(for: "local:/a/b", avoiding: []))
+    }
+
+    @Test func skipsTintsInUse() {
+        let first = WorkspaceStore.tint(for: "local:/a/b", avoiding: [])
+        let second = WorkspaceStore.tint(for: "local:/a/b", avoiding: [first])
+        #expect(second != first)
+        #expect((0..<WorkspaceStore.tintCount).contains(second))
+    }
+
+    @Test func allDistinctThenWrapsToHash() {
+        var used: Set<Int> = []
+        for i in 0..<WorkspaceStore.tintCount {
+            used.insert(WorkspaceStore.tint(for: "local:/p\(i)", avoiding: used))
+        }
+        #expect(used.count == WorkspaceStore.tintCount)
+        // 全用完了：退回哈希本身
+        #expect(WorkspaceStore.tint(for: "local:/p0", avoiding: used) == WorkspaceStore.tint(for: "local:/p0", avoiding: []))
+    }
+}

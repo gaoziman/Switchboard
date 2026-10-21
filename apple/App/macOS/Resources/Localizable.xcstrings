@@ -183,6 +183,28 @@
         }
       }
     },
+    "%lld 个标签" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld tab"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld tabs"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld 个没删掉，结束后会说明原因" : {
       "localizations" : {
         "en" : {
@@ -791,6 +813,16 @@
         }
       }
     },
+    "「%@」里有 %lld 个会话在跑" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$lld sessions running in “%1$@”"
+          }
+        }
+      }
+    },
     "上一个标签" : {
       "localizations" : {
         "en" : {
@@ -1071,12 +1103,12 @@
         }
       }
     },
-    "主机上还没有 %@ 的会话。" : {
+    "主机上还没有发现会话，可以直接填一个文件夹路径。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No %@ sessions on the host yet."
+            "value" : "No sessions found on this host yet. You can enter a folder path directly."
           }
         }
       }
@@ -1137,6 +1169,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Start with a new session"
+          }
+        }
+      }
+    },
+    "从侧栏移除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Sidebar"
+          }
+        }
+      }
+    },
+    "从发现过会话的文件夹里挑要保留的；以后可以随时添加或移除，会话文件不受影响。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick the folders to keep from the ones with sessions. You can add or remove folders any time; session files are never touched."
           }
         }
       }
@@ -1231,6 +1283,16 @@
         }
       }
     },
+    "你：" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You: "
+          }
+        }
+      }
+    },
     "使用说明" : {
       "localizations" : {
         "en" : {
@@ -1251,12 +1313,32 @@
         }
       }
     },
+    "侧栏只显示你添加的文件夹和它们的会话。也可以把文件夹从访达拖到这里。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The sidebar only shows folders you add and their sessions. You can also drag folders here from Finder."
+          }
+        }
+      }
+    },
     "侧栏和标签栏" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sidebar and Tab Bar"
+          }
+        }
+      }
+    },
+    "侧栏改为只显示你添加的文件夹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The sidebar now only shows folders you add"
           }
         }
       }
@@ -1367,6 +1449,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reset All"
+          }
+        }
+      }
+    },
+    "全都不要" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Empty"
           }
         }
       }
@@ -1575,16 +1667,6 @@
         }
       }
     },
-    "分叉为新会话" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fork as New Session"
-          }
-        }
-      }
-    },
     "分叉：%@" : {
       "localizations" : {
         "en" : {
@@ -1611,6 +1693,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Split: choose a tab for the right side"
+          }
+        }
+      }
+    },
+    "分支" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Branch"
           }
         }
       }
@@ -1769,7 +1861,7 @@
         }
       }
     },
-    "删除这个项目的 %lld 个会话…" : {
+    "删除所有可删除的会话（%lld）…" : {
       "localizations" : {
         "en" : {
           "variations" : {
@@ -1777,13 +1869,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Delete %lld Session in This Project…"
+                  "value" : "Delete All Deletable Sessions (%lld)…"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Delete %lld Sessions in This Project…"
+                  "value" : "Delete All Deletable Sessions (%lld)…"
                 }
               }
             }
@@ -1851,6 +1943,16 @@
         }
       }
     },
+    "勾选要在侧栏里显示的项目；主机上还没有会话的文件夹可以直接填路径。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the projects to show in the sidebar. For a folder with no sessions yet, enter its path."
+          }
+        }
+      }
+    },
     "升级 tmux 后旧服务器还在跑，它的会话能继续跑但打不开，新标签会马上报错退出。用启动它的那个 tmux 重新接上，或结束这些会话后重开。" : {
       "localizations" : {
         "en" : {
@@ -1887,6 +1989,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Click a session to read it without starting the CLI; double-click to resume it in its original folder."
+          }
+        }
+      }
+    },
+    "原始会话文件…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original Session File…"
           }
         }
       }
@@ -1951,6 +2063,16 @@
         }
       }
     },
+    "取消归档会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive Session"
+          }
+        }
+      }
+    },
     "取消归档项目" : {
       "localizations" : {
         "en" : {
@@ -1961,12 +2083,22 @@
         }
       }
     },
-    "取消置顶" : {
+    "取消置顶会话" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unpin"
+            "value" : "Unpin Session"
+          }
+        }
+      }
+    },
+    "取消置顶项目" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unpin Project"
           }
         }
       }
@@ -2017,6 +2149,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Changes only the name shown in Switchboard, not the CLI session. Leave empty to restore the original title."
+          }
+        }
+      }
+    },
+    "只改 Switchboard 里显示的名字，不改文件夹。留空恢复文件夹名。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only changes the name shown in Switchboard, not the folder. Leave empty to use the folder name."
+          }
+        }
+      }
+    },
+    "只是不在侧栏显示，会话文件不会删除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only hides it from the sidebar; session files are not deleted"
+          }
+        }
+      }
+    },
+    "只有 Claude Code 的会话能搬到别的文件夹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only Claude Code sessions can be moved to another folder"
           }
         }
       }
@@ -2251,12 +2413,22 @@
         }
       }
     },
-    "在 Claude Code、Codex、OpenCode 或 omp 里聊过一次，会话就会按项目出现在这里。" : {
+    "在 Finder 中打开项目" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "After you chat once in Claude Code, Codex, OpenCode, or omp, sessions appear here grouped by project."
+            "value" : "Open Project in Finder"
+          }
+        }
+      }
+    },
+    "在 Finder 中显示会话文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Session File in Finder"
           }
         }
       }
@@ -2401,16 +2573,6 @@
         }
       }
     },
-    "在访达中打开" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open in Finder"
-          }
-        }
-      }
-    },
     "在访达中显示" : {
       "localizations" : {
         "en" : {
@@ -2421,22 +2583,22 @@
         }
       }
     },
-    "在访达中显示会话文件" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Session File in Finder"
-          }
-        }
-      }
-    },
     "在访达中显示报告" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Report in Finder"
+          }
+        }
+      }
+    },
+    "在跑的、开着标签的会话不算" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running sessions and sessions open in tabs are skipped"
           }
         }
       }
@@ -2481,22 +2643,22 @@
         }
       }
     },
+    "复制对话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Conversation"
+          }
+        }
+      }
+    },
     "复制报告" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy Report"
-          }
-        }
-      }
-    },
-    "复制路径" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copy Path"
           }
         }
       }
@@ -2581,6 +2743,16 @@
         }
       }
     },
+    "完成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
     "实际大小" : {
       "localizations" : {
         "en" : {
@@ -2611,12 +2783,12 @@
         }
       }
     },
-    "导出对话…" : {
+    "导出对话" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Export Conversation…"
+            "value" : "Export Conversation"
           }
         }
       }
@@ -2631,32 +2803,12 @@
         }
       }
     },
-    "工作中" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Working"
-          }
-        }
-      }
-    },
     "已允许" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Allowed"
-          }
-        }
-      }
-    },
-    "已完成" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
           }
         }
       }
@@ -2677,6 +2829,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Disconnected. Won't connect automatically."
+          }
+        }
+      }
+    },
+    "已添加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
           }
         }
       }
@@ -2823,6 +2985,36 @@
         }
       }
     },
+    "归档「%@」并删除它的 %lld 个会话？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archive “%1$@” and delete its %2$lld sessions?"
+          }
+        }
+      }
+    },
+    "归档会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archive Session"
+          }
+        }
+      }
+    },
+    "归档并删除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archive and Delete"
+          }
+        }
+      }
+    },
     "归档项目" : {
       "localizations" : {
         "en" : {
@@ -2833,12 +3025,44 @@
         }
       }
     },
+    "归档项目并删除所有会话（%lld）…" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Archive Project and Delete All Sessions (%lld)…"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Archive Project and Delete All Sessions (%lld)…"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "快捷键" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keyboard Shortcuts"
+          }
+        }
+      }
+    },
+    "忽略" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignore"
           }
         }
       }
@@ -2869,6 +3093,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open System Settings"
+          }
+        }
+      }
+    },
+    "打开项目于" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Project In"
           }
         }
       }
@@ -2949,16 +3183,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy Address"
-          }
-        }
-      }
-    },
-    "拷贝对话（Markdown）" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copy Conversation (Markdown)"
           }
         }
       }
@@ -3113,12 +3337,32 @@
         }
       }
     },
+    "文件夹不在了" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder missing"
+          }
+        }
+      }
+    },
     "文件夹会连同缺失的上级一起创建" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The folder will be created along with any missing parent folders"
+          }
+        }
+      }
+    },
+    "文件夹已经不在了" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This folder no longer exists"
           }
         }
       }
@@ -3179,6 +3423,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New Session (⌘T)"
+          }
+        }
+      }
+    },
+    "新建会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Session"
+          }
+        }
+      }
+    },
+    "新建终端" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Terminal"
           }
         }
       }
@@ -3263,22 +3527,22 @@
         }
       }
     },
-    "显示标签" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Tabs"
-          }
-        }
-      }
-    },
     "更多" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "More"
+          }
+        }
+      }
+    },
+    "更多选项…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More Options…"
           }
         }
       }
@@ -3655,6 +3919,16 @@
         }
       }
     },
+    "正在读取主机上的会话…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading sessions on the host…"
+          }
+        }
+      }
+    },
     "正在读取各 CLI 的会话…" : {
       "localizations" : {
         "en" : {
@@ -3767,6 +4041,16 @@
         }
       }
     },
+    "没有发现会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No sessions found."
+          }
+        }
+      }
+    },
     "没有发现问题" : {
       "localizations" : {
         "en" : {
@@ -3803,6 +4087,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Claude Code, Codex, OpenCode and omp not found"
+          }
+        }
+      }
+    },
+    "没有找到编辑器" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No editors found"
           }
         }
       }
@@ -3847,6 +4141,48 @@
         }
       }
     },
+    "添加 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add %@"
+          }
+        }
+      }
+    },
+    "添加 %@ 上的文件夹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Folders on %@"
+          }
+        }
+      }
+    },
+    "添加 %lld 个" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Add %lld"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Add %lld"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "添加 SSH 主机" : {
       "localizations" : {
         "en" : {
@@ -3867,6 +4203,16 @@
         }
       }
     },
+    "添加一个文件夹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a folder"
+          }
+        }
+      }
+    },
     "添加一台 SSH 主机，它的会话会列在这台 Mac 下面，同样可以读、接着跑、删除。" : {
       "localizations" : {
         "en" : {
@@ -3877,12 +4223,22 @@
         }
       }
     },
-    "添加项目文件夹…" : {
+    "添加到侧栏" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add Project Folder…"
+            "value" : "Add to Sidebar"
+          }
+        }
+      }
+    },
+    "添加文件夹…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Folder…"
           }
         }
       }
@@ -4077,16 +4433,6 @@
         }
       }
     },
-    "移到…" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Move To"
-          }
-        }
-      }
-    },
     "移到新窗口" : {
       "localizations" : {
         "en" : {
@@ -4113,6 +4459,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Move Here"
+          }
+        }
+      }
+    },
+    "移动到" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move To"
           }
         }
       }
@@ -4153,16 +4509,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Empty Window"
-          }
-        }
-      }
-    },
-    "空闲" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Idle"
           }
         }
       }
@@ -4247,12 +4593,32 @@
         }
       }
     },
+    "筛选路径" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter paths"
+          }
+        }
+      }
+    },
     "系统等宽" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "System Monospaced"
+          }
+        }
+      }
+    },
+    "纯文本…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plain Text…"
           }
         }
       }
@@ -4293,6 +4659,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "End Session"
+          }
+        }
+      }
+    },
+    "结束这个会话的 CLI，会话文件保留" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ends this session's CLI; the session file is kept"
           }
         }
       }
@@ -4347,22 +4723,32 @@
         }
       }
     },
-    "置顶" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pin"
-          }
-        }
-      }
-    },
     "置顶 %lld 个" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pin %lld"
+          }
+        }
+      }
+    },
+    "置顶会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pin Session"
+          }
+        }
+      }
+    },
+    "置顶项目" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pin Project"
           }
         }
       }
@@ -4537,6 +4923,16 @@
         }
       }
     },
+    "路径" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path"
+          }
+        }
+      }
+    },
     "路径是主机上的；~ 是主机的家目录。主机上的会话用它自己的 tmux。" : {
       "localizations" : {
         "en" : {
@@ -4687,12 +5083,12 @@
         }
       }
     },
-    "还没有会话" : {
+    "还没有添加这台主机上的文件夹：右键主机名 →「添加文件夹…」。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No sessions yet"
+            "value" : "No folders from this host yet: right-click the host name → “Add Folder…”."
           }
         }
       }
@@ -5027,12 +5423,12 @@
         }
       }
     },
-    "重命名…" : {
+    "重命名" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename…"
+            "value" : "Rename"
           }
         }
       }
@@ -5043,6 +5439,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rename Session"
+          }
+        }
+      }
+    },
+    "重命名项目" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename Project"
+          }
+        }
+      }
+    },
+    "重命名项目…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename Project…"
           }
         }
       }
@@ -5173,6 +5589,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Colors"
+          }
+        }
+      }
+    },
+    "（%lld 次工具调用：%@）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(%1$lld tool calls: %2$@)"
           }
         }
       }

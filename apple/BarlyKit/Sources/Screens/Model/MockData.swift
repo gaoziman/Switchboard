@@ -195,6 +195,18 @@ public extension MockData {
     ]
 }
 
+extension MockData {
+    /// 本机发现过会话、但还没加进会话库的文件夹（空状态推荐、升级挑选、添加列表用）
+    static var folderCandidates: [FolderLibrary.Candidate] {
+        FolderLibrary.index(sessions.filter { $0.hostID == Host.localID } + extremeSessions.filter { $0.hostID == Host.localID }) { _ in true }
+    }
+
+    /// SSH 主机 devbox 上发现过会话的文件夹
+    static var devboxCandidates: [FolderLibrary.Candidate] {
+        FolderLibrary.index(sessions.filter { $0.hostID == "devbox" }) { _ in true }
+    }
+}
+
 public extension WorkspaceStore {
     /// 截图用的固定状态。名字和屏幕清单的状态列一一对应。
     static func fixture(_ state: String) -> WorkspaceStore {
@@ -202,6 +214,10 @@ public extension WorkspaceStore {
         switch state {
         case "empty":
             store = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [])
+        case "folders-empty":
+            // 会话库里还没有本机文件夹：空状态 + 最近有会话的文件夹推荐
+            store = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [])
+            store.data.folderCandidates[Host.localID] = MockData.folderCandidates
         case "loading":
             store = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [], loadState: .loading)
         case "error":
@@ -251,6 +267,11 @@ public extension WorkspaceStore {
                 }
             default: store.deletion = DeletionProgress(done: 37, total: 140)
             }
+        case "outside-running":
+            store.outsideRunning = [FolderLibrary.Outside(path: NSHomeDirectory() + "/code/agent-lab", count: 2)]
+            if let tab = store.tabGroups.first(where: { $0.projectID == MockData.focusedProjectID })?.tabs.first {
+                store.selection = .tab(tab.id)
+            }
         case "tip":
             store.tip = "把标签拖到终端区的左右边缘，就能和当前标签并排分屏。"
             if let tab = store.tabGroups.first(where: { $0.projectID == MockData.focusedProjectID })?.tabs.first {
@@ -273,7 +294,7 @@ public extension WorkspaceStore {
                 store.selection = .tab(tab.id)
             }
         }
-        if state == "empty" || state == "loading" || state == "error" { store.selection = nil }
+        if ["empty", "loading", "error", "folders-empty"].contains(state) { store.selection = nil }
         return store
     }
 }

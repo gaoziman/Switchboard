@@ -63,14 +63,14 @@ private struct GroupHeading: View {
                     .foregroundStyle(t.text4)
                     .rotationEffect(.degrees(group.isCollapsed ? 0 : 90))
                     .frame(width: 10)
-                RoundedRectangle(cornerRadius: 1).fill(t.groupColor(group.tint)).frame(width: 3, height: 12)
-                Text(group.name).barlyText(.product.small.weight(500), color: t.text)
+                Circle().fill(t.groupColor(group.tint)).frame(width: 6, height: 6)
+                Text(group.name).barlyText(.product.small.weight(600), color: t.text)
+                Text("\(group.tabs.count)").barlyText(.product.caption.monospaced, color: t.text4)
                 if let host, !host.isLocal {
                     Text(host.displayName).barlyText(.product.caption.monospaced, color: t.text4)
                 }
                 Spacer()
                 if group.isCollapsed { ActivityLamp(group.mostUrgent, size: 6) }
-                Text("\(group.tabs.count)").barlyText(.product.caption.monospaced, color: t.text4)
             }
             .padding(.horizontal, 8)
             .padding(.top, 10)
@@ -106,34 +106,18 @@ private struct OpenTabRow: View {
                     .barlyText(.product.small.weight(current ? 500 : 400), color: current || picked ? t.text : t.text2)
                     .lineLimit(1)
                 Spacer(minLength: 6)
-                Text(tab.activity == .notRunning ? "" : tab.activity.shortLabel)
-                    .barlyText(.product.caption, color: t.text4)
                 ActivityLamp(tab.activity, size: 6)
             }
             .padding(.leading, 26).padding(.trailing, 8)
             .frame(height: WorkspaceMetrics.row)
-            .background(!(current || picked) && hovered ? t.fill1 : .clear, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
-            .barlySelected(current || picked, radius: BarlyRadius.sm, idleBorder: .clear)
+            .background(current || picked ? t.shellSelected : hovered ? t.fill1 : .clear,
+                        in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovered = $0 }
         .handCursor()
         .accessibilityAddTraits(current || picked ? .isSelected : [])
-    }
-}
-
-extension Activity {
-    /// 行尾的短说明（已打开视图、铃铛）
-    var shortLabel: String {
-        switch self {
-        case .notRunning: ""
-        case .working: L("工作中")
-        case .waitingForAnswer: L("等你")
-        case .idle: L("空闲")
-        case .doneUnseen: L("已完成")
-        case .ended: L("已结束")
-        }
     }
 }
 

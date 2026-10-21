@@ -4,8 +4,8 @@ import AppKit
 import SwiftUI
 import BarlyKit
 
-/// 状态灯（招牌：接线台的来电灯）。等你回答 = 强调色 + 光晕（全屏唯一会亮的强调色点，像来电时亮起的那盏灯），
-/// 工作中 = 一段弧，没看过的完成 = 蓝，空闲 = 绿，已结束 = 空心圈
+/// 状态灯：靠形状区分，不用记颜色。等你回答 = 强调色圆环 + 芯（全屏唯一的强调色，接线台的来电灯），
+/// 工作中 = 转动的弧，没看过的完成 = 实心勾，回合结束 = 灰勾，已结束 = 空心圈
 public struct ActivityLamp: View {
     let activity: Activity
     var size: CGFloat
@@ -17,30 +17,40 @@ public struct ActivityLamp: View {
         self.size = size
     }
 
+    /// 图形的直径：比旧的圆点大一圈，形状才看得清
+    private var glyph: CGFloat { size + 5 }
+
     public var body: some View {
         Group {
             switch activity {
             case .notRunning: EmptyView()
             case .working: arc
             case .waitingForAnswer:
-                Circle().fill(t.accent).frame(width: size, height: size)
-                    .background(Circle().fill(t.accent.opacity(0.28)).frame(width: size + 5, height: size + 5))
-            case .idle: Circle().fill(t.success).frame(width: size, height: size)
-            case .doneUnseen: Circle().fill(t.dataPos).frame(width: size, height: size)
-            case .ended: Circle().strokeBorder(t.text4, lineWidth: 1.2).frame(width: size, height: size)
+                Circle().strokeBorder(t.accent, lineWidth: 1.5)
+                    .overlay(Circle().fill(t.accent).frame(width: glyph * 0.38, height: glyph * 0.38))
+                    .frame(width: glyph, height: glyph)
+            case .idle:
+                Image(systemName: "checkmark")
+                    .font(.system(size: glyph * 0.78, weight: .semibold))
+                    .foregroundStyle(t.text3)
+            case .doneUnseen:
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: glyph, weight: .regular))
+                    .foregroundStyle(t.text)
+            case .ended: Circle().strokeBorder(t.text4, lineWidth: 1.2).frame(width: glyph - 2, height: glyph - 2)
             }
         }
-        .frame(width: size + 5, height: size + 5)
+        .frame(width: glyph, height: glyph)
         .help(activity.label)
         .accessibilityLabel(activity.label)
     }
 
     @ViewBuilder private var arc: some View {
         if snapshot {
-            WorkingArc(size: size + 2, angle: -30)
+            WorkingArc(size: glyph - 1, angle: -30)
         } else {
             TimelineView(.animation(minimumInterval: 1 / 30)) { context in
-                WorkingArc(size: size + 2,
+                WorkingArc(size: glyph - 1,
                            angle: context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.1) / 1.1 * 360)
             }
         }
@@ -53,14 +63,14 @@ private struct WorkingArc: View {
     @Environment(\.barly) private var t
 
     var body: some View {
-        Circle().trim(from: 0, to: 0.7)
-            .stroke(t.text2, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+        Circle().trim(from: 0, to: 0.72)
+            .stroke(t.text2, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
             .frame(width: size, height: size)
             .rotationEffect(.degrees(angle))
     }
 }
 
-/// CLI 小标记：两个字母的单色小方块，只靠字母区分（颜色留给状态灯）
+/// CLI 小标记：每种 CLI 一个小图形。只有 Claude 用它自己的珊瑚色星号，其余单色，不和状态灯抢颜色
 public struct CLIMark: View {
     let cli: CLIKind
     var size: CGFloat
@@ -72,13 +82,24 @@ public struct CLIMark: View {
     }
 
     public var body: some View {
-        Text(cli.monogram)
-            .font(.system(size: size * 0.5, weight: .bold, design: .monospaced))
-            .foregroundStyle(t.text2)
+        glyph
             .frame(width: size, height: size)
-            .background(t.fill2, in: RoundedRectangle(cornerRadius: 3))
             .help(cli.title)
             .accessibilityLabel(cli.title)
+    }
+
+    @ViewBuilder private var glyph: some View {
+        switch cli {
+        case .claude:
+            Image(systemName: "asterisk").font(.system(size: size * 0.72, weight: .bold))
+                .foregroundStyle(Color(hex: t.isDark ? 0xE0876A : 0xC96442))
+        case .codex:
+            Image(systemName: "hexagon").font(.system(size: size * 0.66, weight: .semibold)).foregroundStyle(t.text3)
+        case .opencode:
+            Image(systemName: "curlybraces").font(.system(size: size * 0.62, weight: .semibold)).foregroundStyle(t.text3)
+        case .omp:
+            Text("π").font(.system(size: size * 0.8, weight: .semibold)).foregroundStyle(t.text3)
+        }
     }
 }
 

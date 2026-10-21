@@ -4,56 +4,86 @@ import BarlyKit
 import AppKit
 #endif
 
-/// 会话行的右键菜单（和预览里的「更多」同一份）
+/// 会话的菜单：右键和悬停「…」同一份。在跑的：分支 · 结束会话 …… 关闭并删除；没在跑的：继续 · 分支 …… 删除
 struct SessionMenu: View {
     let store: WorkspaceStore
     let session: Session
 
-    var body: some View {
-        let running = store.tab(for: session) != nil
-        Button(running ? "显示标签" : "接着跑") { store.resume(session) }
-        if session.cli.branchArguments(session.id) != nil {
-            Button("分叉为新会话") { store.branch(session) }
+    /// macOS 的 SwiftUI 菜单默认只显示文字，要显式要求图标
+    var body: some View { items.labelStyle(.titleAndIcon) }
+
+    @ViewBuilder private var items: some View {
+        let running = session.activity.isRunning || store.tab(for: session) != nil
+        let canBranch = session.cli.branchArguments(session.id) != nil
+        if !running {
+            Button { store.resume(session) } label: { Label("继续", systemImage: "play") }
         }
-        if session.cli == .claude {
-            Menu("移到…") {
-                ForEach(store.moveDestinations(for: session)) { p in
-                    Button(p.name) { store.move(session, to: p.path) }
-                }
-                #if os(macOS)
-                if session.hostID == Host.localID {
-                    if !store.moveDestinations(for: session).isEmpty { Divider() }
-                    Button("其他文件夹…") {
-                        let panel = NSOpenPanel()
-                        panel.canChooseDirectories = true
-                        panel.canChooseFiles = false
-                        panel.canCreateDirectories = true
-                        panel.prompt = L("移到这里")
-                        if panel.runModal() == .OK, let url = panel.url { store.move(session, to: url.path) }
-                    }
-                }
-                #endif
+        if canBranch {
+            Button { store.branch(session) } label: { Label("分支", systemImage: "arrow.triangle.branch") }
+        }
+        if running {
+            Button { store.endSession(session) } label: { Label("结束会话", systemImage: "stop.circle") }
+                .help(L("结束这个会话的 CLI，会话文件保留"))
+        }
+        Divider()
+        Button { store.renaming = session } label: { Label("重命名", systemImage: "pencil") }
+        Button { store.togglePin(session) } label: {
+            Label(session.isPinned ? "取消置顶会话" : "置顶会话", systemImage: session.isPinned ? "pin.slash" : "pin")
+        }
+        Button { store.setArchived([session.id], !session.isArchived) } label: {
+            Label(session.isArchived ? "取消归档会话" : "归档会话", systemImage: "archivebox")
+        }
+        moveMenu
+        Divider()
+        Button { Task { await store.copyConversation(session) } } label: { Label("复制对话", systemImage: "doc.on.doc") }
+        Menu {
+            Button("Markdown…") { Task { await store.exportConversation(session, as: .markdown) } }
+            Button("纯文本…") { Task { await store.exportConversation(session, as: .plainText) } }
+            if session.sourcePath != nil, session.cli != .opencode {
+                Button("原始会话文件…") { Task { await store.exportConversation(session, as: .original) } }
             }
-            .disabled(!store.canMove(session))
-            .help(store.canMove(session) ? L("用 Claude Code 的 /cd 把会话搬到另一个文件夹") : L("先结束这个会话的 CLI 再搬"))
+        } label: {
+            Label("导出对话", systemImage: "square.and.arrow.up")
         }
-        Divider()
-        Button("重命名…") { store.renaming = session }
-        Button(session.isPinned ? "取消置顶" : "置顶") { store.togglePin(session) }
-        Button(session.isArchived ? "取消归档" : "归档") { store.setArchived([session.id], !session.isArchived) }
-        Divider()
-        Button("拷贝对话（Markdown）") { Task { await store.copyConversation(session) } }
-        Button("导出对话…") { Task { await store.exportConversation(session) } }
-        Divider()
-        Button("复制会话 ID") { copy(session.id) }
-        Button("复制项目路径") { copy(session.projectPath) }
+        Button { copy(session.id) } label: { Label("复制会话 ID", systemImage: "doc.on.doc") }
         #if os(macOS)
-        if let path = session.sourcePath, session.cli != .opencode {
-            Button("在访达中显示会话文件") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
+        if let path = session.sourcePath, session.cli != .opencode, session.hostID == Host.localID {
+            Button { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) } label: {
+                Label("在 Finder 中显示会话文件", systemImage: "doc.text.magnifyingglass")
+            }
         }
         #endif
         Divider()
-        Button(running ? "关闭并删除会话…" : "删除会话…", role: .destructive) { store.pendingDelete = [session] }
+        Button { store.pendingDelete = [session] } label: {
+            Label(running ? "关闭并删除会话…" : "删除会话…", systemImage: "trash")
+        }
+    }
+
+    /// 移动到：只有 Claude Code 能搬（/cd），别的 CLI 灰掉并说明
+    @ViewBuilder private var moveMenu: some View {
+        Menu {
+            ForEach(store.moveDestinations(for: session)) { p in
+                Button(p.name) { store.move(session, to: p.path) }
+            }
+            #if os(macOS)
+            if session.hostID == Host.localID {
+                if !store.moveDestinations(for: session).isEmpty { Divider() }
+                Button("其他文件夹…") {
+                    let panel = NSOpenPanel()
+                    panel.canChooseDirectories = true
+                    panel.canChooseFiles = false
+                    panel.canCreateDirectories = true
+                    panel.prompt = L("移到这里")
+                    if panel.runModal() == .OK, let url = panel.url { store.move(session, to: url.path) }
+                }
+            }
+            #endif
+        } label: {
+            Label("移动到", systemImage: "folder")
+        }
+        .disabled(session.cli != .claude || !store.canMove(session))
+        .help(session.cli != .claude ? L("只有 Claude Code 的会话能搬到别的文件夹")
+              : store.canMove(session) ? L("用 Claude Code 的 /cd 把会话搬到另一个文件夹") : L("先结束这个会话的 CLI 再搬"))
     }
 
     private func copy(_ text: String) {
@@ -81,31 +111,111 @@ struct MultiSessionMenu: View {
     }
 }
 
-/// 项目行的右键菜单
+/// 项目的菜单：右键和悬停「…」同一份
 struct ProjectMenu: View {
     let store: WorkspaceStore
     let project: Project
 
-    var body: some View {
-        Button("新会话…") {
-            NotificationCenter.default.post(name: .switchboardNewSession, object: project.id)   // 「主机:路径」
+    private var isLocal: Bool { project.hostID == Host.localID }
+
+    /// macOS 的 SwiftUI 菜单默认只显示文字，要显式要求图标
+    var body: some View { items.labelStyle(.titleAndIcon) }
+
+    @ViewBuilder private var items: some View {
+        Menu {
+            NewSessionItems(store: store, project: project)
+        } label: {
+            Label("新建会话", systemImage: "plus")
         }
-        Divider()
-        Button(project.isPinned ? "取消置顶" : "置顶") { store.togglePin(project) }
-        Button(project.isArchived ? "取消归档项目" : "归档项目") { store.setArchived(project, !project.isArchived) }
-        Divider()
+        Button { store.quickStart(.terminal, in: project) } label: { Label("新建终端", systemImage: "terminal") }
         #if os(macOS)
-        Button("在访达中打开") { NSWorkspace.shared.open(URL(fileURLWithPath: project.path)) }
+        Button { NSWorkspace.shared.open(URL(fileURLWithPath: project.path)) } label: { Label("在 Finder 中打开项目", systemImage: "folder") }
+            .disabled(!project.folderExists || !isLocal)   // 主机上的路径在这台 Mac 上打不开
+        if isLocal {
+            Menu {
+                // 子菜单是另一个菜单，父菜单的 labelStyle 传不进来，这里再要一次图标
+                Group {
+                    let apps = ExternalEditors.installed
+                    ForEach(apps) { app in
+                        Button { ExternalEditors.open(project.path, with: app) } label: {
+                            Label { Text(app.name) } icon: { Image(nsImage: ExternalEditors.icon(app)) }
+                        }
+                    }
+                    if apps.isEmpty { Text("没有找到编辑器") }
+                }
+                .labelStyle(.titleAndIcon)
+            } label: {
+                Label("打开项目于", systemImage: "chevron.left.forwardslash.chevron.right")
+            }
             .disabled(!project.folderExists)
-        Button("复制路径") {
+        }
+        Button {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(project.path, forType: .string)
-        }
+        } label: { Label("复制项目路径", systemImage: "doc.on.doc") }
         #endif
+        Button { store.renamingProject = project } label: { Label("重命名项目…", systemImage: "pencil") }
+        Button { store.togglePin(project) } label: {
+            Label(project.isPinned ? "取消置顶项目" : "置顶项目", systemImage: project.isPinned ? "pin.slash" : "pin")
+        }
         Divider()
-        let all = store.sessions.filter { $0.projectID == project.id && $0.parentSessionID == nil }
-        Button("删除这个项目的 \(all.count) 个会话…", role: .destructive) { store.pendingDelete = all }
-            .disabled(all.isEmpty)
+        Button { store.setArchived(project, !project.isArchived) } label: {
+            Label(project.isArchived ? "取消归档项目" : "归档项目", systemImage: "archivebox")
+        }
+        // 会话库只显示添加的文件夹，得有个拿掉的地方：只是不显示，文件不动
+        Button { store.removeFolder(project) } label: { Label("从侧栏移除", systemImage: "minus.circle") }
+            .help(L("只是不在侧栏显示，会话文件不会删除"))
+        Divider()
+        let deletable = store.deletableSessions(in: project)
+        let all = store.allSessions(in: project)
+        Button { store.pendingDelete = deletable } label: {
+            Label("删除所有可删除的会话（\(deletable.count)）…", systemImage: "trash")
+        }
+        .disabled(deletable.isEmpty)
+        .help(L("在跑的、开着标签的会话不算"))
+        Button {
+            store.pendingArchiveProject = project.id
+            store.pendingDelete = all
+        } label: {
+            Label("归档项目并删除所有会话（\(all.count)）…", systemImage: "trash")
+        }
+        .disabled(all.isEmpty)
+    }
+}
+
+/// 「新建会话」子菜单和项目行「+」共用：这台主机装了的 CLI（点了直接开跑）、终端（只有「+」里有，菜单里是单独一项）、更多选项
+struct NewSessionItems: View {
+    let store: WorkspaceStore
+    let project: Project
+    var includesTerminal = false
+
+    /// macOS 的 SwiftUI 菜单默认只显示文字，要显式要求图标
+    var body: some View { items.labelStyle(.titleAndIcon) }
+
+    @ViewBuilder private var items: some View {
+        ForEach(store.quickStartCLIs(for: project), id: \.self) { cli in
+            Button { store.quickStart(.cli(cli), in: project) } label: { Label(cli.title, systemImage: cli.symbol) }
+        }
+        if includesTerminal {
+            Divider()
+            Button { store.quickStart(.terminal, in: project) } label: { Label("终端", systemImage: "terminal") }
+        }
+        Divider()
+        Button {
+            NotificationCenter.default.post(name: .switchboardNewSession, object: project.id)
+        } label: { Label("更多选项…", systemImage: "slider.horizontal.3") }
+    }
+}
+
+extension CLIKind {
+    /// 菜单里用的 SF Symbol（侧栏里的 CLIMark 同一套形状）
+    var symbol: String {
+        switch self {
+        case .claude: "asterisk"
+        case .codex: "hexagon"
+        case .opencode: "curlybraces"
+        case .omp: "function"
+        }
     }
 }
 
@@ -115,6 +225,9 @@ struct HostMenu: View {
     let host: Host
 
     var body: some View {
+        Button("添加文件夹…") { store.hostSheet = .addFolder(host.id) }
+            .disabled(host.connection == .disconnected)
+        Divider()
         Button("刷新") { Task { await store.refreshHost(host.id) } }
             .disabled(host.connection == .disconnected)
         Button("Connect…（交互登录）") { store.connectingHost = host.id }
@@ -207,18 +320,27 @@ struct LibraryDialogs: ViewModifier {
                 Text("只改 Switchboard 里显示的名字，不改 CLI 的会话。留空恢复原标题。")
             }
             .onChange(of: store.renaming?.id) { _, _ in name = store.renaming?.displayTitle ?? "" }
+            .alert("重命名项目", isPresented: Binding(get: { store.renamingProject != nil }, set: { if !$0 { store.renamingProject = nil } })) {
+                TextField("名字", text: $name)
+                Button("取消", role: .cancel) { store.renamingProject = nil }
+                Button("保存") {
+                    if let p = store.renamingProject { store.rename(p, to: name) }
+                    store.renamingProject = nil
+                }
+            } message: {
+                Text("只改 Switchboard 里显示的名字，不改文件夹。留空恢复文件夹名。")
+            }
+            .onChange(of: store.renamingProject?.id) { _, _ in name = store.renamingProject?.name ?? "" }
             .confirmationDialog(deleteTitle, isPresented: Binding(get: { !store.pendingDelete.isEmpty },
                                                                   set: { if !$0 { store.pendingDelete = [] } }),
                                 titleVisibility: .visible) {
-                Button("删除", role: .destructive) {
-                    let targets = store.pendingDelete
-                    store.pendingDelete = []
-                    Task {
-                        let failures = await store.delete(targets)
-                        store.deleteFailures = failures
-                    }
+                Button(store.pendingArchiveProject == nil ? "删除" : "归档并删除", role: .destructive) {
+                    Task { await store.confirmPendingDelete() }
                 }
-                Button("取消", role: .cancel) { store.pendingDelete = [] }
+                Button("取消", role: .cancel) {
+                    store.pendingDelete = []
+                    store.pendingArchiveProject = nil
+                }
             } message: {
                 Text(deleteMessage)
             }
@@ -231,7 +353,10 @@ struct LibraryDialogs: ViewModifier {
     }
 
     private var deleteTitle: String {
-        store.pendingDelete.count == 1 ? L("删除「\(store.pendingDelete[0].displayTitle)」？") : L("删除 \(store.pendingDelete.count) 个会话？")
+        if let id = store.pendingArchiveProject, let p = store.projects.first(where: { $0.id == id }) {
+            return L("归档「\(p.name)」并删除它的 \(store.pendingDelete.count) 个会话？")
+        }
+        return store.pendingDelete.count == 1 ? L("删除「\(store.pendingDelete[0].displayTitle)」？") : L("删除 \(store.pendingDelete.count) 个会话？")
     }
 
     private var deleteMessage: String {

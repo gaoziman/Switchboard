@@ -11,10 +11,11 @@ public enum SessionDiscovery {
 
     static let sources: [any SessionSource] = [ClaudeSource(), CodexSource(), OpenCodeSource(), OmpSource()]
 
-    public static func run() async -> Result {
+    /// folders：本机只读这些工作目录（会话库添加过的文件夹）；nil = 全部（候选索引、升级挑选用）
+    public static func run(folders: Set<String>? = nil) async -> Result {
         let start = Date()
         let sessions = await withTaskGroup(of: [Session].self) { group in
-            for source in sources { group.addTask(priority: .userInitiated) { source.discover() } }
+            for source in sources { group.addTask(priority: .userInitiated) { source.discover(in: folders) } }
             var all: [Session] = []
             for await batch in group { all += batch }
             return all
@@ -35,15 +36,15 @@ public enum SessionDiscovery {
         }
     }
 
-    /// 一台 SSH 主机：读它在本机的镜像
-    public static func runRemote(_ alias: String) async -> [Session] {
+    /// 一台 SSH 主机：读它在本机的镜像。folders 同 run（主机上的路径）
+    public static func runRemote(_ alias: String, folders: Set<String>? = nil) async -> [Session] {
         let root = SSH.cacheDirectory(alias)
         let sources: [any SessionSource] = [ClaudeSource(mirror: root.appendingPathComponent("claude"), hostID: alias),
                                             CodexSource(mirror: root.appendingPathComponent("codex"), hostID: alias),
                                             OmpSource(mirror: root.appendingPathComponent("omp/sessions"), hostID: alias),
                                             OpenCodeSource(mirror: root.appendingPathComponent("opencode/opencode.db"), hostID: alias)]
         return await withTaskGroup(of: [Session].self) { group in
-            for source in sources { group.addTask { source.discover() } }
+            for source in sources { group.addTask { source.discover(in: folders) } }
             var all: [Session] = []
             for await batch in group { all += batch }
             return all

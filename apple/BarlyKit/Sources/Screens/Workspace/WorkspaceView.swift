@@ -54,28 +54,29 @@ public struct WorkspaceView: View {
         HStack(spacing: 0) {
             if sidebarShown {
                 SessionSidebar(store: store, onNewSession: beginNewSession)
-                Hairline(vertical: true)
             }
             VStack(spacing: 0) {
                 if !store.tabGroups.isEmpty {
                     TabBar(store: store, sidebarHidden: !sidebarShown, onNewSession: beginNewSession)
                 } else {
-                    Color.clear.frame(height: WorkspaceMetrics.header)
-                        .overlay(alignment: .bottom) { Hairline() }
-                        .background(t.bg)
+                    Color.clear.frame(height: WorkspaceMetrics.tabBar)
                 }
                 main
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.leading, sidebarShown ? 0 : WorkspaceMetrics.gutter)
+                    .padding([.trailing, .bottom], WorkspaceMetrics.gutter)
             }
         }
-        .overlay(alignment: .topLeading) {
+        .background(t.shellBase)
+        .overlay(alignment: .bottomLeading) {
+            // 从侧栏底栏的状态计数弹上来
             if store.isBellOpen && sidebarShown {
                 BellPopover(sessions: store.waitingSessions, projectName: { store.project(for: $0)?.name ?? "" }) { session in
                     store.isBellOpen = false
                     store.resume(session)
                 }
-                    .padding(.leading, 120)
-                    .padding(.top, WorkspaceMetrics.header - 6)
+                    .padding(.leading, 12)
+                    .padding(.bottom, BarlyScale.pt(44) + 4)
             }
         }
         .overlay {
@@ -83,7 +84,6 @@ public struct WorkspaceView: View {
                 TourOverlay(step: step, onNext: { store.nextTourStep() }, onSkip: { store.finishTour() })
             }
         }
-        .background(t.canvas)
         .ignoresSafeArea()
         .modifier(LibraryDialogs(store: store))
         .sheet(item: $store.closingTab) { tab in
@@ -98,6 +98,7 @@ public struct WorkspaceView: View {
                                store.close(tab, keepRunning: true)
                            })
         }
+        .modifier(FolderMigration(store: store))
         .sheet(isPresented: Binding(get: { newSession != nil }, set: { if !$0 { newSession = nil } })) {
             NewSessionSheet(draft: Binding(get: { newSession ?? NewSessionDraft() }, set: { newSession = $0 }),
                             installed: store.installedCLIs, recentFolders: recentFolders,
@@ -211,6 +212,8 @@ public struct WorkspaceView: View {
             }
             // SSH 主机：每 5 秒问一次状态；有远程新会话等认领时每 10 秒刷新那台主机
             if primary, tick % 5 == 0 { Task { await store.pollRemoteStatus() } }
+            // 会话库外（没添加的文件夹）有 Claude 在跑：每 5 秒看一次，侧栏底部提示
+            if primary, tick % 5 == 2 { store.checkOutsideRunning() }
             // 定期重新登录：每 5 分钟查一次，刚到期的发通知
             if primary, tick % 300 == 3, !store.signInConfigs.isEmpty {
                 Task { for alias in await store.checkSignIns() { NotificationService.shared.postSignInDue(alias) } }
@@ -238,29 +241,36 @@ public struct WorkspaceView: View {
         if let split = store.activeSplit {
             SplitPane(store: store, split: split) { tab in AnyView(terminal(for: tab)) }
         } else if let tab = store.selectedTab {
-            VStack(spacing: 0) {
-                if let banner = store.tabBanners[tab.id] {
-                    TerminalBannerView(banner: banner, cli: store.session(for: tab)?.cli,
-                                       onResume: {
-                                           if case .reconnecting = banner { store.reconnectNow(tab.id) }
-                                           else if let s = store.session(for: tab) { store.resume(s) }
-                                       },
-                                       onClose: { store.close(tab, keepRunning: false) })
+            TerminalPanel {
+                VStack(spacing: 0) {
+                    PanelHeader(tab: tab, group: store.group(for: tab))
+                    if let banner = store.tabBanners[tab.id] {
+                        TerminalBannerView(banner: banner, cli: store.session(for: tab)?.cli,
+                                           onResume: {
+                                               if case .reconnecting = banner { store.reconnectNow(tab.id) }
+                                               else if let s = store.session(for: tab) { store.resume(s) }
+                                           },
+                                           onClose: { store.close(tab, keepRunning: false) })
+                    }
+                    terminal(for: tab)
                 }
-                terminal(for: tab)
             }
         } else if let session = store.previewedSession {
-            PreviewPane(session: session, project: store.project(for: session), host: store.host(session.hostID),
-                        entries: store.transcripts[session.id] ?? [],
-                        highlight: store.messageHits[session.id] != nil ? store.trimmedQuery : nil,
-                        onResume: { store.resume(session) }, onBranch: { store.branch(session) },
-                        menu: store.isLive ? { AnyView(SessionMenu(store: store, session: session)) } : nil,
-                        hasEarlier: store.hasEarlierTranscript(session.id),
-                        onLoadEarlier: { Task { await store.loadTranscript(session.id, earlier: true) } })
-                .id(session.id)
-                .task(id: session.id) { await store.loadTranscript(session.id) }
+            TerminalPanel {
+                PreviewPane(session: session, project: store.project(for: session), host: store.host(session.hostID),
+                            entries: store.transcripts[session.id] ?? [],
+                            highlight: store.messageHits[session.id] != nil ? store.trimmedQuery : nil,
+                            onResume: { store.resume(session) }, onBranch: { store.branch(session) },
+                            menu: store.isLive ? { AnyView(SessionMenu(store: store, session: session)) } : nil,
+                            hasEarlier: store.hasEarlierTranscript(session.id),
+                            onLoadEarlier: { Task { await store.loadTranscript(session.id, earlier: true) } })
+                    .id(session.id)
+                    .task(id: session.id) { await store.loadTranscript(session.id) }
+            }
         } else {
-            EmptyMain(loadState: store.loadState, hasSessions: store.hasAnySession, onNewSession: beginNewSession)
+            TerminalPanel {
+                EmptyMain(loadState: store.loadState, hasSessions: store.hasAnySession, onNewSession: beginNewSession)
+            }
         }
     }
 }

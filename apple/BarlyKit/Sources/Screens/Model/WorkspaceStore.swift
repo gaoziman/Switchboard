@@ -114,6 +114,10 @@ public final class WorkspaceStore {
     public var renaming: Session?
     /// 等确认删除的会话
     public var pendingDelete: [Session] = []
+    /// 删除确认通过后要归档的项目（「归档项目并删除所有会话」）
+    public var pendingArchiveProject: String?
+    /// 正在重命名的项目（弹输入框）
+    public var renamingProject: Project?
     /// 上一次删除失败的（会话 ID → 原因）
     public var deleteFailures: [String: String] = [:]
     /// 预览读了文件尾部多少字节
@@ -392,12 +396,15 @@ public enum HostSheet: Identifiable, Equatable, Sendable {
     case check(String)
     case signInSettings(String)
     case signIn(String)
+    /// 从主机上发现的项目里挑文件夹加进会话库
+    case addFolder(String)
 
     public var id: String {
         switch self {
         case .portForward(let h): "pf-\(h)"
         case .check(let h): "check-\(h)"
         case .signInSettings(let h): "sis-\(h)"
+        case .addFolder(let h): "add-\(h)"
         case .signIn(let h): "si-\(h)"
         }
     }

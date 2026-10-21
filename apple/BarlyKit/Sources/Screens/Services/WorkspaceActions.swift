@@ -16,6 +16,8 @@ public extension WorkspaceStore {
             store.attachTab(transfer)
         }
         if first {
+            // 先读会话库状态，再做任何会改它的事（以前等第一次扫描完才读，期间的改动会把文件整个盖掉）
+            store.library = LibraryState.load()
             store.loadHosts()
             Task {
                 await store.refresh(restoringTabs: true)
@@ -29,8 +31,24 @@ public extension WorkspaceStore {
         guard !data.isRefreshing else { return }
         data.isRefreshing = true
         defer { data.isRefreshing = false }
-        let result = await Task.detached(priority: .userInitiated) { await SessionDiscovery.run() }.value
-        if isLive, library == LibraryState() { library = LibraryState.load() }
+        // 启动恢复标签：上次开着的文件夹自动加回库里（升级挑选时默认勾上）
+        let savedTabs = restoringTabs && isLive ? Self.savedTabFolders() : []
+        if library.foldersMigrated, savedTabs.contains(where: { !isInLibrary($0) }) {
+            updateLibrary { s in for id in savedTabs.sorted() where !s.folders.contains(id) { s.folders.append(id) } }
+        }
+        // 只读会话库里的本机文件夹；还没升级挑选过：全量读一次，给挑选窗口用
+        var result: SessionDiscovery.Result
+        if library.foldersMigrated || !isLive {
+            let folders = isLive ? folderPaths(on: Host.localID) : nil
+            result = await Task.detached(priority: .userInitiated) { await SessionDiscovery.run(folders: folders) }.value
+        } else {
+            result = await Task.detached(priority: .userInitiated) { await SessionDiscovery.run(folders: nil) }.value
+            let index = FolderLibrary.index(result.sessions) { FileManager.default.fileExists(atPath: $0) }
+            data.folderCandidates[Host.localID] = index
+            prepareMigration(index: index, openTabs: savedTabs)
+            result.sessions = FolderLibrary.sessions(result.sessions, in: Set(library.folders))
+            result.projects = SessionDiscovery.projects(for: result.sessions)
+        }
         let previous = Dictionary(sessions.map { ($0.id, $0.activity) }, uniquingKeysWith: { a, _ in a })
         // 只替换本机的；SSH 主机的会话由 refreshHost 管
         sessions = result.sessions.map { s in
@@ -112,8 +130,14 @@ public extension WorkspaceStore {
 
     /// 新会话 / 普通终端。prompt：作为第一条消息交给 CLI（主机体检「用 agent 修复」）
     func start(_ draft: NewSessionDraft, prompt: String? = nil) {
-        if draft.hostID != Host.localID { startRemote(draft); return }
+        // 主动在一个文件夹里开新会话 = 要用它：不在会话库里就加进来（R4）
+        if draft.hostID != Host.localID {
+            addFolder(draft.folder.trimmingCharacters(in: .whitespaces), on: draft.hostID, refreshNow: false)
+            startRemote(draft)
+            return
+        }
         let folder = (draft.folder as NSString).expandingTildeInPath
+        addFolder(folder, refreshNow: false)
         let tabID = UUID()
         let launch: TerminalLaunch?
         let kind: TerminalTab.Kind
@@ -271,7 +295,7 @@ public extension WorkspaceStore {
             tabGroups[i].isCollapsed = false
         } else {
             let name = (tab.projectPath as NSString).lastPathComponent
-            tabGroups.append(TabGroup(projectID: projectID, name: name.isEmpty ? "/" : name, tint: Self.tint(for: projectID), tabs: [tab]))
+            tabGroups.append(TabGroup(projectID: projectID, name: name.isEmpty ? "/" : name, tint: Self.tint(for: projectID, avoiding: Set(tabGroups.map(\.tint))), tabs: [tab]))
         }
         selection = .tab(tab.id)
         markRunning()
@@ -294,11 +318,15 @@ public extension WorkspaceStore {
         LiveReporting.launchAdditions(for: cli)?.environment ?? [:]
     }
 
-    /// 组色：按项目路径稳定分配（FNV-1a）
-    static func tint(for key: String) -> Int {
+    /// 组色有几种（见 BarlyPalette.groupColor）
+    nonisolated static let tintCount = 5
+
+    /// 组色：按项目路径稳定分配（FNV-1a），从这个颜色往后找第一个没被已打开的组占用的；全占满就用哈希本身
+    nonisolated static func tint(for key: String, avoiding used: Set<Int>) -> Int {
         var hash: UInt64 = 0xcbf2_9ce4_8422_2325
         for byte in key.utf8 { hash ^= UInt64(byte); hash &*= 0x100_0000_01b3 }
-        return Int(hash % 6)
+        let start = Int(hash % UInt64(tintCount))
+        return (0..<tintCount).map { (start + $0) % tintCount }.first { !used.contains($0) } ?? start
     }
 
     // MARK: 断线重连
@@ -461,7 +489,7 @@ public extension WorkspaceStore {
 
     // MARK: 标签记录（退出后重开时恢复）
 
-    private struct TabRecord: Codable {
+    internal struct TabRecord: Codable {
         let cli: String?
         let sessionID: String?
         let projectPath: String
@@ -470,7 +498,7 @@ public extension WorkspaceStore {
         let selected: Bool
     }
 
-    private static var tabsFile: URL {
+    internal static var tabsFile: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Switchboard", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

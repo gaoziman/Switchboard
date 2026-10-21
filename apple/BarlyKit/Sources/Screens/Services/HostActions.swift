@@ -153,7 +153,6 @@ public extension WorkspaceStore {
                 }
             }
         }
-        let remote = await SessionDiscovery.runRemote(alias)
         guard let j = hosts.firstIndex(where: { $0.id == alias }) else { return }
         if let error {
             hosts[j].connection = error.contains("Permission denied") || error.contains("Host key verification")
@@ -161,6 +160,14 @@ public extension WorkspaceStore {
         } else {
             hosts[j].connection = .connected
         }
+        await reloadHostSessions(alias)
+    }
+
+    /// 从本机镜像重读一台主机：全部会话记成候选（添加列表用），只把会话库里的文件夹放进侧栏
+    func reloadHostSessions(_ alias: String) async {
+        let all = await SessionDiscovery.runRemote(alias)
+        data.folderCandidates[alias] = FolderLibrary.index(all) { _ in true }
+        let remote = FolderLibrary.sessions(all, in: Set(library.folders))
         let previous = Dictionary(sessions.filter { $0.hostID == alias }.map { ($0.id, $0.activity) }, uniquingKeysWith: { a, _ in a })
         sessions.removeAll { $0.hostID == alias }
         sessions += remote.map { s in var s = s; s.activity = previous[s.id] ?? .notRunning; return s }

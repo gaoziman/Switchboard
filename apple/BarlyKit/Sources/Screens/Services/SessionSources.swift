@@ -1,10 +1,23 @@
 import Foundation
 import SQLite3
 
-/// 一种 CLI 的会话来源：只读它自己的文件，返回会话列表。格式对照 JustSessions（MIT）的适配器
+/// 一种 CLI 的会话来源：只读它自己的文件，返回会话列表。格式对照 JustSessions（MIT）的适配器。
+/// folders：只要这些工作目录里的会话（会话库里添加过的文件夹，精确匹配）；nil = 全部（候选索引用）
 protocol SessionSource: Sendable {
     var cli: CLIKind { get }
-    func discover() -> [Session]
+    func discover(in folders: Set<String>?) -> [Session]
+}
+
+extension SessionSource {
+    func discover() -> [Session] { discover(in: nil) }
+}
+
+extension Array where Element == Session {
+    /// 按工作目录过滤（nil = 不过滤）。子代理跟着父会话的目录走，不单独判断
+    func within(_ folders: Set<String>?) -> [Session] {
+        guard let folders else { return self }
+        return filter { folders.contains($0.projectPath) }
+    }
 }
 
 // MARK: - Claude Code
@@ -39,10 +52,15 @@ struct ClaudeSource: SessionSource {
         self.hostID = hostID
     }
 
-    func discover() -> [Session] {
+    func discover(in folders: Set<String>?) -> [Session] {
         let projects = root.appendingPathComponent("projects")
         let fm = FileManager.default
-        guard let dirs = try? fm.contentsOfDirectory(at: projects, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { return [] }
+        guard var dirs = try? fm.contentsOfDirectory(at: projects, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { return [] }
+        // 只读添加过的文件夹：目录名就是编码后的路径，直接挑出来（编码会撞名，读完再按 cwd 过滤一次）
+        if let folders {
+            let names = Set(folders.map(FolderLibrary.claudeDirectoryName(for:)))
+            dirs = dirs.filter { names.contains($0.lastPathComponent) }
+        }
         var seen = Set<String>()
         var sessions: [Session] = []
         for dir in dirs {
@@ -77,8 +95,13 @@ struct ClaudeSource: SessionSource {
                 }
             }
         }
-        Self.cache.save(keeping: seen, under: root)
-        return sessions
+        // 只扫了部分目录时，缓存只在扫过的目录里清理，别的目录的摘要留着（候选索引还要用）
+        if folders == nil {
+            Self.cache.save(keeping: seen, under: root)
+        } else {
+            for dir in dirs { Self.cache.save(keeping: seen, under: dir) }
+        }
+        return sessions.within(folders)
     }
 
     static func summarize(_ file: URL) -> Summary? {
@@ -152,7 +175,7 @@ struct CodexSource: SessionSource {
         self.hostID = hostID
     }
 
-    func discover() -> [Session] {
+    func discover(in folders: Set<String>?) -> [Session] {
         let index = threadNames()
         guard let walker = FileManager.default.enumerator(at: root.appendingPathComponent("sessions"),
                                                           includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
@@ -170,7 +193,7 @@ struct CodexSource: SessionSource {
                 messageCount: s.messages, parentSessionID: s.parent, sourcePath: file.path))
         }
         Self.cache.save(keeping: seen, under: root)
-        return sessions
+        return sessions.within(folders)
     }
 
     private func threadNames() -> [String: (name: String, updated: Date?)] {
@@ -241,7 +264,7 @@ struct OmpSource: SessionSource {
 
     static let cache = SummaryCache<Summary>(name: "omp-v1")
 
-    func discover() -> [Session] {
+    func discover(in folders: Set<String>?) -> [Session] {
         guard let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
                                                           options: [.skipsHiddenFiles]) else { return [] }
         var seen = Set<String>()
@@ -255,7 +278,7 @@ struct OmpSource: SessionSource {
                 lastActivity: JSONLines.modificationDate(file), messageCount: s.messages, sourcePath: file.path))
         }
         Self.cache.save(keeping: seen, under: root)
-        return sessions
+        return sessions.within(folders)
     }
 
     static func summarize(_ file: URL) -> Summary? {
@@ -309,7 +332,7 @@ struct OpenCodeSource: SessionSource {
         }
     }
 
-    func discover() -> [Session] {
+    func discover(in folders: Set<String>?) -> [Session] {
         guard let db = SQLiteReader(database) else { return [] }
         let counts = Dictionary(db.rows("SELECT session_id, count(*) FROM message GROUP BY session_id").map { ($0[0] ?? "", Int($0[1] ?? "0") ?? 0) },
                                 uniquingKeysWith: { a, _ in a })
@@ -322,6 +345,7 @@ struct OpenCodeSource: SessionSource {
                            lastActivity: Date(timeIntervalSince1970: (Double(r[3] ?? "0") ?? 0) / 1000),
                            messageCount: counts[id] ?? 0, parentSessionID: r[4], sourcePath: database.path)
         }
+        .within(folders)
     }
 }
 

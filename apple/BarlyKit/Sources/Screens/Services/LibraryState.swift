@@ -9,14 +9,29 @@ public struct LibraryState: Codable, Equatable, Sendable {
     public var pinnedSessions: [String] = []
     /// 会话 ID → 本地名字
     public var names: [String: String] = [:]
+    /// 项目 ID → 本地名字（重命名项目；只改 Switchboard 里的显示）
+    public var projectNames: [String: String] = [:]
     public var archivedSessions: Set<String> = []
     public var archivedProjects: Set<String> = []
     /// CLI → 保存过的启动命令
     public var commands: [String: String] = [:]
-    /// 手动加的项目文件夹（还没有会话也列出来）
+    /// 旧版本手动加的本机文件夹（路径）。升级挑选时并进 folders，之后不再用
     public var addedProjects: [String] = []
+    /// 会话库里的文件夹：项目 ID「主机:路径」，按添加顺序。侧栏只显示这些（design/folder-library.md）
+    public var folders: [String] = []
+    /// 升级到「手动添加文件夹」后挑过一次了（没挑过：启动时弹挑选）
+    public var foldersMigrated = false
+    /// 库外有会话在跑时点过「忽略」的文件夹（项目 ID），不再提示
+    public var dismissedFolders: Set<String> = []
 
     public init() {}
+
+    /// 升级挑选完成：挑中的 + 旧版本手动加的，去重保序
+    mutating func finishFolderMigration(picked: [String]) {
+        for id in picked + addedProjects.map({ "\(Host.localID):\($0)" }) where !folders.contains(id) { folders.append(id) }
+        addedProjects = []
+        foldersMigrated = true
+    }
 
     /// 旧版本存的文件少字段也能读
     public init(from decoder: Decoder) throws {
@@ -24,10 +39,14 @@ public struct LibraryState: Codable, Equatable, Sendable {
         pinnedProjects = try c.decodeIfPresent([String].self, forKey: .pinnedProjects) ?? []
         pinnedSessions = try c.decodeIfPresent([String].self, forKey: .pinnedSessions) ?? []
         names = try c.decodeIfPresent([String: String].self, forKey: .names) ?? [:]
+        projectNames = try c.decodeIfPresent([String: String].self, forKey: .projectNames) ?? [:]
         archivedSessions = try c.decodeIfPresent(Set<String>.self, forKey: .archivedSessions) ?? []
         archivedProjects = try c.decodeIfPresent(Set<String>.self, forKey: .archivedProjects) ?? []
         commands = try c.decodeIfPresent([String: String].self, forKey: .commands) ?? [:]
         addedProjects = try c.decodeIfPresent([String].self, forKey: .addedProjects) ?? []
+        folders = try c.decodeIfPresent([String].self, forKey: .folders) ?? []
+        foldersMigrated = try c.decodeIfPresent(Bool.self, forKey: .foldersMigrated) ?? false
+        dismissedFolders = try c.decodeIfPresent(Set<String>.self, forKey: .dismissedFolders) ?? []
     }
 
     static var file: URL {
@@ -37,8 +56,16 @@ public struct LibraryState: Codable, Equatable, Sendable {
         return dir.appendingPathComponent("library.json")
     }
 
-    public static func load() -> LibraryState {
-        (try? JSONDecoder().decode(LibraryState.self, from: Data(contentsOf: file))) ?? LibraryState()
+    public static func load() -> LibraryState { load(from: file) }
+
+    /// 没有文件 = 空状态；读不出来（半截、格式不对）先改名成 library.json.bak-<时间> 留着，再用空状态，
+    /// 免得下一次保存把用户的置顶、重命名、归档整个盖掉
+    static func load(from url: URL) -> LibraryState {
+        guard let data = try? Data(contentsOf: url) else { return LibraryState() }
+        if let state = try? JSONDecoder().decode(LibraryState.self, from: data) { return state }
+        let stamp = Int(Date().timeIntervalSince1970)
+        try? FileManager.default.moveItem(at: url, to: url.deletingLastPathComponent().appendingPathComponent("library.json.bak-\(stamp)"))
+        return LibraryState()
     }
 
     public func save() {
@@ -53,12 +80,17 @@ public extension WorkspaceStore {
     /// 把本地状态盖到刚读出来的会话和项目上
     func applyLibraryState() {
         let state = library
-        for path in state.addedProjects where !projects.contains(where: { $0.hostID == Host.localID && $0.path == path }) {
-            projects.append(Project(hostID: Host.localID, path: path, folderExists: FileManager.default.fileExists(atPath: path)))
+        // 会话库里的文件夹还没有会话也列出来
+        for id in state.folders where !projects.contains(where: { $0.id == id }) {
+            guard let colon = id.firstIndex(of: ":") else { continue }
+            let host = String(id[..<colon]), path = String(id[id.index(after: colon)...])
+            let local = host == Host.localID
+            projects.append(Project(hostID: host, path: path, folderExists: !local || FileManager.default.fileExists(atPath: path)))
         }
         for i in projects.indices {
             projects[i].isPinned = state.pinnedProjects.contains(projects[i].id)
             projects[i].isArchived = state.archivedProjects.contains(projects[i].id)
+            projects[i].customName = state.projectNames[projects[i].id]
         }
         for i in sessions.indices {
             let id = sessions[i].id
@@ -68,7 +100,7 @@ public extension WorkspaceStore {
         }
     }
 
-    private func updateLibrary(_ change: (inout LibraryState) -> Void) {
+    func updateLibrary(_ change: (inout LibraryState) -> Void) {
         change(&library)
         if isLive { library.save() }
         applyLibraryState()
@@ -110,12 +142,8 @@ public extension WorkspaceStore {
         }
     }
 
-    /// 手动加一个项目文件夹
-    func addProject(_ path: String) {
-        let p = (path as NSString).standardizingPath
-        updateLibrary { s in if !s.addedProjects.contains(p) { s.addedProjects.append(p) } }
-        expandedProjectIDs.insert("\(Host.localID):\(p)")
-    }
+    /// 手动加一个本机文件夹（访达里选的、拖进来的）
+    func addProject(_ path: String) { addFolder(path) }
 
     /// 保存过的启动命令（nil = 默认）
     func savedCommand(for cli: CLIKind) -> String? { library.commands[cli.rawValue] }
