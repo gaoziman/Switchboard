@@ -189,7 +189,8 @@ struct RemoteSessionTests {
         manager.executable = script.path
         #expect(await manager.start(host: "devbox", local: 18_080, remote: 8080) == nil)   // 2 秒还活着 = 建起来了
         #expect(manager.forwards(on: "devbox").count == 1)
-        try await Task.sleep(for: .seconds(1.5))
+        // 假 ssh 2.6 秒后退出；并行跑满时进程调度会慢，最多等 5 秒
+        for _ in 0..<50 where !manager.forwards(on: "devbox").isEmpty { try await Task.sleep(for: .milliseconds(100)) }
         #expect(manager.forwards(on: "devbox").isEmpty)
     }
 }
