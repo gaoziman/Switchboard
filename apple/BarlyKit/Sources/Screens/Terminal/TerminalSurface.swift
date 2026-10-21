@@ -10,42 +10,48 @@ import BarlyKit
 public final class TerminalRegistry {
     public static let shared = TerminalRegistry()
 
-    private var views: [UUID: SBTerminalView] = [:]
+    private var views: [UUID: any EngineTerminalView] = [:]
     private var delegates: [UUID: TerminalDelegate] = [:]
     /// CLI 退出时回调（tab id, 退出码）
     public var onExit: ((UUID, Int32) -> Void)?
     /// 终端标题变化（CLI 用 OSC 设的标题，Codex 用它报状态）
     public var onTitle: ((UUID, String) -> Void)?
 
-    public func view(for launch: TerminalLaunch, palette: BarlyPalette) -> LocalProcessTerminalView {
+    /// 标签的终端：第一次要时按当前设置的引擎建好并启动进程，之后每次拿回同一个视图（换窗口、换引擎设置都不重建）
+    func view(for launch: TerminalLaunch, palette: BarlyPalette) -> any EngineTerminalView {
         if let existing = views[launch.tabID] { return existing }
         TerminalKeys.install()
         observeSettings()
-        let view = SBTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), cli: launch.cli,
-                                  directory: launch.projectPath ?? launch.directory, isRemote: launch.remoteHost != nil)
-        style(view, palette)
-        let delegate = TerminalDelegate(tabID: launch.tabID, registry: self)
-        view.processDelegate = delegate
-        delegates[launch.tabID] = delegate
+        let view = TerminalEngine.current.makeView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), launch: launch)
+        view.tabID = launch.tabID
+        view.apply(TerminalStyle.current())
+        if let swiftTerm = view as? SBTerminalView {
+            let delegate = TerminalDelegate(tabID: launch.tabID, registry: self)
+            swiftTerm.processDelegate = delegate
+            delegates[launch.tabID] = delegate
+        }
         views[launch.tabID] = view
-        view.startProcess(executable: launch.executable, args: launch.arguments,
-                          environment: ShellEnvironment.shared.processEnvironment(extra: launch.environment),
-                          execName: nil, currentDirectory: launch.directory)
+        view.start(launch)
         return view
+    }
+
+    /// 这个标签用的是哪个引擎（设置里说明「之后新开的标签才换」时用）
+    public func engine(of tabID: UUID) -> TerminalEngine? {
+        views[tabID].map { $0 is GhosttyTerminalView ? .ghostty : .swiftTerm }
     }
 
     /// 关标签：只断开终端（tmux 里的 CLI 继续跑），或者连 tmux 会话一起结束
     public func close(_ tabID: UUID, endingTmux tmuxName: String?) {
         if let tmuxName { Tmux.kill(tmuxName) }
         if let view = views[tabID] {
-            view.process?.terminate()
+            view.terminateProcess()
             view.removeFromSuperview()
         }
         views[tabID] = nil
         delegates[tabID] = nil
     }
 
-    public func isAlive(_ tabID: UUID) -> Bool { views[tabID]?.process?.running == true }
+    public func isAlive(_ tabID: UUID) -> Bool { views[tabID]?.isProcessRunning == true }
 
     private var observer: NSObjectProtocol?
 
@@ -63,26 +69,15 @@ public final class TerminalRegistry {
         let key = TerminalStyle.current().key
         guard key != lastStyleKey else { return }
         lastStyleKey = key
-        for view in views.values { style(view) }
+        let style = TerminalStyle.current()
+        for view in views.values {
+            view.apply(style)
+            view.superview?.layer?.backgroundColor = NSColor(hex: style.colors.background).cgColor
+        }
     }
 
-    private func style(_ view: LocalProcessTerminalView, _ t: BarlyPalette? = nil) {
-        let s = TerminalStyle.current()
-        view.nativeBackgroundColor = NSColor(hex: s.colors.background)
-        view.nativeForegroundColor = NSColor(hex: s.colors.foreground)
-        view.installColors(s.colors.ansi.map { hex in
-            SwiftTerm.Color(red: UInt16((hex >> 16) & 0xFF) * 257, green: UInt16((hex >> 8) & 0xFF) * 257, blue: UInt16(hex & 0xFF) * 257)
-        })
-        view.caretColor = NSColor(hex: s.colors.foreground).withAlphaComponent(0.8)
-        view.selectedTextBackgroundColor = NSColor(hex: s.colors.foreground).withAlphaComponent(0.25)
-        view.font = s.font
-        view.optionAsMetaKey = true
-        view.getTerminal().setCursorStyle(.steadyBar)
-        view.superview?.layer?.backgroundColor = NSColor(hex: s.colors.background).cgColor
-    }
-
-    fileprivate func exited(_ tabID: UUID, code: Int32) { onExit?(tabID, code) }
-    fileprivate func titled(_ tabID: UUID, _ title: String) { onTitle?(tabID, title) }
+    func exited(_ tabID: UUID, code: Int32) { onExit?(tabID, code) }
+    func titled(_ tabID: UUID, _ title: String) { onTitle?(tabID, title) }
 }
 
 /// 终端当前该用的配色和字体（从设置算出来）
@@ -161,7 +156,8 @@ private final class TerminalDelegate: NSObject, LocalProcessTerminalViewDelegate
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
         let id = tabID
-        Task { @MainActor [weak registry] in registry?.exited(id, code: exitCode ?? 0) }
+        let code = ExitStatus.code(fromWaitStatus: exitCode)    // 原始 waitpid 状态 → 退出码（ssh 断线的 255 才认得出来）
+        Task { @MainActor [weak registry] in registry?.exited(id, code: code) }
     }
 }
 
@@ -186,7 +182,7 @@ public struct TerminalSurface: NSViewRepresentable {
 
     private func attach(to container: NSView) {
         let view = TerminalRegistry.shared.view(for: launch, palette: t)
-        container.layer?.backgroundColor = view.nativeBackgroundColor.cgColor
+        container.layer?.backgroundColor = view.terminalBackground.cgColor
         guard view.superview !== container else { return }
         view.removeFromSuperview()
         container.subviews.forEach { $0.removeFromSuperview() }

@@ -7,7 +7,8 @@ import SwiftTerm
 /// - 拖文件进来：输入转义好的路径（和 Terminal.app 一样）
 /// - ⌘-click 链接 / 文件：网址开浏览器；文件按设置用系统默认 app 或编辑器打开，相对路径按标签的项目目录解析
 /// - 行编辑键位见 `TerminalKeys`
-final class SBTerminalView: LocalProcessTerminalView {
+final class SBTerminalView: LocalProcessTerminalView, EngineTerminalView {
+    var tabID: UUID?
     let cli: CLIKind?
     let directory: String
     let isRemote: Bool
@@ -26,20 +27,36 @@ final class SBTerminalView: LocalProcessTerminalView {
         send(source: self, data: bytes[...])
     }
 
-    func sendText(_ text: String) {
-        sendBytes(Array(text.utf8))
+    // MARK: EngineTerminalView
+
+    var isProcessRunning: Bool { process?.running == true }
+    var terminalBackground: NSColor { nativeBackgroundColor }
+
+    func start(_ launch: TerminalLaunch) {
+        startProcess(executable: launch.executable, args: launch.arguments,
+                     environment: ShellEnvironment.shared.processEnvironment(extra: launch.environment),
+                     execName: nil, currentDirectory: launch.directory)
+    }
+
+    func terminateProcess() { process?.terminate() }
+
+    func apply(_ s: TerminalStyle) {
+        nativeBackgroundColor = NSColor(hex: s.colors.background)
+        nativeForegroundColor = NSColor(hex: s.colors.foreground)
+        installColors(s.colors.ansi.map { hex in
+            SwiftTerm.Color(red: UInt16((hex >> 16) & 0xFF) * 257, green: UInt16((hex >> 8) & 0xFF) * 257, blue: UInt16(hex & 0xFF) * 257)
+        })
+        caretColor = NSColor(hex: s.colors.foreground).withAlphaComponent(0.8)
+        selectedTextBackgroundColor = NSColor(hex: s.colors.foreground).withAlphaComponent(0.25)
+        font = s.font
+        optionAsMetaKey = true
+        getTerminal().setCursorStyle(.steadyBar)
     }
 
     // MARK: ⌘V
 
     override func paste(_ sender: Any) {
-        let pb = NSPasteboard.general
-        let hasText = pb.string(forType: .string) != nil
-        let hasImage = pb.canReadObject(forClasses: [NSImage.self], options: nil)
-        if !hasText, hasImage, !isRemote, cli == .claude || cli == .codex {
-            sendBytes([0x16])   // Ctrl-V：CLI 自己读剪贴板里的图片并附到提示里
-            return
-        }
+        if pasteImageIfNeeded() { return }   // 只有图片：发 Ctrl-V，CLI 自己读剪贴板里的图
         super.paste(sender)
     }
 
@@ -50,17 +67,8 @@ final class SBTerminalView: LocalProcessTerminalView {
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
-                                                               options: [.urlReadingFileURLsOnly: true]) as? [URL],
-              !urls.isEmpty else { return false }
-        window?.makeFirstResponder(self)
-        if isRemote {
-            // 主机上没有这些文件，路径输进去也用不了（先复制到主机，下一步做）
-            NSSound.beep()
-            return false
-        }
-        sendText(urls.map { Tmux.shellQuote($0.path) }.joined(separator: " ") + " ")
-        return true
+        let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        return typeDroppedFiles(urls)
     }
 
     // MARK: ⌘-click
@@ -78,7 +86,7 @@ enum TerminalKeys {
     static func install() {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard let view = event.window?.firstResponder as? SBTerminalView,
+            guard let view = event.window?.firstResponder as? any EngineTerminalView,
                   let bytes = bytes(for: event, cli: view.cli) else { return event }
             view.sendBytes(bytes)
             return nil

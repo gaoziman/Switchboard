@@ -100,3 +100,13 @@ struct TabNavigationTests {
         UserDefaults.standard.removeObject(forKey: "closeBehavior.\(host)")
     }
 }
+
+@Suite struct ExitStatusTests {
+    @Test func rawWaitStatusBecomesExitCode() {
+        #expect(ExitStatus.code(fromWaitStatus: 0) == 0)
+        #expect(ExitStatus.code(fromWaitStatus: 7 << 8) == 7)
+        #expect(ExitStatus.code(fromWaitStatus: 255 << 8) == 255)     // ssh 断线，要能触发自动重连
+        #expect(ExitStatus.code(fromWaitStatus: 9) == 137)            // SIGKILL
+        #expect(ExitStatus.code(fromWaitStatus: nil) == 0)
+    }
+}

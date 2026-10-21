@@ -16,6 +16,8 @@ let package = Package(
     dependencies: [
         // 内嵌终端（MIT）。1.20.0 和 JustSessions 的基线一致
         .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", exact: "1.20.0"),
+        // 可选的 Ghostty 终端引擎（MIT）：预编译的 libghostty + AppKit 视图。进程照样由我们用 SwiftTerm 的 LocalProcess 起
+        .package(url: "https://github.com/Lakr233/libghostty-spm.git", exact: "2.2.2026101901"),
     ],
     targets: [
         .target(
@@ -24,7 +26,8 @@ let package = Package(
         ),
         .target(name: "BarlyExamples", dependencies: ["BarlyKit"]),
         .target(name: "Screens", dependencies: ["BarlyKit", "BarlyExamples",
-                                               .product(name: "SwiftTerm", package: "SwiftTerm", condition: .when(platforms: [.macOS]))]),
+                                               .product(name: "SwiftTerm", package: "SwiftTerm", condition: .when(platforms: [.macOS])),
+                                               .product(name: "GhosttyTerminal", package: "libghostty-spm", condition: .when(platforms: [.macOS]))]),
         .executableTarget(name: "barly-snap", dependencies: ["BarlyKit", "BarlyExamples", "Screens"]),
         .testTarget(name: "ScreensTests", dependencies: ["Screens"]),
     ]

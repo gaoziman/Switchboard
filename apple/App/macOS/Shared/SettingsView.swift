@@ -228,17 +228,22 @@ private struct TerminalSettings: View {
     @AppStorage("colorIntensity") private var intensity = 100.0
     @AppStorage("terminalFont") private var font = "system"
     @AppStorage("terminalFontSize") private var fontSize = TerminalStyle.defaultFontSize
+    @AppStorage(TerminalEngine.defaultsKey) private var engine = TerminalEngine.swiftTerm.rawValue
     @State private var families: [String] = []
     @State private var importError: String?
 
     var body: some View {
         Form {
             Section {
-                LabeledContent("引擎") {
-                    Text("SwiftTerm").foregroundStyle(.secondary)
+                Picker("引擎", selection: $engine) {
+                    ForEach(TerminalEngine.allCases, id: \.self) { e in Text(verbatim: e.title).tag(e.rawValue) }
                 }
+                .pickerStyle(.segmented)
             } footer: {
-                Text("Ghostty（GPU 渲染）引擎还没接入，之后会在这里切换。").foregroundStyle(.secondary)
+                Text(engine == TerminalEngine.ghostty.rawValue
+                     ? "Ghostty 用 GPU 渲染，大量输出时更流畅。只对之后新开的标签生效，开着的标签不变。字体选「系统等宽」时用 Ghostty 自带的字体。"
+                     : "SwiftTerm 是默认引擎。换成 Ghostty 只对之后新开的标签生效。")
+                    .foregroundStyle(.secondary)
             }
             Section("颜色") {
                 Picker("配色", selection: $scheme) {
