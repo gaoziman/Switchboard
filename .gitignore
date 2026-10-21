@@ -1,0 +1,16 @@
+# 构建产物
+/apple/.build/
+/apple/BarlyKit/.build/
+/apple/dist/
+/apple/Switchboard.xcodeproj/
+/apple/BarlyKit/.swiftpm/
+xcuserdata/
+*.xcuserstate
+
+# 设计稿、截图、设计工具配置（不进仓库）
+/design/
+/apple/design/
+/release-check.allow
+
+# 系统文件
+.DS_Store

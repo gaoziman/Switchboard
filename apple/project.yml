@@ -1,0 +1,89 @@
+# XcodeGen 模板：new-apple.sh 会替换 Switchboard / design.barly.switchboard，并按 --ios / --macos 删掉不要的 target
+name: Switchboard
+options:
+  bundleIdPrefix: design.barly.switchboard
+  deploymentTarget:
+    iOS: "17.0"
+    macOS: "26.0"
+  createIntermediateGroups: true
+  # 界面源语言是中文，英文在 App/macOS/Resources/Localizable.xcstrings（scripts/l10n.py 同步）
+  developmentLanguage: zh-Hans
+packages:
+  BarlyKit:
+    path: BarlyKit
+  # 自动更新（MIT）：appcast 和安装包放在 GitHub Releases，scripts/release.sh 生成
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    majorVersion: 2.7.0
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: YES
+    DEVELOPMENT_TEAM: ""
+targets:
+  # >>> macos
+  # App/macOS 里只留一个形态目录（new-apple.sh 按身份 macForm 删掉另外两个）+ Shared/
+  Switchboard-macOS:
+    type: application
+    platform: macOS
+    sources: [App/macOS, App/Assets.xcassets]
+    scheme:
+      testTargets: [Switchboard-macOSTests]
+    dependencies:
+      - package: BarlyKit
+        product: BarlyKit
+      - package: BarlyKit
+        product: BarlyExamples
+      - package: BarlyKit
+        product: Screens
+      - package: Sparkle
+    info:
+      path: App/macOS/Info.plist
+      properties:
+        SUFeedURL: https://github.com/gaoziman/Switchboard/releases/latest/download/appcast.xml
+        SUPublicEDKey: erSR49fyPB5DXS6kVsT+dqH4U5FY8eAHsUEmsCPzeQo=
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
+    settings:
+      base:
+        PRODUCT_NAME: Switchboard
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_BUNDLE_IDENTIFIER: design.barly.switchboard.mac
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: NO
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        INFOPLIST_KEY_CFBundleDisplayName: "Switchboard"
+        # 菜单栏 / 浮动面板形态 = YES（没有 Dock 图标），主窗口形态 = NO
+        INFOPLIST_KEY_LSUIElement: NO
+        # 系统控件的强调色 = 身份强调色（App/macOS/Resources/Assets.xcassets/AccentColor，new-apple.sh sync 生成）
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # 打包 tmux 的脚本要读 .build/Tmux
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    postBuildScripts:
+      - name: Bundle tmux
+        basedOnDependencyAnalysis: false
+        script: |
+          # 静态编译的 tmux（scripts/tmux/build-runtime.sh，第一次要下载源码编译几分钟）拷进 Resources/Tmux
+          RUNTIME="${PROJECT_DIR}/.build/Tmux/$(uname -m)/runtime"
+          if [ ! -x "$RUNTIME/bin/tmux" ]; then zsh "${PROJECT_DIR}/scripts/tmux/build-runtime.sh" >/dev/null || exit 1; fi
+          DEST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Tmux"
+          rm -rf "$DEST" && mkdir -p "$DEST"
+          cp -R "$RUNTIME/bin" "$RUNTIME/share" "$RUNTIME/licenses" "$RUNTIME/versions.txt" "$DEST/"
+  Switchboard-macOSTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [App/macOSTests]
+    dependencies:
+      - target: Switchboard-macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: design.barly.switchboard.mac.tests
+        # 宿主 app 的产品名是 Switchboard（不是 target 名 Switchboard-macOS），XcodeGen 推出来的 TEST_HOST 会找错
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Switchboard.app/Contents/MacOS/Switchboard"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+  # <<< macos
