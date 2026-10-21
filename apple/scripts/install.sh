@@ -98,6 +98,12 @@ if [[ -n "$SIGN_HASH" ]]; then
         || fail "证书签名失败：${LOGS}/codesign.log"
 fi
 codesign --verify --strict "$APP" 2>>"$LOGS/codesign.log" || fail "签名校验失败：${LOGS}/codesign.log"
+# 构建目录里的这份别留在 LaunchServices 里：同一个 bundle ID 登记多份时，程序坞可能拿错的那份找图标，显示成空白模板
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+"$LSREGISTER" -u "$APP" 2>/dev/null || true
+for debug_app in "$ROOT/.build/xcode/Build/Products/Debug/$NAME.app" "$ROOT/.build/loc/Build/Products/Debug/$NAME.app"; do
+    [[ -d "$debug_app" ]] && "$LSREGISTER" -u "$debug_app" 2>/dev/null || true
+done
 
 # ── 4. 替换 /Applications 里的旧版 ─────────────────────────────
 step "安装到 ${DEST}"

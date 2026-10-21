@@ -77,6 +77,8 @@ for item in "$SPARKLE"/Versions/B/XPCServices/*.xpc "$SPARKLE/Versions/B/Autoupd
 done
 sign "$APP"
 codesign --verify --deep --strict "$APP" || fail "签名校验失败"
+# 构建目录里的这份别留在 LaunchServices 里（同一个 bundle ID 登记多份，程序坞会显示空白图标）
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$APP" 2>/dev/null || true
 
 # ── 打包 ──
 step "打包到 dist/$VERSION"
