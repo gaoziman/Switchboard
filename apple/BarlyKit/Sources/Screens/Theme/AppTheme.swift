@@ -21,9 +21,19 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
 
     /// 外壳用到的 9 个颜色
     public struct Spec: Sendable {
-        let canvas: UInt32, sidebar: UInt32, surface: UInt32, border: UInt32
-        let text: UInt32, text2: UInt32, text3: UInt32, text4: UInt32
-        let accent: UInt32
+        public var canvas: UInt32, sidebar: UInt32, surface: UInt32, border: UInt32
+        public var text: UInt32, text2: UInt32, text3: UInt32, text4: UInt32
+        public var accent: UInt32
+    }
+
+    /// 主题本身的颜色（Switchboard 主题就是身份色，和 Generated/Theme.generated.swift 一致）
+    public func baseSpec(dark: Bool) -> Spec {
+        if let s = spec(dark: dark) { return s }
+        return dark
+            ? Spec(canvas: 0x131313, sidebar: 0x0B0C0F, surface: 0x15171A, border: 0x232528,
+                   text: 0xE8E8EA, text2: 0xA9ABAF, text3: 0x727578, text4: 0x404246, accent: 0xDB5730)
+            : Spec(canvas: 0xFFFFFF, sidebar: 0xFFFFFF, surface: 0xFFFFFF, border: 0xE6E6E6,
+                   text: 0x141414, text2: 0x5B5B5B, text3: 0x9E9E9E, text4: 0xCECECE, accent: 0xDB5730)
     }
 
     public func spec(dark: Bool) -> Spec? {
@@ -54,14 +64,15 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
 
     /// 设置里的色样：底 · 面板 · 强调色
     public func swatch(dark: Bool) -> [Color] {
-        if let s = spec(dark: dark) { return [Color(hex: s.canvas), Color(hex: s.surface), Color(hex: s.accent)] }
-        let p = dark ? BarlyTokens.dark : BarlyTokens.light
-        return [p.canvas, p.surface, p.accent]
+        let s = ThemeColors.apply(ThemeColors.changes(self, dark: dark), to: baseSpec(dark: dark), dark: dark)
+        return [Color(hex: s.canvas), Color(hex: s.surface), Color(hex: s.accent)]
     }
 
-    /// 这套主题的完整色板（nil = 用身份本身）
+    /// 这套主题的完整色板，含你改过的颜色（nil = 用身份本身，没改过）
     public func palette(dark: Bool) -> BarlyPalette? {
-        guard let s = spec(dark: dark) else { return nil }
+        let custom = ThemeColors.changes(self, dark: dark)
+        guard spec(dark: dark) != nil || !custom.isEmpty else { return nil }
+        let s = ThemeColors.apply(custom, to: baseSpec(dark: dark), dark: dark)
         let base = dark ? BarlyTokens.dark : BarlyTokens.light
         let canvas = Color(hex: s.canvas), sidebar = Color(hex: s.sidebar), surface = Color(hex: s.surface)
         let border = Color(hex: s.border), accent = Color(hex: s.accent)
@@ -101,12 +112,15 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
 /// 根视图用：按设置里的主题给整棵视图换色板
 public struct ThemedRoot: ViewModifier {
     @AppStorage("appTheme") private var theme = AppTheme.switchboard.rawValue
+    /// 自定义颜色改了就加一，让色板重算
+    @AppStorage(ThemeColors.revisionKey) private var revision = 0
     @Environment(\.colorScheme) private var scheme
 
     public init() {}
 
     public func body(content: Content) -> some View {
-        content.environment(\.barlyPaletteOverride, (AppTheme(rawValue: theme) ?? .switchboard).palette(dark: scheme == .dark))
+        _ = revision
+        return content.environment(\.barlyPaletteOverride, (AppTheme(rawValue: theme) ?? .switchboard).palette(dark: scheme == .dark))
     }
 }
 

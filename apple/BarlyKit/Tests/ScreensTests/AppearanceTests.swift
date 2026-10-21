@@ -1,0 +1,61 @@
+import Foundation
+import SwiftUI
+import Testing
+import BarlyKit
+@testable import Screens
+
+@Suite struct ThemeColorsTests {
+    func defaults() -> UserDefaults { UserDefaults(suiteName: "sb-colors-\(UUID().uuidString)")! }
+
+    @Test func untouchedThemeKeepsItsColors() {
+        let base = AppTheme.github.baseSpec(dark: true)
+        let s = ThemeColors.apply([:], to: base, dark: true)
+        #expect(s.canvas == base.canvas && s.text3 == base.text3 && s.accent == base.accent)
+    }
+
+    @Test func changesAreSeparatePerVersionAndTheme() {
+        let d = defaults()
+        ThemeColors.set(0x112233, for: .accent, theme: .github, dark: true, defaults: d)
+        #expect(ThemeColors.changes(.github, dark: true, defaults: d) == [.accent: 0x112233])
+        #expect(ThemeColors.changes(.github, dark: false, defaults: d).isEmpty)
+        #expect(ThemeColors.changes(.atom, dark: true, defaults: d).isEmpty)
+        ThemeColors.set(nil, for: .accent, theme: .github, dark: true, defaults: d)
+        #expect(!ThemeColors.hasChanges(.github, defaults: d))
+    }
+
+    @Test func resetClearsBothVersions() {
+        let d = defaults()
+        ThemeColors.set(0xFFFFFF, for: .canvas, theme: .tokyo, dark: true, defaults: d)
+        ThemeColors.set(0x000000, for: .text, theme: .tokyo, dark: false, defaults: d)
+        let before = d.integer(forKey: ThemeColors.revisionKey)
+        ThemeColors.reset(.tokyo, defaults: d)
+        #expect(!ThemeColors.hasChanges(.tokyo, defaults: d))
+        #expect(d.integer(forKey: ThemeColors.revisionKey) > before)
+    }
+
+    @Test func textChangeDerivesSecondaryShades() {
+        let base = AppTheme.switchboard.baseSpec(dark: true)
+        let s = ThemeColors.apply([.text: 0xFFFFFF], to: base, dark: true)
+        #expect(s.text == 0xFFFFFF)
+        // 次要文字介于新文字和背景之间，越往后越淡
+        func lum(_ v: UInt32) -> UInt32 { (v >> 16) & 0xFF }
+        #expect(lum(s.text) > lum(s.text2) && lum(s.text2) > lum(s.text3) && lum(s.text3) > lum(s.text4) && lum(s.text4) > lum(s.canvas))
+    }
+
+    @Test func mixIsLinearPerChannel() {
+        #expect(ThemeColors.mix(0x000000, 0xFFFFFF, 0.5) == 0x808080)
+        #expect(ThemeColors.mix(0xFF0000, 0x0000FF, 0) == 0xFF0000)
+    }
+}
+
+@Suite struct InterfaceScaleTests {
+    @Test func scalesSizeAndAbsoluteLineHeight() {
+        let style = BarlyTextStyle(size: 13, lineHeight: 20, weight: 400, tracking: 0, upper: false, mono: false)
+        let big = style.scaled(1.5)
+        #expect(big.size == 19.5 && big.lineHeight == 30)
+        // 相对行高（倍数）不用改
+        let relative = BarlyTextStyle(size: 14, lineHeight: 1.4, weight: 400, tracking: 0, upper: false, mono: false).scaled(1.2)
+        #expect(relative.lineHeight == 1.4)
+        #expect(style.scaled(1) == style)
+    }
+}

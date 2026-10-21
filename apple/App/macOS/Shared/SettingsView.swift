@@ -98,6 +98,7 @@ private struct GeneralSettings: View {
 private struct AppearanceSettings: View {
     @AppStorage("appearance") private var appearance = "dark"
     @AppStorage("appTheme") private var theme = AppTheme.switchboard.rawValue
+    @AppStorage(BarlyScale.defaultsKey) private var interfaceScale = 1.0
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -124,8 +125,85 @@ private struct AppearanceSettings: View {
             } footer: {
                 Text("每套主题都有浅色和深色。终端配色默认跟着主题，也可以在「终端」里单独选。").foregroundStyle(.secondary)
             }
+            ThemeColorsSection(theme: AppTheme(rawValue: theme) ?? .switchboard)
+            Section {
+                LabeledContent("界面大小") {
+                    HStack(spacing: 10) {
+                        Slider(value: $interfaceScale, in: BarlyScale.range, step: 0.1).frame(width: 200)
+                        Text(interfaceScale, format: .percent.precision(.fractionLength(0)))
+                            .monospacedDigit().foregroundStyle(.secondary).frame(width: 44, alignment: .trailing)
+                    }
+                }
+            } footer: {
+                Text("侧栏、标签和对话框里的文字跟着放大缩小。终端字号在「终端」里单独设。").foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// 自定义颜色：改当前主题的几个颜色，浅色、深色分开改，马上生效
+private struct ThemeColorsSection: View {
+    let theme: AppTheme
+    @Environment(\.colorScheme) private var scheme
+    @AppStorage(ThemeColors.revisionKey) private var revision = 0
+    /// nil = 跟着当前明暗，看到的就是正在改的那套
+    @State private var editsDark: Bool?
+
+    private var dark: Bool { editsDark ?? (scheme == .dark) }
+
+    var body: some View {
+        let _ = revision
+        let base = theme.baseSpec(dark: dark)
+        let changes = ThemeColors.changes(theme, dark: dark)
+        Section {
+            Picker("改哪一套", selection: Binding(get: { dark }, set: { editsDark = $0 })) {
+                Text("浅色").tag(false)
+                Text("深色").tag(true)
+            }
+            .pickerStyle(.segmented)
+            ForEach(ThemeColorRole.allCases) { role in
+                LabeledContent(role.title) {
+                    HStack(spacing: 8) {
+                        if changes[role] != nil {
+                            Button("还原") { ThemeColors.set(nil, for: role, theme: theme, dark: dark) }
+                                .buttonStyle(.link).controlSize(.small)
+                        }
+                        ColorPicker("", selection: Binding(
+                            get: { Color(hex: changes[role] ?? Self.value(role, base)) },
+                            set: { ThemeColors.set(Self.hex($0), for: role, theme: theme, dark: dark) }
+                        ), supportsOpacity: false)
+                        .labelsHidden()
+                    }
+                }
+            }
+        } header: {
+            HStack {
+                Text("自定义颜色")
+                Spacer()
+                Button("全部还原") { ThemeColors.reset(theme) }
+                    .controlSize(.small)
+                    .disabled(!ThemeColors.hasChanges(theme))
+            }
+        } footer: {
+            Text("改的是「\(theme.title)」主题，换别的主题再换回来还在。按钮上的字会自动选黑或白，保证看得清。").foregroundStyle(.secondary)
+        }
+    }
+
+    static func value(_ role: ThemeColorRole, _ s: AppTheme.Spec) -> UInt32 {
+        switch role {
+        case .canvas: s.canvas
+        case .sidebar: s.sidebar
+        case .surface: s.surface
+        case .text: s.text
+        case .accent: s.accent
+        }
+    }
+
+    static func hex(_ color: Color) -> UInt32? {
+        guard let c = NSColor(color).usingColorSpace(.sRGB) else { return nil }
+        func ch(_ v: CGFloat) -> UInt32 { UInt32((min(max(v, 0), 1) * 255).rounded()) }
+        return ch(c.redComponent) << 16 | ch(c.greenComponent) << 8 | ch(c.blueComponent)
     }
 }
 
