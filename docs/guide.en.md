@@ -125,6 +125,8 @@ When it's due, the host's heading shows Sign In… and a system notification is 
 ## Appearance and language
 
 - Settings › Appearance: 6 themes, each with light and dark variants; light/dark can follow the system.
+- **Custom Colors**: change the current theme's background, sidebar, panels, text and accent, separately for its light and dark versions; changes apply right away, and button text switches between black and white to stay readable. They're kept when you switch themes and come back; Reset All returns to the theme's own colors.
+- **Interface Size**: 90%–150%. Text in the sidebar, tabs and dialogs gets larger or smaller (set the terminal font size separately in Terminal).
 - Settings › Terminal: color scheme (follow the app theme, a built-in scheme, or an imported iTerm2 `.itermcolors`), font, size and color intensity.
 - Settings › General › Interface Language: Match System / 简体中文 / English, applied after a relaunch. Session tabs reopen and CLIs keep running in tmux; plain terminals close.
 
