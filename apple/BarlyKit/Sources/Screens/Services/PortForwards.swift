@@ -63,13 +63,15 @@ public final class PortForwardManager {
     public static let shared = PortForwardManager()
     private var processes: [String: Process] = [:]
     public private(set) var forwards: [PortForward] = []
+    /// 单测换成假的 ssh
+    var executable = "/usr/bin/ssh"
 
     /// 启动；nil = 成功，否则是 ssh 说的原因（本机端口被占、主机不让转发…）
     public func start(host: String, local: Int, remote: Int) async -> String? {
         let forward = PortForward(host: host, local: local, remote: remote)
         guard !forwards.contains(forward) else { return nil }
         let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
+        p.executableURL = URL(fileURLWithPath: executable)
         p.arguments = ["-N", "-o", "ExitOnForwardFailure=yes", "-o", "BatchMode=yes", "-o", "ServerAliveInterval=15",
                        // 只当客户端：有共享连接就走它，没有就自己连；自己绝不当共享连接（停掉转发不能连累标签）
                        "-o", "ControlMaster=no", "-o", "ControlPath=\(SSH.controlPath)",
@@ -87,6 +89,14 @@ public final class PortForwardManager {
         }
         processes[forward.id] = p
         forwards.append(forward)
+        // ssh 自己退出了（断线、主机重启）：从列表里拿掉，不再显示成开着
+        p.terminationHandler = { [weak self, weak p] _ in
+            Task { @MainActor in
+                guard let self, let p, self.processes[forward.id] === p else { return }
+                self.processes[forward.id] = nil
+                self.forwards.removeAll { $0 == forward }
+            }
+        }
         return nil
     }
 

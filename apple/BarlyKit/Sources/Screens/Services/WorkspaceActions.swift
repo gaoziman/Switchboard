@@ -223,6 +223,8 @@ public extension WorkspaceStore {
     func claimNewSessions() {
         guard !pendingClaims.isEmpty else { return }
         let normalize = { (p: String) in (p as NSString).standardizingPath }
+        // 别的窗口开着的也不算（两个窗口同时在同一个文件夹开同一种 CLI，不能认领到同一个会话）
+        var taken = openTabSessionIDs
         for (tabID, claim) in pendingClaims {
             guard tab(tabID) != nil else { pendingClaims[tabID] = nil; continue }
             // 主机上输入的 ~/x 不知道主机的家目录在哪：按结尾 /x 对
@@ -236,9 +238,10 @@ public extension WorkspaceStore {
                 $0.hostID == claim.hostID && $0.cli == claim.cli && $0.parentSessionID == nil
                     && sameFolder($0.projectPath)
                     && $0.lastActivity >= claim.startedAt.addingTimeInterval(-5)
-                    && tab(for: $0) == nil
+                    && !taken.contains($0.id)
             }
             guard let found = candidates.max(by: { $0.lastActivity < $1.lastActivity }) else { continue }
+            taken.insert(found.id)
             pendingClaims[tabID] = nil
             for g in tabGroups.indices {
                 if let t = tabGroups[g].tabs.firstIndex(where: { $0.id == tabID }) {

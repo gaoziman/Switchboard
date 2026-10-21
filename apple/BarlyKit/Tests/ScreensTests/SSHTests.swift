@@ -176,3 +176,20 @@ struct RemoteSessionTests {
         #expect(SSH.needsHome("~/proj") && SSH.needsHome("~") && !SSH.needsHome("/srv") && !SSH.needsHome("~other"))
     }
 }
+
+@MainActor
+@Suite struct PortForwardLifecycleTests {
+    @Test("转发的 ssh 自己退出了（断线、主机重启）就从列表里拿掉，不再显示成开着")
+    func exitedForwardIsRemoved() async throws {
+        let script = FileManager.default.temporaryDirectory.appendingPathComponent("fake-ssh-\(UUID()).sh")
+        defer { try? FileManager.default.removeItem(at: script) }
+        try "#!/bin/sh\nsleep 2.6\n".write(to: script, atomically: true, encoding: .utf8)
+        chmod(script.path, 0o755)
+        let manager = PortForwardManager()
+        manager.executable = script.path
+        #expect(await manager.start(host: "devbox", local: 18_080, remote: 8080) == nil)   // 2 秒还活着 = 建起来了
+        #expect(manager.forwards(on: "devbox").count == 1)
+        try await Task.sleep(for: .seconds(1.5))
+        #expect(manager.forwards(on: "devbox").isEmpty)
+    }
+}

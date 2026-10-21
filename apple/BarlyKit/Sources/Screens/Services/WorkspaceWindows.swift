@@ -31,6 +31,8 @@ public enum WorkspaceWindows {
         if observer == nil {
             observer = NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
                 isTerminating = true
+                // 端口转发的 ssh 不会跟着 app 退：留着会一直占着本机端口，下次开同一个转发报「端口被占」
+                MainActor.assumeIsolated { PortForwardManager.shared.stopAll() }
             }
         }
         #endif
