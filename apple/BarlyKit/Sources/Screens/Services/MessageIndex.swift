@@ -16,6 +16,8 @@ public actor MessageIndex {
         let text: String
         /// 转小写、去重音之后的文字：搜索时直接做普通查找，比每次带选项比较快一个数量级
         let folded: String
+        /// 什么时候读进内存的
+        let indexedAt = Date()
 
         init(version: String, text: String) {
             self.version = version
@@ -31,20 +33,26 @@ public actor MessageIndex {
     private var entries: [String: Entry] = [:]
     private let dir: URL
 
-    init() {
-        dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("design.barly.switchboard/messages", isDirectory: true)
+    init(directory: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("design.barly.switchboard/messages", isDirectory: true)) {
+        dir = directory
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
 
-    /// 让索引跟上这批会话。progress(已完成, 总数)；返回本次重读了几个
+    /// 让索引跟上这批会话。progress(已完成, 总数)；返回本次重读了几个。
+    /// freshFor：这么多秒内读过的会话，文件变了也先不重读——正在跑的会话文件一直在变，
+    /// 不然每搜一次都要把它（最多 24 MB）重新解析一遍；新消息最多晚这么久搜得到
     @discardableResult
-    public func update(_ sessions: [Session], progress: @Sendable (Int, Int) -> Void) -> Int {
+    public func update(_ sessions: [Session], freshFor: TimeInterval = 30, progress: @Sendable (Int, Int) -> Void) -> Int {
         var reread = 0
         let live = Set(sessions.map(key))
         for (i, s) in sessions.enumerated() {
             if Task.isCancelled { break }
             let k = key(s)
+            if let e = entries[k], Date().timeIntervalSince(e.indexedAt) < freshFor {
+                if i % 50 == 0 { progress(i + 1, sessions.count) }
+                continue
+            }
             let v = version(s)
             if entries[k]?.version == v { if i % 50 == 0 { progress(i + 1, sessions.count) }; continue }
             if let cached = readCache(k), cached.version == v {
