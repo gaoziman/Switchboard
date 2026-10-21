@@ -164,10 +164,9 @@ public extension WorkspaceStore {
             title = ShellEnvironment.shared.shell.split(separator: "/").last.map(String.init) ?? "shell"
         case .cli(let cli):
             if draft.savedCommand != savedCommand(for: cli) { saveCommand(draft.savedCommand, for: cli) }
-            let command = filterArguments(CommandLineSplitter.split(draft.effectiveCommand) + Self.extraArguments(cli)) + (prompt.map { [$0] } ?? [])
-            launch = TerminalLaunch.cli(tabID: tabID, command: command, directory: folder,
-                                        tmuxName: Tmux.name(for: cli, sessionID: "new-\(tabID.uuidString.prefix(8))"),
-                                        environment: Self.extraEnvironment(cli))
+            launch = cliLaunch(tabID: tabID, cli: cli, hostID: Host.localID, directory: folder,
+                               tmuxName: Tmux.name(for: cli, sessionID: "new-\(tabID.uuidString.prefix(8))"),
+                               arguments: prompt.map { [$0] } ?? [], filter: filterArguments)
             kind = .session(id: "new-\(tabID.uuidString)", cli: cli)
             title = L("新的 \(cli.title) 会话")
         }
@@ -217,7 +216,7 @@ public extension WorkspaceStore {
         let tabID = UUID()
         let alias = draft.hostID
         let folder = draft.folder.trimmingCharacters(in: .whitespaces)
-        let launch: TerminalLaunch
+        let launch: TerminalLaunch?
         let kind: TerminalTab.Kind
         let title: String
         switch draft.target {
@@ -227,12 +226,12 @@ public extension WorkspaceStore {
             kind = .plainTerminal
             title = "\(alias) · shell"
         case .cli(let cli):
-            let command = [cli.executable] + (cli == .codex ? ActivityMonitor.codexTitleArguments : [])
-            launch = .remote(tabID: tabID, alias: alias, command: command, directory: folder,
-                             tmuxName: Tmux.name(for: cli, sessionID: "new-\(tabID.uuidString.prefix(8))"))
+            launch = cliLaunch(tabID: tabID, cli: cli, hostID: alias, directory: folder,
+                               tmuxName: Tmux.name(for: cli, sessionID: "new-\(tabID.uuidString.prefix(8))"), arguments: [])
             kind = .session(id: "new-\(tabID.uuidString)", cli: cli)
             title = L("新的 \(cli.title) 会话")
         }
+        guard let launch else { return }
         addTab(TerminalTab(id: tabID, kind: kind, hostID: alias, projectPath: folder, title: title, activity: .working), launch: launch)
         if case .cli(let cli) = draft.target {
             pendingClaims[tabID] = PendingClaim(cli: cli, folder: folder, startedAt: Date(), hostID: alias)
@@ -287,17 +286,8 @@ public extension WorkspaceStore {
 
     func open(session: Session, arguments: [String], tmuxName: String, title: String? = nil, linkSession: Bool = true) {
         let tabID = UUID()
-        let launch: TerminalLaunch
-        if session.hostID != Host.localID {
-            // 主机上的启动命令先用默认（按主机保存命令下一步做）
-            let command = [session.cli.executable] + (session.cli == .codex ? ActivityMonitor.codexTitleArguments : []) + arguments
-            launch = .remote(tabID: tabID, alias: session.hostID, command: command, directory: session.projectPath, tmuxName: tmuxName)
-        } else {
-            let command = launchCommand(session.cli) + Self.extraArguments(session.cli) + arguments
-            guard let local = TerminalLaunch.cli(tabID: tabID, command: command, directory: session.projectPath, tmuxName: tmuxName,
-                                                 environment: Self.extraEnvironment(session.cli)) else { return }
-            launch = local
-        }
+        guard let launch = cliLaunch(tabID: tabID, cli: session.cli, hostID: session.hostID, directory: session.projectPath,
+                                     tmuxName: tmuxName, arguments: arguments) else { return }
         let kind: TerminalTab.Kind = linkSession ? .session(id: session.id, cli: session.cli) : .session(id: "fork-\(tabID)", cli: session.cli)
         addTab(TerminalTab(id: tabID, kind: kind, hostID: session.hostID, projectPath: session.projectPath,
                            title: title ?? session.displayTitle, activity: .working), launch: launch)
@@ -307,24 +297,10 @@ public extension WorkspaceStore {
         lastRelaunch[tab.id] = Date()
         TerminalRuntime.close(tab.id, endingTmux: nil)
         tabBanners[tab.id] = nil
-        let name = Tmux.name(for: session.cli, sessionID: session.id)
-        if session.hostID != Host.localID {
-            var remote = TerminalLaunch.remote(tabID: tab.id, alias: session.hostID,
-                                               command: [session.cli.executable] + (session.cli == .codex ? ActivityMonitor.codexTitleArguments : []) + session.cli.resumeArguments(session.id),
-                                               directory: session.projectPath, tmuxName: name)
-            remote.cli = session.cli
-            remote.projectPath = session.projectPath
-            launches[tab.id] = remote
-            setActivity(.working, forTab: tab.id)
-            return
-        }
-        guard let launch = TerminalLaunch.cli(tabID: tab.id, command: launchCommand(session.cli) + Self.extraArguments(session.cli) + session.cli.resumeArguments(session.id),
-                                              directory: session.projectPath, tmuxName: name,
-                                              environment: Self.extraEnvironment(session.cli)) else { return }
-        var relaunched = launch
-        relaunched.cli = session.cli
-        relaunched.projectPath = session.projectPath
-        launches[tab.id] = relaunched
+        guard let launch = cliLaunch(tabID: tab.id, cli: session.cli, hostID: session.hostID, directory: session.projectPath,
+                                     tmuxName: Tmux.name(for: session.cli, sessionID: session.id),
+                                     arguments: session.cli.resumeArguments(session.id)) else { return }
+        launches[tab.id] = launch
         setActivity(.working, forTab: tab.id)
     }
 
@@ -344,22 +320,6 @@ public extension WorkspaceStore {
         selection = .tab(tab.id)
         markRunning()
         saveTabs()
-    }
-
-    /// 这个 CLI 在这台主机上的启动命令：保存过的（拆成参数，支持引号）或默认可执行文件
-    func launchCommand(_ cli: CLIKind) -> [String] {
-        savedCommand(for: cli).map(CommandLineSplitter.split) ?? [cli.executable]
-    }
-
-    /// 启动 CLI 时 Switchboard 自己加的参数：Codex 把状态写进终端标题，omp 加载报状态的扩展
-    static func extraArguments(_ cli: CLIKind) -> [String] {
-        if cli == .codex { return ActivityMonitor.codexTitleArguments }
-        return LiveReporting.launchAdditions(for: cli)?.arguments ?? []
-    }
-
-    /// 启动 CLI 时 Switchboard 自己加的环境变量：OpenCode / omp 的报告目录、OpenCode 的插件配置
-    static func extraEnvironment(_ cli: CLIKind) -> [String: String] {
-        LiveReporting.launchAdditions(for: cli)?.environment ?? [:]
     }
 
     /// 组色有几种（见 BarlyPalette.groupColor）

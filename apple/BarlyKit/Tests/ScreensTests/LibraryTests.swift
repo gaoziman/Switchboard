@@ -82,10 +82,13 @@ struct LibraryStateTests {
     @Test("按 CLI 保存启动命令")
     func commands() {
         let s = store()
+        let command = { (cli: CLIKind) in
+            LaunchPlan.command(for: cli, remote: false, savedCommand: s.savedCommand(for: cli), additions: nil, arguments: []).command
+        }
         s.saveCommand("codex --x", for: .codex)
-        #expect(s.launchCommand(.codex) == ["codex", "--x"])
-        #expect(s.launchCommand(.claude) == ["claude"])
+        #expect(command(.codex) == ["codex", "--x"] + ActivityMonitor.codexTitleArguments)
+        #expect(command(.claude) == ["claude"])
         s.saveCommand(nil, for: .codex)
-        #expect(s.launchCommand(.codex) == ["codex"])
+        #expect(command(.codex) == ["codex"] + ActivityMonitor.codexTitleArguments)
     }
 }
