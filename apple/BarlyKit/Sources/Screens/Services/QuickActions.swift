@@ -35,7 +35,7 @@ public extension WorkspaceStore {
         let name = Tmux.name(for: session.cli, sessionID: session.id)
         guard session.hostID != Host.localID else { Tmux.kill(name); return }
         let alias = session.hostID
-        Task.detached { _ = SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, SSH.killTmuxCommand(name)], timeout: 20) }
+        Task { _ = await SSH.offPool { SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, SSH.killTmuxCommand(name)], timeout: 20) } }
     }
 
     /// 项目下的全部会话（不算子代理）

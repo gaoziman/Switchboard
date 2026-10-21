@@ -39,7 +39,7 @@ public extension WorkspaceStore {
         var p = path.trimmingCharacters(in: .whitespaces)
         if SSH.needsHome(p) {
             if data.remoteHomes[alias] == nil, isLive {
-                data.remoteHomes[alias] = await Task.detached(priority: .userInitiated) { SSH.home(alias) }.value
+                data.remoteHomes[alias] = await SSH.offPool { SSH.home(alias) }
             }
             guard let home = data.remoteHomes[alias] else { return }
             p = SSH.expandingHome(p, home: home)

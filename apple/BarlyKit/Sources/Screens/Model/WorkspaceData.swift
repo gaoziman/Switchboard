@@ -39,6 +39,9 @@ public final class WorkspaceData {
     /// 状态轮询最近一次在后台读到的（所有窗口共用）
     @ObservationIgnored var activityInputs = ActivityInputs()
     @ObservationIgnored var isGatheringActivity = false
+    /// 主机上正在做的活（「poll:别名」「refresh:别名」）、状态连续问不到的次数
+    @ObservationIgnored var hostJobs: Set<String> = []
+    @ObservationIgnored var snapshotFailures: [String: Int] = [:]
     /// 问过的 SSH 主机家目录（主机文件夹里的 ~ 靠它展开）
     @ObservationIgnored var remoteHomes: [String: String] = [:]
     /// 正在读会话库：别的窗口这时再要刷新就跳过

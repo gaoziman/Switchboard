@@ -92,7 +92,7 @@ public extension WorkspaceStore {
             var expired: Bool
             if let check = config.check, !check.isEmpty {
                 let script = #"exec "${SHELL:-/bin/sh}" -lc "# + Tmux.shellQuote(check)
-                let r = await Task.detached { SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, script], timeout: 20) }.value
+                let r = await SSH.offPool { SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, script], timeout: 20) }
                 expired = r.map { $0.status != 0 } ?? false
             } else {
                 expired = config.lastSignIn.map { Date().timeIntervalSince($0) > config.hours * 3600 } ?? true
@@ -109,6 +109,7 @@ public extension WorkspaceStore {
         PortForwardManager.shared.stopAll(host: alias)
         for tab in allTabs where tab.hostID == alias { close(tab, keepRunning: true) }
         hosts.removeAll { $0.id == alias }
+        remoteSnapshots[alias] = nil
         sessions.removeAll { $0.hostID == alias }
         projects.removeAll { $0.hostID == alias }
         try? FileManager.default.removeItem(at: SSH.cacheDirectory(alias))
@@ -124,12 +125,39 @@ public extension WorkspaceStore {
     }
 
     /// 每 5 秒：问每台连着的主机「哪些 claude 在干什么、tmux 里有什么」（没断开、上次没失败的才问）
+    /// 一台主机上一次还没问完（网络慢、主机卡住）就跳过它，不叠着起 ssh
     func pollRemoteStatus() async {
         for host in hosts where !host.isLocal && host.connection == .connected {
             let alias = host.id
-            let snap = await Task.detached(priority: .utility) { RemoteSessions.snapshot(alias) }.value
-            if let snap { remoteSnapshots[alias] = snap }
+            guard beginHostJob(.poll, alias) else { continue }
+            let snap = await SSH.offPool { RemoteSessions.snapshot(alias) }
+            endHostJob(.poll, alias)
+            recordSnapshot(snap, for: alias)
         }
+    }
+
+    enum HostJob { case poll, refresh }
+
+    /// 这台主机这种活没在做就记上、返回 true；在做就返回 false（调用方跳过）
+    func beginHostJob(_ job: HostJob, _ alias: String) -> Bool {
+        let key = "\(job):\(alias)"
+        return data.hostJobs.insert(key).inserted
+    }
+
+    func endHostJob(_ job: HostJob, _ alias: String) {
+        data.hostJobs.remove("\(job):\(alias)")
+    }
+
+    /// 问不到（nil）先留着上次的：偶尔一次超时灯不闪；连续 3 次问不到就清掉，别一直显示主机掉线前的状态
+    func recordSnapshot(_ snap: RemoteSessions.Snapshot?, for alias: String) {
+        if let snap {
+            remoteSnapshots[alias] = snap
+            data.snapshotFailures[alias] = nil
+            return
+        }
+        let failures = (data.snapshotFailures[alias] ?? 0) + 1
+        data.snapshotFailures[alias] = failures
+        if failures >= 3 { remoteSnapshots[alias] = nil }
     }
 
     /// 所有没断开的 SSH 主机一起刷新
@@ -143,7 +171,9 @@ public extension WorkspaceStore {
 
     /// 一台主机：rsync 镜像 → 读镜像 → 替换它名下的会话。失败按原因标状态，已有的列表保留
     func refreshHost(_ alias: String) async {
-        guard let i = hosts.firstIndex(where: { $0.id == alias }), hosts[i].connection != .disconnected else { return }
+        guard let i = hosts.firstIndex(where: { $0.id == alias }), hosts[i].connection != .disconnected,
+              beginHostJob(.refresh, alias) else { return }   // 上一次镜像还没完（rsync 最长 10 分钟）：不叠着再起一份
+        defer { endHostJob(.refresh, alias) }
         hosts[i].connection = .refreshing(done: 0, total: 3)
         let store = self
         let error = await SSH.mirror(alias) { done, total in

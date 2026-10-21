@@ -58,7 +58,7 @@ public enum SSH {
     /// 添加前试连一次：登录、在登录 shell 里找 rsync / tmux / 四个 CLI
     public static func probe(_ alias: String) async -> ProbeResult {
         let script = #"exec "${SHELL:-/bin/sh}" -lc 'echo __SB_OK__; for c in rsync tmux claude codex opencode omp; do command -v "$c" >/dev/null 2>&1 && echo "has:$c"; done'"#
-        return await Task.detached {
+        return await offPool {
             guard let r = run(["/usr/bin/ssh"] + options(alias) + [alias, script], timeout: 25) else {
                 return .unreachable(L("ssh 没有在 25 秒内返回。"))
             }
@@ -72,7 +72,7 @@ public enum SSH {
                 return .needsConnect(err)
             }
             return .unreachable(err.isEmpty ? L("ssh 退出码 \(r.status)") : String(err.suffix(400)))
-        }.value
+        }
     }
 
     /// 本机缓存：~/Library/Caches/design.barly.switchboard/hosts/<别名>/
@@ -95,7 +95,7 @@ public enum SSH {
 
     /// 把主机上的会话文件镜像到本机（只读主机，只拉 .jsonl，跳过子代理）。progress(已完成步骤, 总步骤)
     public static func mirror(_ alias: String, progress: @escaping @Sendable (Int, Int) -> Void) async -> String? {
-        await Task.detached {
+        await offPool {
             let root = cacheDirectory(alias)
             let ssh = (["/usr/bin/ssh"] + options(alias)).map(Tmux.shellQuote).joined(separator: " ")
             let filters = ["--exclude=subagents/", "--include=*/", "--include=*.jsonl", "--exclude=*"]
@@ -121,7 +121,7 @@ public enum SSH {
             if let error = mirrorOpenCode(alias, ssh: ssh, into: root.appendingPathComponent("opencode")) { firstError = firstError ?? error }
             progress(jobs.count + 1, jobs.count + 1)
             return firstError
-        }.value
+        }
     }
 
     /// OpenCode 的库里还有它的账号和凭据，不整个拷：在主机上用 python3 建一个只有会话、消息、片段的快照，
@@ -201,6 +201,14 @@ public enum SSH {
     }
 
     // MARK: 进程
+
+    /// 阻塞着等 ssh / rsync 的活放到 GCD 线程上，不占 Swift 并发的线程池：
+    /// 池子只有 CPU 核数那么多线程，被等网络（最长几分钟）的占满，会话扫描、索引这些 async 工作都会停下来
+    static func offPool<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async { continuation.resume(returning: work()) }
+        }
+    }
 
     struct Output { let status: Int32; let stdout: String; let stderr: String }
 
