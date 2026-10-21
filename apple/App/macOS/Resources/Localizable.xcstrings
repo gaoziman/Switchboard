@@ -1201,6 +1201,26 @@
         }
       }
     },
+    "侧栏、标签和对话框里的文字跟着放大缩小。终端字号在「终端」里单独设。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text in the sidebar, tabs and dialogs gets larger or smaller. Set the terminal font size in Terminal."
+          }
+        }
+      }
+    },
+    "侧栏和标签栏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sidebar and Tab Bar"
+          }
+        }
+      }
+    },
     "侧栏顶上的铃铛列出所有在等你回答的会话。" : {
       "localizations" : {
         "en" : {
@@ -1297,6 +1317,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "All"
+          }
+        }
+      }
+    },
+    "全部还原" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset All"
           }
         }
       }
@@ -2711,6 +2741,16 @@
         }
       }
     },
+    "强调色" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accent"
+          }
+        }
+      }
+    },
     "归档" : {
       "localizations" : {
         "en" : {
@@ -2953,6 +2993,26 @@
         }
       }
     },
+    "改哪一套" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
+    },
+    "改的是「%@」主题，换别的主题再换回来还在。按钮上的字会自动选黑或白，保证看得清。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These changes apply to the “%@” theme and are kept if you switch themes and come back. Button text switches between black and white to stay readable."
+          }
+        }
+      }
+    },
     "放到右边" : {
       "localizations" : {
         "en" : {
@@ -3019,6 +3079,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The folder will be created along with any missing parent folders"
+          }
+        }
+      }
+    },
+    "文字" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text"
           }
         }
       }
@@ -3877,6 +3947,16 @@
         }
       }
     },
+    "界面大小" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interface Size"
+          }
+        }
+      }
+    },
     "界面语言" : {
       "localizations" : {
         "en" : {
@@ -4247,6 +4327,26 @@
         }
       }
     },
+    "背景" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Background"
+          }
+        }
+      }
+    },
+    "自定义颜色" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom Colors"
+          }
+        }
+      }
+    },
     "色彩强度" : {
       "localizations" : {
         "en" : {
@@ -4523,6 +4623,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Running"
+          }
+        }
+      }
+    },
+    "还原" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
           }
         }
       }
@@ -4983,6 +5093,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hide Sidebar"
+          }
+        }
+      }
+    },
+    "面板、输入框和按钮" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Panels, Fields and Buttons"
           }
         }
       }
