@@ -175,9 +175,25 @@ enum LinkOpener {
         case "cursor": openInEditor("cursor", path: path, line: line)
         case "zed": openInEditor("zed", path: path, line: line)
         case "ask": askMenu(path: path, line: line)
-        default: NSWorkspace.shared.open(url)
+        default: openWithDefaultApp(url)
         }
     }
+
+    /// 交给系统默认程序打开；默认程序会运行它（装了 python.org 的 Python 时 .py 归 Python Launcher，
+    /// .sh 可能被设成用终端打开）就只在访达里显示。用编辑器打开的不受影响
+    static func openWithDefaultApp(_ url: URL) {
+        let handler = NSWorkspace.shared.urlForApplication(toOpen: url).flatMap { Bundle(url: $0)?.bundleIdentifier }
+        if isRunner(handler) { NSWorkspace.shared.activateFileViewerSelecting([url]) } else { NSWorkspace.shared.open(url) }
+    }
+
+    /// 打开文件 = 运行它的程序
+    private static let runnerApps: Set<String> = [
+        "org.python.PythonLauncher", "com.apple.Terminal", "com.googlecode.iterm2", "com.mitchellh.ghostty", "dev.warp.Warp-Stable",
+        "net.kovidgoyal.kitty", "com.github.wez.wezterm", "io.alacritty", "com.apple.ScriptEditor2", "com.apple.Automator",
+        "com.apple.shortcuts", "com.apple.installer", "com.apple.systempreferences",
+    ]
+
+    static func isRunner(_ bundleID: String?) -> Bool { bundleID.map(runnerApps.contains) ?? false }
 
     /// 打开就会运行、安装或跳到别处的类型：在 Mac 上它们不用可执行位也能跑
     private static let runnableExtensions: Set<String> = [
@@ -185,8 +201,11 @@ enum LinkOpener {
         "scpt", "scptd", "applescript", "workflow", "action", "jar", "prefpane", "saver", "dmg",
     ]
 
-    /// ⌘-click 时只在访达里显示、不打开：包（.app、.workflow 这种看着是文件夹的）、可执行文件、上面这些类型
+    /// ⌘-click 时只在访达里显示、不打开：包（.app、.workflow 这种看着是文件夹的）、可执行文件、上面这些类型。
+    /// 符号链接按它指向的算（系统打开时会跟过去：README.txt 可以是指向 .terminal 的链接）
     static func revealsInsteadOfOpening(_ path: String) -> Bool {
+        let real = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        if real != path, revealsInsteadOfOpening(real) { return true }
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return false }
         let ext = (path as NSString).pathExtension.lowercased()
@@ -223,7 +242,7 @@ enum LinkOpener {
     private static func askMenu(path: String, line: Int?) {
         let menu = NSMenu()
         let url = URL(fileURLWithPath: path)
-        menu.addItem(ClosureMenuItem(L("打开")) { NSWorkspace.shared.open(url) })
+        menu.addItem(ClosureMenuItem(L("打开")) { openWithDefaultApp(url) })
         for (name, scheme) in [("Visual Studio Code", "vscode"), ("Cursor", "cursor"), ("Zed", "zed")] {
             if let probe = URL(string: "\(scheme)://file/"), NSWorkspace.shared.urlForApplication(toOpen: probe) != nil {
                 menu.addItem(ClosureMenuItem(L("用 \(name) 打开")) { openInEditor(scheme, path: path, line: line) })

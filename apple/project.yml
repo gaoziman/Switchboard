@@ -60,7 +60,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: design.barly.switchboard.mac
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
-        ENABLE_HARDENED_RUNTIME: NO
+        # 不公证也开：没有它，同一用户下的程序能用 DYLD_INSERT_LIBRARIES 往 app 里注入代码，借用你给它的完全磁盘访问、辅助功能授权
+        ENABLE_HARDENED_RUNTIME: YES
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         INFOPLIST_KEY_CFBundleDisplayName: "Switchboard"
         # 菜单栏 / 浮动面板形态 = YES（没有 Dock 图标），主窗口形态 = NO

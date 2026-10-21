@@ -10,7 +10,7 @@
 #
 # 签名：
 #   APP_SIGN_IDENTITY="Developer ID Application: …"   默认用钥匙串里的 Apple Development（别人电脑上首次打开要去「系统设置 › 隐私与安全性」点「仍要打开」）
-#   NOTARY_PROFILE=<notarytool 钥匙串配置名>            设了就开 hardened runtime、加时间戳、送公证并装订（需要 Developer ID）
+#   NOTARY_PROFILE=<notarytool 钥匙串配置名>            设了就加时间戳、送公证并装订（需要 Developer ID）；hardened runtime 不管公不公证都开
 # 更新签名私钥在登录钥匙串（账户 switchboard），备份在 ~/.config/switchboard/sparkle_ed25519_private.key。丢了就再也发不出已装用户能收的更新
 set -euo pipefail
 
@@ -49,10 +49,11 @@ LINE="$(security find-identity -v -p codesigning | grep -F "\"${IDENTITY}" | hea
 [[ -n "$LINE" ]] || fail "钥匙串里没有「${IDENTITY}」证书"
 SIGN_HASH="$(awk '{print $2}' <<<"$LINE")"
 IDENTITY="$(sed -n 's/.*"\(.*\)".*/\1/p' <<<"$LINE")"
-SIGN_OPTS=(--force --sign "$SIGN_HASH")
+# hardened runtime 不公证也开（重签时不带 --options runtime 会把 Xcode 设的标记丢掉）
+SIGN_OPTS=(--force --sign "$SIGN_HASH" --options runtime)
 if [[ -n "${NOTARY_PROFILE:-}" ]]; then
     [[ "$IDENTITY" == "Developer ID Application"* ]] || fail "公证要用 Developer ID Application 证书"
-    SIGN_OPTS+=(--options runtime --timestamp)
+    SIGN_OPTS+=(--timestamp)
 else
     SIGN_OPTS+=(--timestamp=none)
 fi

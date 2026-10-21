@@ -58,6 +58,20 @@ struct LinkTests {
         }
         #expect(!reveal("plain folder"))
         #expect(!reveal("notes.md") && !reveal("main.swift") && !reveal("shot.png"))
+        // 看着是文本、其实是指向会运行的文件的符号链接：按它指向的算
+        try FileManager.default.createSymbolicLink(at: dir.appendingPathComponent("README.txt"),
+                                                   withDestinationURL: dir.appendingPathComponent("setup.terminal"))
+        #expect(reveal("README.txt"))
+    }
+
+    @Test("系统默认打开它的是会运行它的程序（Python Launcher、终端、脚本编辑器）：只显示")
+    func runnerApps() {
+        #expect(LinkOpener.isRunner("org.python.PythonLauncher"))
+        #expect(LinkOpener.isRunner("com.apple.Terminal"))
+        #expect(LinkOpener.isRunner("com.apple.ScriptEditor2"))
+        #expect(!LinkOpener.isRunner("com.apple.TextEdit"))
+        #expect(!LinkOpener.isRunner("com.microsoft.VSCode"))
+        #expect(!LinkOpener.isRunner(nil))
     }
 
     @Test func resolve() throws {

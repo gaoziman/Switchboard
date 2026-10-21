@@ -86,9 +86,9 @@ if [[ -n "$WARNINGS" ]]; then
     echo "$WARNINGS" | head -10 | sed 's/^/     /'
 fi
 if [[ -n "$SIGN_HASH" ]]; then
-    # 包里的 tmux 先单独签，再签整个 app
+    # 包里的 tmux 先单独签，再签整个 app；都带 hardened runtime（重签不带会把 Xcode 设的标记丢掉）
     if [[ -x "$APP/Contents/Resources/Tmux/bin/tmux" ]]; then
-        codesign --force --sign "$SIGN_HASH" --timestamp=none "$APP/Contents/Resources/Tmux/bin/tmux" >"$LOGS/codesign.log" 2>&1 \
+        codesign --force --sign "$SIGN_HASH" --options runtime --timestamp=none "$APP/Contents/Resources/Tmux/bin/tmux" >"$LOGS/codesign.log" 2>&1 \
             || fail "tmux 签名失败：${LOGS}/codesign.log"
     fi
     # Sparkle 里的 XPC 服务、Autoupdate、Updater.app、框架本身：由内到外逐个签（不用 --deep）
@@ -96,11 +96,11 @@ if [[ -n "$SIGN_HASH" ]]; then
     if [[ -d "$SPARKLE" ]]; then
         for item in "$SPARKLE"/Versions/B/XPCServices/*.xpc "$SPARKLE/Versions/B/Autoupdate" "$SPARKLE/Versions/B/Updater.app" "$SPARKLE"; do
             [[ -e "$item" ]] || continue
-            codesign --force --sign "$SIGN_HASH" --timestamp=none --preserve-metadata=entitlements "$item" >>"$LOGS/codesign.log" 2>&1 \
+            codesign --force --sign "$SIGN_HASH" --options runtime --timestamp=none --preserve-metadata=entitlements "$item" >>"$LOGS/codesign.log" 2>&1 \
                 || fail "Sparkle 签名失败：${LOGS}/codesign.log"
         done
     fi
-    codesign --force --sign "$SIGN_HASH" --timestamp=none "$APP" >>"$LOGS/codesign.log" 2>&1 \
+    codesign --force --sign "$SIGN_HASH" --options runtime --timestamp=none "$APP" >>"$LOGS/codesign.log" 2>&1 \
         || fail "证书签名失败：${LOGS}/codesign.log"
 fi
 codesign --verify --strict "$APP" 2>>"$LOGS/codesign.log" || fail "签名校验失败：${LOGS}/codesign.log"
