@@ -9,6 +9,9 @@ public struct SessionSidebar: View {
     @Bindable var store: WorkspaceStore
     var onNewSession: () -> Void
     @Environment(\.barly) private var t
+    #if os(macOS)
+    @Environment(\.openSettings) private var openSettings
+    #endif
     @State private var addingHost = false
 
     public static var width: CGFloat { BarlyScale.pt(288) }
@@ -272,7 +275,11 @@ public struct SessionSidebar: View {
         HStack(spacing: 2) {
             PaneIcon(symbol: "folder.badge.plus", help: L("添加文件夹…")) { addProjectFolder() }
             PaneIcon(symbol: "server.rack", help: L("添加 SSH 主机…")) { addingHost = true }
-            PaneIcon(symbol: "gearshape", help: L("设置（⌘,）"))
+            PaneIcon(symbol: "gearshape", help: L("设置（⌘,）")) {
+                #if os(macOS)
+                openSettings()
+                #endif
+            }
             Spacer()
             StatusCounts(sessions: store.sessions) { store.isBellOpen.toggle() }
         }
@@ -454,16 +461,32 @@ private struct HostHeading: View {
     var onSignIn: () -> Void = {}
     var onToggle: () -> Void = {}
     @Environment(\.barly) private var t
+    @State private var hovered = false
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: host.isLocal ? "laptopcomputer" : "server.rack")
-                .font(.system(size: 10))
-                .foregroundStyle(t.text4)
-            MonoLabel(host.isLocal ? "THIS MAC" : host.displayName, color: t.text3)
-            if collapsed {
-                Text(verbatim: L("\(count) 个项目")).barlyText(.product.caption, color: t.text4)
+            // 点标题折叠 / 展开这台主机；箭头只在悬停或已折叠时出现（像访达侧栏的分组）
+            Button(action: onToggle) {
+                HStack(spacing: 6) {
+                    Image(systemName: host.isLocal ? "laptopcomputer" : "server.rack")
+                        .font(.system(size: BarlyScale.pt(10)))
+                        .foregroundStyle(t.text4)
+                    MonoLabel(host.isLocal ? "THIS MAC" : host.displayName, color: t.text3)
+                    if collapsed {
+                        Text(verbatim: L("\(count) 个项目")).barlyText(.product.caption, color: t.text4)
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: BarlyScale.pt(8), weight: .bold))
+                        .foregroundStyle(t.text4)
+                        .rotationEffect(.degrees(collapsed ? 0 : 90))
+                        .opacity(hovered || collapsed ? 1 : 0)
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .onHover { hovered = $0 }
+            .help(collapsed ? L("展开") : L("折叠"))
+            .accessibilityValue(collapsed ? L("已折叠") : L("已展开"))
             Spacer()
             switch host.connection {
             case .needsConnect:

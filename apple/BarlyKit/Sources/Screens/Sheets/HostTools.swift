@@ -77,6 +77,7 @@ private struct Finding: View {
     let output: String?
     let command: String?
     @Environment(\.barly) private var t
+    @State private var copied = false
 
     var body: some View {
         let color: Color = switch level { case .problem: t.danger; case .warning: t.warning; case .ok: t.success }
@@ -99,9 +100,24 @@ private struct Finding: View {
             if let command {
                 HStack(spacing: 8) {
                     Text("在终端里试：").barlyText(.product.caption, color: t.text3)
-                    Text(command).barlyText(.product.caption.monospaced, color: t.text2).lineLimit(1)
+                    Text(command).barlyText(.product.caption.monospaced, color: t.text2).lineLimit(1).truncationMode(.middle)
+                        .textSelection(.enabled)
+                        .help(command)
                     Spacer()
-                    Image(systemName: "doc.on.doc").font(.system(size: 10)).foregroundStyle(t.text3).handCursor()
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(command, forType: .string)
+                        copied = true
+                        Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
+                    } label: {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: BarlyScale.pt(10)))
+                            .foregroundStyle(copied ? t.success : t.text3)
+                            .frame(width: 18, height: 18).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .handCursor()
+                    .help(L("复制命令"))
+                    .accessibilityLabel(L("复制命令"))
                 }
             }
         }

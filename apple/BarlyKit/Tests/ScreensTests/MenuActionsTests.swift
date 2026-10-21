@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 @testable import Screens
@@ -54,5 +55,20 @@ import Testing
         #expect(text.contains("修登录"))
         #expect(text.contains("你：怎么修？"))
         #expect(text.contains("let a = 1"))
+    }
+}
+
+@MainActor
+@Suite("⌘W 归谁")
+struct CloseCommandTargetTests {
+    @Test("只有工作区窗口在前面时 ⌘W 才关标签；设置窗口在前面时关设置窗口")
+    func workspaceWindowOnly() {
+        let store = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [])
+        let workspace = NSWindow(), settings = NSWindow()
+        store.hostWindow = workspace
+        WorkspaceWindows.register(store)
+        defer { WorkspaceWindows.unregister(store) }
+        #expect(WorkspaceWindows.isWorkspace(workspace))
+        #expect(!WorkspaceWindows.isWorkspace(settings))
     }
 }

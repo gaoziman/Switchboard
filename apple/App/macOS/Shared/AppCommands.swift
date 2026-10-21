@@ -34,7 +34,11 @@ struct AppCommands: Commands {
         }
         // 系统的「关闭窗口 ⌘W」换成关标签，关窗口挪到 ⇧⌘W
         CommandGroup(replacing: .saveItem) {
-            Button("关闭标签") { post(.switchboardCloseTab) }.keyboardShortcut("w")
+            // 设置窗口这类在前面时 ⌘W 关它自己，不去关后面工作区窗口的标签
+            Button("关闭标签") {
+                if let key = NSApp.keyWindow, !WorkspaceWindows.isWorkspace(key) { key.performClose(nil) } else { post(.switchboardCloseTab) }
+            }
+            .keyboardShortcut("w")
             Button("关闭窗口") { NSApp.keyWindow?.performClose(nil) }.keyboardShortcut("w", modifiers: [.shift, .command])
         }
         CommandGroup(after: .textEditing) {

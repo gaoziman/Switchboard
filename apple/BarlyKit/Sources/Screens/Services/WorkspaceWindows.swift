@@ -44,6 +44,14 @@ public enum WorkspaceWindows {
     /// 这个标签在哪个窗口
     public static func owner(ofTab id: UUID) -> WorkspaceStore? { live.first { $0.tab(id) != nil } }
 
+    #if os(macOS)
+    /// 是不是工作区窗口（窗口上挂着的 sheet 算它的窗口）。⌘W 只在工作区窗口在前面时关标签，设置窗口等在前面时关它自己
+    public static func isWorkspace(_ window: NSWindow) -> Bool {
+        let window = window.sheetParent ?? window
+        return live.contains { $0.hostWindow === window }
+    }
+    #endif
+
     /// 这个会话的标签开在哪个窗口
     public static func tabOwner(of session: Session) -> (store: WorkspaceStore, tab: TerminalTab)? {
         for store in live { if let tab = store.tab(for: session) { return (store, tab) } }

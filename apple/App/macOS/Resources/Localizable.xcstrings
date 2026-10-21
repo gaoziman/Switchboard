@@ -2633,6 +2633,16 @@
         }
       }
     },
+    "复制命令" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Command"
+          }
+        }
+      }
+    },
     "复制会话 ID" : {
       "localizations" : {
         "en" : {
@@ -2783,6 +2793,16 @@
         }
       }
     },
+    "展开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand"
+          }
+        }
+      }
+    },
     "导出对话" : {
       "localizations" : {
         "en" : {
@@ -2813,12 +2833,32 @@
         }
       }
     },
+    "已展开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expanded"
+          }
+        }
+      }
+    },
     "已打开" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open"
+          }
+        }
+      }
+    },
+    "已折叠" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapsed"
           }
         }
       }
@@ -3143,6 +3183,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Drop a file on the terminal to paste its path."
+          }
+        }
+      }
+    },
+    "折叠" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse"
           }
         }
       }
