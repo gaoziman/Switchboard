@@ -267,7 +267,8 @@ public struct WorkspaceView: View {
                             hasEarlier: store.hasEarlierTranscript(session.id),
                             onLoadEarlier: { Task { await store.loadTranscript(session.id, earlier: true) } })
                     .id(session.id)
-                    .task(id: session.id) { await store.loadTranscript(session.id) }
+                    // 会话有新动静（刷新后 lastActivity 变了）也重读：文件没变会直接用缓存
+                    .task(id: "\(session.id)@\(session.lastActivity.timeIntervalSince1970)") { await store.loadTranscript(session.id) }
             }
         } else {
             TerminalPanel {

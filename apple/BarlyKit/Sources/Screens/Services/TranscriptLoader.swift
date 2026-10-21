@@ -3,6 +3,19 @@ import Foundation
 /// 把会话文件读成预览用的对话条目：用户消息、回复、连续的工具调用折成一行、图片占位。
 /// 思考过程、系统注入、工具原始输出都不显示。只读文件尾部（默认 4 MB），够看最近几百条；更早的阶段二做分页
 public enum TranscriptLoader {
+    /// 会话文件的修改时间 + 大小：变了就要重读预览
+    struct FileStamp: Equatable, Sendable {
+        let modified: Date
+        let size: Int
+    }
+
+    static func stamp(_ session: Session) -> FileStamp? {
+        guard let path = session.sourcePath,
+              let values = try? URL(fileURLWithPath: path).resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey]),
+              let modified = values.contentModificationDate, let size = values.fileSize else { return nil }
+        return FileStamp(modified: modified, size: size)
+    }
+
     /// 这个会话文件比 maxBytes 大（只读了尾部）
     public static func isTruncated(_ session: Session, maxBytes: Int) -> Bool {
         guard session.cli != .opencode, let path = session.sourcePath,

@@ -472,19 +472,51 @@ public extension WorkspaceStore {
 
     // MARK: 预览
 
-    /// 预览：先读文件最后 4 MB；「加载更早的消息」每次翻 4 倍
+    /// 预览先读文件最后 4 MB；「加载更早的消息」每次翻 4 倍，到 64 MB 为止（再大解析出来的内存是文件的好几倍）
+    static let transcriptFirstBudget = 4 << 20
+    static let transcriptMaxBudget = 64 << 20
+    /// 缓存最近看过的这么多个会话的对话
+    static let transcriptCacheLimit = 12
+
+    static func nextTranscriptBudget(_ current: Int) -> Int? {
+        current < transcriptMaxBudget ? min(current * 4, transcriptMaxBudget) : nil
+    }
+
+    /// 预览：缓存里有、文件也没变就直接用；文件变了（会话还在跑）按原来的读取量重读
     func loadTranscript(_ sessionID: String, earlier: Bool = false) async {
         guard isLive, let session = session(sessionID) else { return }
-        if !earlier, transcripts[sessionID] != nil { return }
-        let budget = earlier ? (transcriptBudgets[sessionID] ?? 4 << 20) * 4 : 4 << 20
+        let stamp = TranscriptLoader.stamp(session)
+        var budget = transcriptBudgets[sessionID] ?? Self.transcriptFirstBudget
+        if earlier {
+            guard let next = Self.nextTranscriptBudget(budget) else { return }
+            budget = next
+        } else if transcripts[sessionID] != nil, data.transcriptStamps[sessionID] == stamp {
+            touchTranscript(sessionID)
+            return
+        }
         let entries = await Task.detached(priority: .userInitiated) { TranscriptLoader.load(session, maxBytes: budget) }.value
         transcriptBudgets[sessionID] = budget
         transcripts[sessionID] = entries
+        data.transcriptStamps[sessionID] = stamp
+        touchTranscript(sessionID)
+    }
+
+    /// 最近看过的排到最后；超过上限从最久没看的开始丢
+    internal func touchTranscript(_ sessionID: String) {
+        data.transcriptOrder.removeAll { $0 == sessionID }
+        data.transcriptOrder.append(sessionID)
+        while data.transcriptOrder.count > Self.transcriptCacheLimit {
+            let old = data.transcriptOrder.removeFirst()
+            transcripts[old] = nil
+            transcriptBudgets[old] = nil
+            data.transcriptStamps[old] = nil
+        }
     }
 
     func hasEarlierTranscript(_ sessionID: String) -> Bool {
         guard isLive, let session = session(sessionID) else { return false }
-        return TranscriptLoader.isTruncated(session, maxBytes: transcriptBudgets[sessionID] ?? 4 << 20)
+        let budget = transcriptBudgets[sessionID] ?? Self.transcriptFirstBudget
+        return Self.nextTranscriptBudget(budget) != nil && TranscriptLoader.isTruncated(session, maxBytes: budget)
     }
 
     // MARK: 标签记录（退出后重开时恢复）

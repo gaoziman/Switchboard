@@ -33,6 +33,9 @@ public final class WorkspaceData {
         cachedIndex = index
         return index
     }
+    /// 预览缓存的对话读的时候文件是什么样（变了重读）、最近看过的顺序（超过上限丢最久没看的）
+    @ObservationIgnored var transcriptStamps: [String: TranscriptLoader.FileStamp] = [:]
+    @ObservationIgnored var transcriptOrder: [String] = []
     /// 状态轮询最近一次在后台读到的（所有窗口共用）
     @ObservationIgnored var activityInputs = ActivityInputs()
     @ObservationIgnored var isGatheringActivity = false
