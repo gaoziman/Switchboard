@@ -229,7 +229,8 @@ public struct DisplayTitle: View {
     private func line(_ s: String, _ i: Int) -> Text {
         let base = lineColor(i)
         guard let k = keyword, let r = s.range(of: k) else { return segment(s, base: base) }
-        return segment(String(s[..<r.lowerBound]), base: base) + keywordText(String(s[r]), base: base) + segment(String(s[r.upperBound...]), base: base)
+        let before = segment(String(s[..<r.lowerBound]), base: base), after = segment(String(s[r.upperBound...]), base: base)
+        return Text("\(before)\(keywordText(String(s[r]), base: base))\(after)")
     }
 
     public var body: some View {

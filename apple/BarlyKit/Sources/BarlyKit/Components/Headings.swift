@@ -23,9 +23,9 @@ public struct TwoToneHeading: View {
         // 中文关键词（名字）不上渐变：一律降调灰 headline2（anti-slop S1，Web Hl / 小程序 BGreeting 同规则）
         let kw = String(s[r])
         let kwText = BarlyCJK.contains(kw) ? Text(kw).foregroundStyle(t.headline2) : Text(kw).foregroundStyle(grad)
-        return Text(String(s[..<r.lowerBound])).foregroundStyle(base)
-            + kwText
-            + Text(String(s[r.upperBound...])).foregroundStyle(base)
+        let before = Text(String(s[..<r.lowerBound])).foregroundStyle(base)
+        let after = Text(String(s[r.upperBound...])).foregroundStyle(base)
+        return Text("\(before)\(kwText)\(after)")
     }
 
     /// 中文标题默认 400（PingFang Medium 在大字号下读起来像粗体，dna.md §2）
@@ -104,7 +104,7 @@ public struct SplitNumber: View {
     }
     public var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            (Text(prefix).foregroundStyle(t.text4) + Text(integer).foregroundStyle(t.text) + Text(fraction).foregroundStyle(t.text3))
+            Text("\(Text(prefix).foregroundStyle(t.text4))\(Text(integer).foregroundStyle(t.text))\(Text(fraction).foregroundStyle(t.text3))")
                 .barlyText(FamilyType.numeric(style))
             if let unit { Text(unit).barlyText(.product.body, color: t.text3) }
         }

@@ -336,8 +336,7 @@ public struct ListeningScreen: View {
             ParticleRing(diameter: 286, band: 70, seed: 11)
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 4) {
-                (Text("Create a mystical, fantasy-style warrior standing on a cliff during ").foregroundStyle(t.text)
-                 + Text("sunset…").foregroundStyle(t.text3))
+                Text("\(Text("Create a mystical, fantasy-style warrior standing on a cliff during ").foregroundStyle(t.text))\(Text("sunset…").foregroundStyle(t.text3))")
                     .barlyText(.mobile.title.size(22).weight(400).leading(32))
                 Text("Listening…").barlyText(.mobile.body, color: t.text2)
                     .frame(maxWidth: .infinity).padding(.top, 14)

@@ -99,7 +99,7 @@ struct KanbanInspector: View {
                     HStack(alignment: .top, spacing: 10) {
                         Avatar(a.0, size: 22)
                         VStack(alignment: .leading, spacing: 1) {
-                            (Text(a.0).font(BarlyTokens.Product.body.weight(500).font) + Text(" \(a.1)").font(BarlyTokens.Product.body.font))
+                            Text("\(Text(a.0).font(BarlyTokens.Product.body.weight(500).font))\(Text(" \(a.1)").font(BarlyTokens.Product.body.font))")
                                 .foregroundStyle(t.text2)
                             Text(a.2).barlyText(.product.caption, color: t.text3)
                         }

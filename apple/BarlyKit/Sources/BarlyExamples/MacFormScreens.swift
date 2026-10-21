@@ -249,7 +249,7 @@ public struct EnigmaTracesScreen: View {
                 Group { if r.prod { Chip("prod", tone: .success, mono: false) } else { Chip("staging", tone: .info, mono: false) } }.frame(width: cols[1], alignment: .leading)
                 Text(r.traces).barlyText(.monoText(13), color: t.text).frame(width: cols[2], alignment: .leading)
                 Chip(r.err, tone: r.errHigh ? .danger : .warning).frame(width: cols[3], alignment: .leading)
-                (Text(r.p50).foregroundColor(t.text) + Text(" /" + r.p99).foregroundColor(t.text3)).barlyText(.monoText(13)).frame(width: cols[4], alignment: .leading)
+                Text("\(Text(r.p50).foregroundColor(t.text))\(Text(" /" + r.p99).foregroundColor(t.text3))").barlyText(.monoText(13)).frame(width: cols[4], alignment: .leading)
                 Text(r.cost).barlyText(.monoText(13), color: t.text).frame(width: cols[5], alignment: .leading)
                 MiniBars(r.vol, width: 110, height: 20).frame(width: cols[6], alignment: .leading)
                 Text(r.last).barlyText(.product.small, color: t.text2).lineLimit(1).fixedSize()

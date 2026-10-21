@@ -133,7 +133,7 @@ public struct BarlyBanner<Actions: View>: View {
     }
     public var body: some View {
         HStack(spacing: 12) {
-            (Text(lead.map { $0 + " " } ?? "").foregroundColor(t.bannerFg).fontWeight(.medium) + Text(text).foregroundColor(t.text2))
+            Text("\(Text(lead.map { $0 + " " } ?? "").foregroundColor(t.bannerFg).fontWeight(.medium))\(Text(text).foregroundColor(t.text2))")
                 .barlyText(.product.body)
                 .lineLimit(1)
             Spacer(minLength: 8)

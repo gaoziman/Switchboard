@@ -209,7 +209,7 @@ public struct ReadAloudText: View {
         self.read = read; self.unread = unread; self.style = style
     }
     public var body: some View {
-        (Text(read).foregroundStyle(t.text) + Text(unread).foregroundStyle(t.isDark ? t.text3 : t.text3.barlyMix(t.bg, 0.1)))
+        Text("\(Text(read).foregroundStyle(t.text))\(Text(unread).foregroundStyle(t.isDark ? t.text3 : t.text3.barlyMix(t.bg, 0.1)))")
             .barlyText(style)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
