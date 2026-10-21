@@ -76,3 +76,44 @@ import Testing
         #expect(RemoteSessions.remoteOmpPath(s("/tmp/x.jsonl")) == nil)
     }
 }
+
+/// 主机能往镜像里放符号链接（指向这台 Mac 上的别处）：读、删都不能顺着它走出镜像
+@Suite struct MirrorSymlinkTests {
+    private func sandbox() throws -> (root: URL, outside: URL, cleanup: () -> Void) {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("sb-mirror-\(UUID())")
+        let root = base.appendingPathComponent("mirror/claude/projects")
+        let outside = base.appendingPathComponent("outside")
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("p"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        try "victim".write(to: outside.appendingPathComponent("victim.jsonl"), atomically: true, encoding: .utf8)
+        try "mine".write(to: root.appendingPathComponent("p/a.jsonl"), atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(at: root.appendingPathComponent("evil"), withDestinationURL: outside)
+        return (base.appendingPathComponent("mirror"), outside, { try? FileManager.default.removeItem(at: base) })
+    }
+
+    @Test func deletingAMirroredCopyNeverFollowsSymlinks() throws {
+        let (root, outside, cleanup) = try sandbox()
+        defer { cleanup() }
+        let victim = outside.appendingPathComponent("victim.jsonl")
+        #expect(!RemoteSessions.removeMirrored(root.appendingPathComponent("claude/projects/evil/victim.jsonl").path, root: root))
+        #expect(FileManager.default.fileExists(atPath: victim.path))
+        #expect(!RemoteSessions.removeMirrored(victim.path, root: root))
+        #expect(FileManager.default.fileExists(atPath: victim.path))
+        let mine = root.appendingPathComponent("claude/projects/p/a.jsonl")
+        #expect(RemoteSessions.removeMirrored(mine.path, root: root))
+        #expect(!FileManager.default.fileExists(atPath: mine.path))
+    }
+
+    @Test func mirrorKeepsNoSymlinks() throws {
+        let (root, outside, cleanup) = try sandbox()
+        defer { cleanup() }
+        SSH.removeSymlinks(in: root)
+        #expect((try? FileManager.default.destinationOfSymbolicLink(atPath: root.appendingPathComponent("claude/projects/evil").path)) == nil)
+        #expect(FileManager.default.fileExists(atPath: outside.appendingPathComponent("victim.jsonl").path))   // 链接指向的东西不动
+        #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("claude/projects/p/a.jsonl").path))
+    }
+
+    @Test func rsyncSkipsSymlinks() {
+        #expect(SSH.mirrorFlags.contains("--no-links"))
+    }
+}

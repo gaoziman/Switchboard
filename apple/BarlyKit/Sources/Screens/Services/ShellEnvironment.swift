@@ -118,14 +118,17 @@ public enum Tmux {
         return (tmux, ["-L", socket, "-f", configFile, "new-session", "-A", "-s", name, "-c", directory] + env + [shellCommand])
     }
 
+    /// -t 的会话名按全名精确匹配：不加 = 的话 tmux 找不到同名会话时会退回前缀和通配匹配，可能结束掉别的会话
+    static func target(_ name: String) -> String { "=" + name }
+
     /// 这个 tmux 会话还在不在（标签关了、CLI 还在后台跑）
     public static func isRunning(_ name: String) -> Bool {
-        run(["has-session", "-t", name]) == 0
+        run(["has-session", "-t", target(name)]) == 0
     }
 
     /// 结束会话（End session）
     public static func kill(_ name: String) {
-        _ = run(["kill-session", "-t", name])
+        _ = run(["kill-session", "-t", target(name)])
     }
 
     nonisolated(unsafe) private static var runningCache: (at: Date, names: Set<String>)?
@@ -166,7 +169,8 @@ public enum Tmux {
     }
 
     static func shellQuote(_ s: String) -> String {
-        if s.range(of: #"^[A-Za-z0-9_@%+=:,./-]+$"#, options: .regularExpression) != nil { return s }
+        // = 开头的词 zsh 会当成命令路径展开（=foo → foo 的路径），要加引号
+        if !s.hasPrefix("="), s.range(of: #"^[A-Za-z0-9_@%+=:,./-]+$"#, options: .regularExpression) != nil { return s }
         return "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }

@@ -83,7 +83,7 @@ public extension WorkspaceStore {
         var failures: [String: String] = [:]
         for (i, s) in targets.enumerated() {
             if deletion?.cancelling == true { break }
-            if let tab = tab(for: s) { close(tab, keepRunning: false) } else { Tmux.kill(Tmux.name(for: s.cli, sessionID: s.id)) }
+            if let tab = tab(for: s) { close(tab, keepRunning: false) } else { endTmux(of: s) }
             if let error = await Task.detached(priority: .userInitiated, operation: { SessionDeletion.delete(s) }).value {
                 failures[s.id] = error
             } else {

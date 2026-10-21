@@ -12,6 +12,8 @@ final class SBTerminalView: LocalProcessTerminalView, EngineTerminalView {
     let cli: CLIKind?
     let directory: String
     let isRemote: Bool
+    /// terminalDelegate 是 weak，代理要自己留着
+    private var clipboardGuard: ClipboardGuard?
 
     init(frame: NSRect, cli: CLIKind?, directory: String, isRemote: Bool) {
         self.cli = cli
@@ -19,6 +21,9 @@ final class SBTerminalView: LocalProcessTerminalView, EngineTerminalView {
         self.isRemote = isRemote
         super.init(frame: frame)
         registerForDraggedTypes([.fileURL])
+        let guardian = ClipboardGuard(view: self)
+        clipboardGuard = guardian
+        terminalDelegate = guardian
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -76,6 +81,28 @@ final class SBTerminalView: LocalProcessTerminalView, EngineTerminalView {
     override func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {
         LinkOpener.open(link, relativeTo: directory, remote: isRemote)
     }
+}
+
+/// 终端里的程序用 OSC 52 读剪贴板：SwiftTerm 默认不问就把系统剪贴板交出去（主机上的程序也能读到本机剪贴板里的密码）。
+/// clipboardRead 在 SwiftTerm 里不能 override，只能在 terminalDelegate 前面挡一层：读一律拒绝，其余原样转给终端视图。
+/// 写剪贴板（CLI 的「复制」）照常放行；Ghostty 引擎默认也是拒绝读
+private final class ClipboardGuard: TerminalViewDelegate {
+    private weak var view: LocalProcessTerminalView?
+
+    init(view: LocalProcessTerminalView) { self.view = view }
+
+    func clipboardRead(source: TerminalView) -> Data? { nil }
+
+    func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) { view?.sizeChanged(source: source, newCols: newCols, newRows: newRows) }
+    func setTerminalTitle(source: TerminalView, title: String) { view?.setTerminalTitle(source: source, title: title) }
+    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) { view?.hostCurrentDirectoryUpdate(source: source, directory: directory) }
+    func send(source: TerminalView, data: ArraySlice<UInt8>) { view?.send(source: source, data: data) }
+    func scrolled(source: TerminalView, position: Double) { view?.scrolled(source: source, position: position) }
+    func requestOpenLink(source: TerminalView, link: String, params: [String: String]) { view?.requestOpenLink(source: source, link: link, params: params) }
+    func bell(source: TerminalView) { view?.bell(source: source) }
+    func clipboardCopy(source: TerminalView, content: Data) { view?.clipboardCopy(source: source, content: content) }
+    func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) { view?.iTermContent(source: source, content: content) }
+    func rangeChanged(source: TerminalView, startY: Int, endY: Int) { view?.rangeChanged(source: source, startY: startY, endY: endY) }
 }
 
 /// 行编辑键位：把 Mac 文本框的习惯翻译成 CLI 和 shell 认得的按键。焦点在终端上时才生效

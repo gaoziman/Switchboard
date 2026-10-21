@@ -56,8 +56,16 @@ public enum RemoteSessions {
             return err.isEmpty ? L("主机上的删除命令失败（退出码 \(r.status)）。") : String(err.suffix(300))
         }
         // 本机镜像里的那份也删掉，不用等下次刷新（OpenCode 的镜像是整个快照库，下次刷新重建）
-        if session.cli != .opencode, let path = session.sourcePath { try? FileManager.default.removeItem(atPath: path) }
+        if session.cli != .opencode, let path = session.sourcePath { _ = removeMirrored(path, root: SSH.cacheDirectory(alias)) }
         return nil
+    }
+
+    /// 删镜像里的一个文件：所在目录解析完符号链接后还得在镜像里面，否则不删（主机放的链接可能指到这台 Mac 的会话目录）
+    static func removeMirrored(_ path: String, root: URL) -> Bool {
+        let rootPath = root.resolvingSymlinksInPath().path + "/"
+        let parent = URL(fileURLWithPath: path).deletingLastPathComponent().resolvingSymlinksInPath().path + "/"
+        guard parent.hasPrefix(rootPath) else { return false }
+        return (try? FileManager.default.removeItem(atPath: path)) != nil
     }
 
     // MARK: 状态

@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftTerm
 import Testing
 @testable import Screens
 
@@ -108,5 +109,30 @@ struct TabNavigationTests {
         #expect(ExitStatus.code(fromWaitStatus: 255 << 8) == 255)     // ssh 断线，要能触发自动重连
         #expect(ExitStatus.code(fromWaitStatus: 9) == 137)            // SIGKILL
         #expect(ExitStatus.code(fromWaitStatus: nil) == 0)
+    }
+}
+
+@MainActor
+@Suite("终端剪贴板")
+struct ClipboardGuardTests {
+    private final class Recorder: LocalProcessTerminalViewDelegate {
+        var title: String?
+        func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
+        func setTerminalTitle(source: LocalProcessTerminalView, title: String) { self.title = title }
+        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
+        func processTerminated(source: TerminalView, exitCode: Int32?) {}
+    }
+
+    @Test("终端里的程序读不到剪贴板（OSC 52），别的回调照常")
+    func programsCannotReadClipboard() throws {
+        let view = SBTerminalView(frame: NSRect(x: 0, y: 0, width: 400, height: 200), cli: nil, directory: "/", isRemote: true)
+        let delegate = try #require(view.terminalDelegate)
+        #expect(delegate !== view)
+        #expect(delegate.clipboardRead(source: view) == nil)
+        // 标题还是传到 processDelegate（Codex 在标题里报状态，不能断）
+        let recorder = Recorder()
+        view.processDelegate = recorder
+        delegate.setTerminalTitle(source: view, title: "working")
+        #expect(recorder.title == "working")
     }
 }

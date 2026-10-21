@@ -123,6 +123,15 @@ struct RemoteSessionTests {
         #expect(back == c)
     }
 
+    @Test("tmux 按名字精确匹配（不然 codex-* 会匹配到别的会话）；= 开头的词要加引号（zsh 会展开）")
+    func tmuxExactTarget() {
+        #expect(Tmux.target("codex-*") == "=codex-*")
+        #expect(Tmux.shellQuote("=claude-abc") == "'=claude-abc'")
+        #expect(Tmux.shellQuote("a=b") == "a=b")
+        #expect(SSH.killTmuxCommand("codex-*") == "tmux kill-session -t '=codex-*'")
+        #expect(SSH.killTmuxCommand("claude-abc") == "tmux kill-session -t '=claude-abc'")
+    }
+
     @Test("主机家目录：只认标记行，rc 文件的输出不算")
     func parseHome() {
         #expect(SSH.parseHome("Welcome!\n__SB_HOME__/home/leo\n") == "/home/leo")

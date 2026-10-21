@@ -25,8 +25,17 @@ public extension WorkspaceStore {
         if let tab = tab(for: session) {
             close(tab, keepRunning: false)
         } else {
-            Tmux.kill(Tmux.name(for: session.cli, sessionID: session.id))
+            endTmux(of: session)
         }
+    }
+
+    /// 没开标签时结束会话的 tmux：本机的在本机结束，主机上的到主机上结束（不能拿主机的会话名去结束本机的 tmux）
+    func endTmux(of session: Session) {
+        guard isLive else { return }
+        let name = Tmux.name(for: session.cli, sessionID: session.id)
+        guard session.hostID != Host.localID else { Tmux.kill(name); return }
+        let alias = session.hostID
+        Task.detached { _ = SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, SSH.killTmuxCommand(name)], timeout: 20) }
     }
 
     /// 项目下的全部会话（不算子代理）

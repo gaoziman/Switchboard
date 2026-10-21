@@ -345,15 +345,18 @@ private struct EmptyMain: View {
     }
 }
 
-/// 记下所在的窗口；窗口关掉时从多窗口登记里拿掉
+/// 记下所在的窗口；窗口关掉时从多窗口登记里拿掉。
+/// 认窗口真的关了，不认 onDisappear：改界面缩放时内容整个重建（.id）也会触发 onDisappear
 private struct WindowLifecycle: ViewModifier {
     let store: WorkspaceStore
 
     func body(content: Content) -> some View {
         #if os(macOS)
         content
-            .background(WindowReader { store.hostWindow = $0 })
-            .onDisappear { store.windowClosed() }
+            .background(WindowReader { if let window = $0 { store.hostWindow = window } })
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+                if let window = note.object as? NSWindow, window === store.hostWindow { store.windowClosed() }
+            }
         #else
         content
         #endif

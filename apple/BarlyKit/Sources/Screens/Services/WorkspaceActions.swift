@@ -233,8 +233,8 @@ public extension WorkspaceStore {
             // tmux 会话也改成这个会话的名字：关标签后点会话能接回同一个（主机上的不改：它在主机的 tmux 里）
             if claim.hostID == Host.localID, let old = launches[tabID]?.tmuxName {
                 let new = Tmux.name(for: found.cli, sessionID: found.id)
-                Tmux.run(["rename-session", "-t", old, new])
-                launches[tabID]?.tmuxName = new
+                // 改名失败（比如别的窗口已经改走了）就还记旧名字，免得结束这个标签时结束掉别人的
+                if Tmux.run(["rename-session", "-t", Tmux.target(old), new]) == 0 { launches[tabID]?.tmuxName = new }
             }
             expandedProjectIDs.insert(found.projectID)
         }
@@ -423,7 +423,7 @@ public extension WorkspaceStore {
             TerminalRuntime.close(tab.id, endingTmux: nil)
             if !keepRunning, let tmuxName {
                 Task.detached {
-                    _ = SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, "tmux kill-session -t \(Tmux.shellQuote(tmuxName))"], timeout: 20)
+                    _ = SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, SSH.killTmuxCommand(tmuxName)], timeout: 20)
                 }
             }
         } else {

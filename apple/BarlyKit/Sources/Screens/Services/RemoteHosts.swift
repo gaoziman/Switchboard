@@ -82,6 +82,17 @@ public enum SSH {
             .appendingPathComponent("design.barly.switchboard/hosts/\(safe)", isDirectory: true)
     }
 
+    /// 镜像不要符号链接：主机能放一个指向这台 Mac 别处的链接，读会话、删会话都会顺着它走出镜像
+    static let mirrorFlags = ["-a", "--no-links", "-m", "--delete"]
+
+    /// 以前镜像下来的符号链接（--delete 不清跳过的链接）：删链接本身，指向的东西不动
+    static func removeSymlinks(in root: URL) {
+        guard let items = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey]) else { return }
+        for case let url as URL in items where (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]))?.isSymbolicLink == true {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     /// 把主机上的会话文件镜像到本机（只读主机，只拉 .jsonl，跳过子代理）。progress(已完成步骤, 总步骤)
     public static func mirror(_ alias: String, progress: @escaping @Sendable (Int, Int) -> Void) async -> String? {
         await Task.detached {
@@ -100,12 +111,13 @@ public enum SSH {
                 let dest = root.appendingPathComponent(job.1)
                 try? FileManager.default.createDirectory(at: job.1.hasSuffix("/") ? dest : dest.deletingLastPathComponent(),
                                                          withIntermediateDirectories: true)
-                let args = ["/usr/bin/rsync", "-a", "-m", "--delete", "-e", ssh] + job.2 + ["\(alias):\(job.0)", dest.path]
+                let args = ["/usr/bin/rsync"] + mirrorFlags + ["-e", ssh] + job.2 + ["\(alias):\(job.0)", dest.path]
                 if let r = run(args, timeout: 600), r.status != 0, !r.stderr.contains("No such file") {
                     firstError = firstError ?? String(r.stderr.trimmingCharacters(in: .whitespacesAndNewlines).suffix(300))
                 }
                 progress(i + 1, jobs.count + 1)
             }
+            removeSymlinks(in: root)
             if let error = mirrorOpenCode(alias, ssh: ssh, into: root.appendingPathComponent("opencode")) { firstError = firstError ?? error }
             progress(jobs.count + 1, jobs.count + 1)
             return firstError
@@ -129,7 +141,7 @@ public enum SSH {
         }
         defer { _ = run(["/usr/bin/ssh"] + options(alias) + [alias, "rm -rf " + Tmux.shellQuote(path)], timeout: 20) }
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let args = ["/usr/bin/rsync", "-a", "--ignore-times", "-e", ssh, "\(alias):\(path)/opencode.db", dir.appendingPathComponent("opencode.db").path]
+        let args = ["/usr/bin/rsync", "-a", "--no-links", "--ignore-times", "-e", ssh, "\(alias):\(path)/opencode.db", dir.appendingPathComponent("opencode.db").path]
         if let c = run(args, timeout: 600), c.status != 0 { return String(c.stderr.trimmingCharacters(in: .whitespacesAndNewlines).suffix(300)) }
         return nil
     }
@@ -160,6 +172,9 @@ public enum SSH {
         if path.hasPrefix("~/") { return "\"$HOME\"/" + Tmux.shellQuote(String(path.dropFirst(2))) }
         return Tmux.shellQuote(path)
     }
+
+    /// 结束主机 tmux 里的一个会话（全名精确匹配）
+    static func killTmuxCommand(_ name: String) -> String { "tmux kill-session -t " + Tmux.shellQuote(Tmux.target(name)) }
 
     /// 只有 `~` 和 `~/…` 要问主机；`~别人` 不猜
     static func needsHome(_ path: String) -> Bool { path == "~" || path.hasPrefix("~/") }
