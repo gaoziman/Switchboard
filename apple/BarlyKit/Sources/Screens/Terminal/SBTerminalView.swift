@@ -43,7 +43,7 @@ final class SBTerminalView: LocalProcessTerminalView, EngineTerminalView {
                      execName: nil, currentDirectory: launch.directory)
     }
 
-    func terminateProcess() { process?.terminate() }
+    func terminateProcess() { if let process { ChildReaper.terminate(process) } }
 
     func apply(_ s: TerminalStyle) {
         nativeBackgroundColor = NSColor(hex: s.colors.background)

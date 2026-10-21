@@ -71,7 +71,7 @@ public final class SSHConnect {
     }
 
     public func cancel() {
-        process?.terminate()
+        if let process { ChildReaper.terminate(process) }
         onFinish?(false)
     }
 

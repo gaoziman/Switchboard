@@ -60,7 +60,7 @@ final class GhosttyTerminalView: AppTerminalView, EngineTerminalView, TerminalSu
 
     func terminateProcess() {
         pump.stop()
-        process.terminate()
+        ChildReaper.terminate(process)
     }
 
     func sendBytes(_ bytes: [UInt8]) { process.send(data: bytes[...]) }
