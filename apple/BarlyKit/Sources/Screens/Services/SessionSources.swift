@@ -219,7 +219,16 @@ struct CodexSource: SessionSource {
 /// `{"type":"session","id":…,"cwd":…}` 头；标题取 title 行或第一条用户消息
 struct OmpSource: SessionSource {
     let cli = CLIKind.omp
-    let root = URL(fileURLWithPath: NSHomeDirectory() + "/.omp/agent/sessions")
+    var root = URL(fileURLWithPath: NSHomeDirectory() + "/.omp/agent/sessions")
+    var hostID = Host.localID
+
+    init() {}
+
+    /// SSH 主机的镜像（主机上的 ~/.omp/agent/sessions 拷过来的）
+    init(mirror root: URL, hostID: String) {
+        self.root = root
+        self.hostID = hostID
+    }
 
     struct Summary: Codable, Sendable {
         var id: String
@@ -241,7 +250,7 @@ struct OmpSource: SessionSource {
             seen.insert(file.path)
             guard let s = Self.cache.value(for: file, read: Self.summarize) else { continue }
             sessions.append(Session(
-                id: s.id, cli: cli, hostID: Host.localID, projectPath: s.cwd,
+                id: s.id, cli: cli, hostID: hostID, projectPath: s.cwd,
                 title: SessionTitle.clean(s.title ?? s.firstPrompt), model: s.model,
                 lastActivity: JSONLines.modificationDate(file), messageCount: s.messages, sourcePath: file.path))
         }
@@ -283,6 +292,13 @@ struct OmpSource: SessionSource {
 struct OpenCodeSource: SessionSource {
     let cli = CLIKind.opencode
     let database: URL
+    var hostID = Host.localID
+
+    /// SSH 主机：主机上建的只含会话的快照拷过来的（见 SSH.mirror）
+    init(mirror database: URL, hostID: String) {
+        self.database = database
+        self.hostID = hostID
+    }
 
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         if let db = environment["OPENCODE_DB"], db.hasPrefix("/") {
@@ -302,7 +318,7 @@ struct OpenCodeSource: SessionSource {
         return rows.compactMap { r in
             guard let id = r[0], let dir = r[1], dir.hasPrefix("/") else { return nil }
             let rawTitle = r[2].flatMap { $0.hasPrefix("New session - ") ? nil : $0 }
-            return Session(id: id, cli: cli, hostID: Host.localID, projectPath: dir, title: SessionTitle.clean(rawTitle),
+            return Session(id: id, cli: cli, hostID: hostID, projectPath: dir, title: SessionTitle.clean(rawTitle),
                            lastActivity: Date(timeIntervalSince1970: (Double(r[3] ?? "0") ?? 0) / 1000),
                            messageCount: counts[id] ?? 0, parentSessionID: r[4], sourcePath: database.path)
         }

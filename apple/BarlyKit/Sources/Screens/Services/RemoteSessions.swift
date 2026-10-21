@@ -16,6 +16,16 @@ public enum RemoteSessions {
         return ".claude/projects/" + rel
     }
 
+    /// omp：镜像里的「omp/sessions/<项目目录>/<文件>.jsonl」→ 主机上的 .omp/agent/sessions/…（同样只许两段）
+    static func remoteOmpPath(_ session: Session) -> String? {
+        guard let local = session.sourcePath else { return nil }
+        let root = SSH.cacheDirectory(session.hostID).appendingPathComponent("omp/sessions").path + "/"
+        guard local.hasPrefix(root) else { return nil }
+        let rel = String(local.dropFirst(root.count))
+        guard rel.split(separator: "/").count == 2, rel.hasSuffix(".jsonl"), !rel.contains(".."), !rel.hasPrefix("/") else { return nil }
+        return ".omp/agent/sessions/" + rel
+    }
+
     /// 在后台线程跑；nil = 删掉了，否则是原因。主机上没有废纸篓：永久删除
     public static func delete(_ session: Session) -> String? {
         let alias = session.hostID
@@ -29,8 +39,13 @@ public enum RemoteSessions {
             script = "cd \"$HOME\" && [ ! -L \(file) ] && [ ! -L \(sidecar) ] && rm -f -- \(file) && rm -rf -- \(sidecar)"
         case .codex:
             script = "exec \"${SHELL:-/bin/sh}\" -lc \(Tmux.shellQuote("codex delete \(Tmux.shellQuote(session.id))"))"
-        case .opencode, .omp:
-            return L("主机上的 \(session.cli.title) 会话还不能在这里删。")
+        case .opencode:
+            // 和本机一样用 OpenCode 自己的命令删（连子代理会话一起）
+            script = "exec \"${SHELL:-/bin/sh}\" -lc \(Tmux.shellQuote("opencode session delete \(Tmux.shellQuote(session.id))"))"
+        case .omp:
+            guard let rel = remoteOmpPath(session) else { return L("找不到这个会话在主机上的路径。") }
+            let file = Tmux.shellQuote(rel)
+            script = "cd \"$HOME\" && [ ! -L \(file) ] && rm -f -- \(file)"
         }
         guard let r = SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, script], timeout: 60) else {
             return L("主机一分钟没有响应（网络、VPN 或主机睡眠）。")
@@ -40,8 +55,8 @@ public enum RemoteSessions {
             if err.contains("Permission denied") { return L("要先在主机标题上点「连接…」登录。") }
             return err.isEmpty ? L("主机上的删除命令失败（退出码 \(r.status)）。") : String(err.suffix(300))
         }
-        // 本机镜像里的那份也删掉，不用等下次刷新
-        if let path = session.sourcePath { try? FileManager.default.removeItem(atPath: path) }
+        // 本机镜像里的那份也删掉，不用等下次刷新（OpenCode 的镜像是整个快照库，下次刷新重建）
+        if session.cli != .opencode, let path = session.sourcePath { try? FileManager.default.removeItem(atPath: path) }
         return nil
     }
 

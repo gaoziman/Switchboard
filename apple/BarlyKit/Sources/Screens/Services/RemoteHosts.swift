@@ -92,6 +92,8 @@ public enum SSH {
                 (".claude/projects/", "claude/projects/", filters),
                 (".codex/sessions/", "codex/sessions/", filters),
                 (".codex/session_index.jsonl", "codex/session_index.jsonl", []),
+                // omp：每个项目一层目录，只要里面的 .jsonl（扩展放在更深目录里的东西不拉）
+                (".omp/agent/sessions/", "omp/sessions/", ["--include=/*/", "--include=/*/*.jsonl", "--exclude=*"]),
             ]
             var firstError: String?
             for (i, job) in jobs.enumerated() {
@@ -102,10 +104,34 @@ public enum SSH {
                 if let r = run(args, timeout: 600), r.status != 0, !r.stderr.contains("No such file") {
                     firstError = firstError ?? String(r.stderr.trimmingCharacters(in: .whitespacesAndNewlines).suffix(300))
                 }
-                progress(i + 1, jobs.count)
+                progress(i + 1, jobs.count + 1)
             }
+            if let error = mirrorOpenCode(alias, ssh: ssh, into: root.appendingPathComponent("opencode")) { firstError = firstError ?? error }
+            progress(jobs.count + 1, jobs.count + 1)
             return firstError
         }.value
+    }
+
+    /// OpenCode 的库里还有它的账号和凭据，不整个拷：在主机上用 python3 建一个只有会话、消息、片段的快照，
+    /// 拷快照，再删掉主机上的快照。主机上没有 OpenCode 的库就什么都不做。做法参考 JustSessions
+    static func mirrorOpenCode(_ alias: String, ssh: String, into dir: URL) -> String? {
+        let script = OpenCodeSnapshot.shell
+        guard let r = run(["/usr/bin/ssh"] + options(alias) + [alias, "exec \"${SHELL:-/bin/sh}\" -lc " + Tmux.shellQuote(script)], timeout: 120) else {
+            return L("主机上建 OpenCode 快照超时。")
+        }
+        if r.status == OpenCodeSnapshot.noDatabase {
+            try? FileManager.default.removeItem(at: dir)      // 主机上没有（或删了）OpenCode：镜像里也清掉
+            return nil
+        }
+        guard r.status == 0, let path = OpenCodeSnapshot.path(in: r.stdout) else {
+            let err = r.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            return err.contains("python3") ? L("主机上没有 python3，列不出 OpenCode 会话。") : String(err.suffix(300))
+        }
+        defer { _ = run(["/usr/bin/ssh"] + options(alias) + [alias, "rm -rf " + Tmux.shellQuote(path)], timeout: 20) }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let args = ["/usr/bin/rsync", "-a", "--ignore-times", "-e", ssh, "\(alias):\(path)/opencode.db", dir.appendingPathComponent("opencode.db").path]
+        if let c = run(args, timeout: 600), c.status != 0 { return String(c.stderr.trimmingCharacters(in: .whitespacesAndNewlines).suffix(300)) }
+        return nil
     }
 
     /// 在终端标签里远程接着跑：ssh -t 过去，进项目目录，用主机自己的 tmux（没有就直接跑）

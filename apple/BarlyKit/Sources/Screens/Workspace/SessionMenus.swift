@@ -54,7 +54,6 @@ struct SessionMenu: View {
         #endif
         Divider()
         Button(running ? "关闭并删除会话…" : "删除会话…", role: .destructive) { store.pendingDelete = [session] }
-            .disabled(session.hostID != Host.localID && (session.cli == .opencode || session.cli == .omp))
     }
 
     private func copy(_ text: String) {

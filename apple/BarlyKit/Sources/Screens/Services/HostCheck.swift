@@ -98,6 +98,16 @@ public final class HostCheck {
             }
         }
         findings.append(HostFinding(level: .ok, title: found.isEmpty ? L("没有找到 Claude Code、Codex、OpenCode、omp") : found.joined(separator: " · ")))
+        // OpenCode 的会话要在主机上用 python3 做快照才能列出来
+        if found.contains(where: { $0.hasPrefix(CLIKind.opencode.title) }) {
+            let alias = self.alias
+            let py = await Task.detached { SSH.run(["/usr/bin/ssh"] + SSH.options(alias) + [alias, "command -v python3"], timeout: 15) }.value
+            if py?.status != 0 {
+                findings.append(HostFinding(level: .warning, title: L("主机上没有 python3，列不出 OpenCode 会话"),
+                                            detail: L("Switchboard 在主机上用 python3 给 OpenCode 的库做一份只含会话的快照再拷过来（不拷账号和凭据）。装上 python3 就行。"),
+                                            command: "ssh \(alias) 'command -v python3'"))
+            }
+        }
         findings.sort { $0.level.rawValue < $1.level.rawValue }
     }
 

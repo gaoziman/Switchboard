@@ -39,7 +39,9 @@ public enum SessionDiscovery {
     public static func runRemote(_ alias: String) async -> [Session] {
         let root = SSH.cacheDirectory(alias)
         let sources: [any SessionSource] = [ClaudeSource(mirror: root.appendingPathComponent("claude"), hostID: alias),
-                                            CodexSource(mirror: root.appendingPathComponent("codex"), hostID: alias)]
+                                            CodexSource(mirror: root.appendingPathComponent("codex"), hostID: alias),
+                                            OmpSource(mirror: root.appendingPathComponent("omp/sessions"), hostID: alias),
+                                            OpenCodeSource(mirror: root.appendingPathComponent("opencode/opencode.db"), hostID: alias)]
         return await withTaskGroup(of: [Session].self) { group in
             for source in sources { group.addTask { source.discover() } }
             var all: [Session] = []
