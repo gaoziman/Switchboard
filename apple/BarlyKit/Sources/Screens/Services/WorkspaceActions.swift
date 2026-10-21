@@ -6,18 +6,29 @@ import Foundation
 public extension WorkspaceStore {
     /// 正常启动：先空着显示加载，后台读四个 CLI，读完恢复上次的标签
     static func live() -> WorkspaceStore {
-        let store = WorkspaceStore(hosts: [Host(id: Host.localID, kind: .local, displayName: L("这台 Mac"))],
-                                   projects: [], sessions: [], loadState: .loading)
+        // 第一个窗口读会话库、恢复上次的标签；之后开的窗口接到同一份数据上，标签从空开始
+        let first = WorkspaceWindows.live.isEmpty
+        let store = WorkspaceStore(data: .shared)
         store.isLive = true
-        store.loadHosts()
-        Task {
-            await store.refresh(restoringTabs: true)
-            await store.refreshHosts()
+        WorkspaceWindows.register(store)
+        if let transfer = WorkspaceWindows.pendingTransfer {
+            WorkspaceWindows.pendingTransfer = nil
+            store.attachTab(transfer)
+        }
+        if first {
+            store.loadHosts()
+            Task {
+                await store.refresh(restoringTabs: true)
+                await store.refreshHosts()
+            }
         }
         return store
     }
 
     func refresh(restoringTabs: Bool = false) async {
+        guard !data.isRefreshing else { return }
+        data.isRefreshing = true
+        defer { data.isRefreshing = false }
         let result = await Task.detached(priority: .userInitiated) { await SessionDiscovery.run() }.value
         if isLive, library == LibraryState() { library = LibraryState.load() }
         let previous = Dictionary(sessions.map { ($0.id, $0.activity) }, uniquingKeysWith: { a, _ in a })
@@ -36,8 +47,11 @@ public extension WorkspaceStore {
         }
         loadState = .loaded
         if restoringTabs { restoreTabs() }
-        claimNewSessions()
-        markRunning()
+        // 数据是共用的：每个窗口认领自己的新会话标签、标出自己在跑的
+        for store in isLive ? WorkspaceWindows.live : [self] {
+            store.claimNewSessions()
+            store.markRunning()
+        }
         if CommandLine.arguments.contains("--sb-selftest") { selfTest() }
         // 自检：启动就搜一个词（--sb-search tmux）
         if let i = CommandLine.arguments.firstIndex(of: "--sb-search"), i + 1 < CommandLine.arguments.count {
@@ -76,6 +90,11 @@ public extension WorkspaceStore {
 
     /// 双击会话或点「接着跑」：已经开着就切过去，否则在它的项目组里开一个标签
     func resume(_ session: Session) {
+        if isLive, let (other, tab) = WorkspaceWindows.tabOwner(of: session), other !== self {
+            other.selection = .tab(tab.id)
+            other.bringWindowToFront()
+            return
+        }
         if let tab = tab(for: session) {
             selection = .tab(tab.id)
             if tabBanners[tab.id] != nil { relaunch(tab, session: session) }
@@ -198,7 +217,7 @@ public extension WorkspaceStore {
         saveTabs()
     }
 
-    private func open(session: Session, arguments: [String], tmuxName: String, title: String? = nil, linkSession: Bool = true) {
+    func open(session: Session, arguments: [String], tmuxName: String, title: String? = nil, linkSession: Bool = true) {
         let tabID = UUID()
         let launch: TerminalLaunch
         if session.hostID != Host.localID {
@@ -460,10 +479,13 @@ public extension WorkspaceStore {
 
     func saveTabs() {
         guard isLive else { return }
-        let records = allTabs.compactMap { tab -> TabRecord? in
-            guard case .session(let id, let cli) = tab.kind, !id.hasPrefix("new-"), !id.hasPrefix("fork-") else { return nil }
-            return TabRecord(cli: cli.rawValue, sessionID: id, projectPath: tab.projectPath, title: tab.title,
-                             tmuxName: launches[tab.id]?.tmuxName, selected: selectedTab?.id == tab.id)
+        // 所有窗口的标签记在一起，下次启动都恢复到第一个窗口
+        let records = WorkspaceWindows.live.flatMap { store in
+            store.allTabs.compactMap { tab -> TabRecord? in
+                guard case .session(let id, let cli) = tab.kind, !id.hasPrefix("new-"), !id.hasPrefix("fork-") else { return nil }
+                return TabRecord(cli: cli.rawValue, sessionID: id, projectPath: tab.projectPath, title: tab.title,
+                                 tmuxName: store.launches[tab.id]?.tmuxName, selected: store === self && selectedTab?.id == tab.id)
+            }
         }
         if let data = try? JSONEncoder().encode(records) { try? data.write(to: Self.tabsFile, options: .atomic) }
     }

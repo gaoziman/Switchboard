@@ -38,11 +38,16 @@ struct BarlyMacApp: App {
 struct MacRoot: View {
     // console 风格族默认打开指标看板
     @State private var screen = BarlyFamily.current == .console ? "board" : "dashboard"
-    /// 每个窗口一个工作区：真实的会话库 + 终端标签
-    @State private var workspace = WorkspaceStore.live()
+    /// 每个窗口一个工作区：标签各自的，会话库所有窗口共用一份。
+    /// 在 onAppear 里建：@State 的初始值表达式每次重建视图都会再算一遍，会多登记出没用的窗口
+    @State private var workspace: WorkspaceStore?
     var body: some View {
-        WorkspaceView(store: workspace)
-            .task { CrashReportOffer.checkOnce() }
+        if let workspace {
+            WorkspaceView(store: workspace)
+                .task { CrashReportOffer.checkOnce() }
+        } else {
+            Color.clear.onAppear { workspace = WorkspaceStore.live() }
+        }
     }
     private var examples: some View {
         Group {

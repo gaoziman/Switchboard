@@ -32,12 +32,29 @@ public enum MainSelection: Hashable, Sendable {
 @MainActor
 @Observable
 public final class WorkspaceStore {
-    public var hosts: [Host]
-    public var projects: [Project]
-    public var sessions: [Session]
+    /// 所有窗口共用的那份数据（见 WorkspaceData）；下面这些属性都转给它
+    public let data: WorkspaceData
+    public var hosts: [Host] {
+        get { data.hosts }
+        set { data.hosts = newValue }
+    }
+    public var projects: [Project] {
+        get { data.projects }
+        set { data.projects = newValue }
+    }
+    public var sessions: [Session] {
+        get { data.sessions }
+        set { data.sessions = newValue }
+    }
+    public var loadState: LoadState {
+        get { data.loadState }
+        set { data.loadState = newValue }
+    }
+    public var transcripts: [String: [TranscriptEntry]] {
+        get { data.transcripts }
+        set { data.transcripts = newValue }
+    }
     public var tabGroups: [TabGroup]
-    public var loadState: LoadState
-    public var transcripts: [String: [TranscriptEntry]]
 
     public var sidebarMode = SidebarMode.projects
     public var searchText = ""
@@ -80,13 +97,19 @@ public final class WorkspaceStore {
     /// 正在问「关闭这个标签？」的标签
     public var closingTab: TerminalTab?
     /// 本机装了的 CLI
-    public var installedCLIs: [CLIKind] = CLIKind.allCases
+    public var installedCLIs: [CLIKind] {
+        get { data.installedCLIs }
+        set { data.installedCLIs = newValue }
+    }
     /// 是真实数据（会写标签记录、会刷新）
     public var isLive = false
     /// 每个标签最近的终端标题（Codex 在这里报状态）
     public var terminalTitles: [UUID: String] = [:]
     /// 置顶、重命名、归档、启动命令（本地，不改 CLI 文件）
-    public var library = LibraryState()
+    public var library: LibraryState {
+        get { data.library }
+        set { data.library = newValue }
+    }
     /// 正在重命名的会话（弹输入框）
     public var renaming: Session?
     /// 等确认删除的会话
@@ -94,7 +117,10 @@ public final class WorkspaceStore {
     /// 上一次删除失败的（会话 ID → 原因）
     public var deleteFailures: [String: String] = [:]
     /// 预览读了文件尾部多少字节
-    public var transcriptBudgets: [String: Int] = [:]
+    public var transcriptBudgets: [String: Int] {
+        get { data.transcriptBudgets }
+        set { data.transcriptBudgets = newValue }
+    }
     /// 消息全文搜索的命中：会话 ID → 命中那一句
     public var messageHits: [String: String] = [:]
     /// 建索引进度（已读, 总数）；nil = 没在建
@@ -111,16 +137,24 @@ public final class WorkspaceStore {
     public var forwardStack: [MainSelection] = []
     @ObservationIgnored var navigatingHistory = false
     /// 每台 SSH 主机最近一次读到的状态（每 5 秒）
-    public var remoteSnapshots: [String: RemoteSessions.Snapshot] = [:]
+    public var remoteSnapshots: [String: RemoteSessions.Snapshot] {
+        get { data.remoteSnapshots }
+        set { data.remoteSnapshots = newValue }
+    }
     /// 正在 Connect… 登录的主机（弹登录对话框）
     public var connectingHost: String?
     /// 每台主机的定期重新登录设置
-    public var signInConfigs: [String: SignInConfig] = [:]
+    public var signInConfigs: [String: SignInConfig] {
+        get { data.signInConfigs }
+        set { data.signInConfigs = newValue }
+    }
     /// 打开中的主机工具对话框
     public var hostSheet: HostSheet?
     /// 远程标签断线后自动重连了几次、上次重连的时间
     public var reconnectAttempts: [UUID: Int] = [:]
     @ObservationIgnored var lastRelaunch: [UUID: Date] = [:]
+    /// 这个工作区所在的窗口（NSWindow；别的窗口要把它叫到前面时用）
+    @ObservationIgnored public weak var hostWindow: AnyObject?
     /// 新建的会话标签还没认到真实会话：标签 → (CLI, 目录, 开始时间)
     public var pendingClaims: [UUID: PendingClaim] = [:]
 
@@ -128,12 +162,14 @@ public final class WorkspaceStore {
 
     public init(hosts: [Host], projects: [Project], sessions: [Session], tabGroups: [TabGroup] = [],
                 transcripts: [String: [TranscriptEntry]] = [:], loadState: LoadState = .loaded) {
-        self.hosts = hosts
-        self.projects = projects
-        self.sessions = sessions
+        data = WorkspaceData(hosts: hosts, projects: projects, sessions: sessions, transcripts: transcripts, loadState: loadState)
         self.tabGroups = tabGroups
-        self.transcripts = transcripts
-        self.loadState = loadState
+    }
+
+    /// 新窗口：接到已有的那份共用数据上
+    public init(data: WorkspaceData) {
+        self.data = data
+        tabGroups = []
     }
 
     // MARK: 会话库

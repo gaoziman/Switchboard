@@ -114,14 +114,17 @@ public struct WorkspaceView: View {
                                 newSession = nil
                             })
         }
-        .onReceive(NotificationCenter.default.publisher(for: .switchboardNewSession)) { note in beginNewSession(folder: note.object as? String) }
+        .onReceive(NotificationCenter.default.publisher(for: .switchboardNewSession)) { note in
+            if isKeyWindow { beginNewSession(folder: note.object as? String) }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardCloseTab)) { _ in
-            if let tab = store.selectedTab { store.requestClose(tab) }
+            if isKeyWindow, let tab = store.selectedTab { store.requestClose(tab) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardToggleSidebar)) { _ in
-            withAnimation(.smooth(duration: 0.2)) { sidebarShown.toggle() }
+            if isKeyWindow { withAnimation(.smooth(duration: 0.2)) { sidebarShown.toggle() } }
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardRefresh)) { _ in
+            guard isKeyWindow else { return }
             Task {
                 await store.refresh()
                 await store.refreshHosts()
@@ -147,6 +150,7 @@ public struct WorkspaceView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in store.retryReconnects() }
         #endif
         .onAppear(perform: hookRuntime)
+        .modifier(WindowLifecycle(store: store))
         .onReceive(NotificationCenter.default.publisher(for: .switchboardReplayTour)) { _ in if isKeyWindow { store.replayTour() } }
         .task(id: store.isLive) { await pollLoop() }
         .onChange(of: store.selection) { _, _ in
@@ -158,10 +162,11 @@ public struct WorkspaceView: View {
         }
     }
 
-    /// 多窗口时菜单命令只给当前窗口（单窗口时总是 true）
+    /// 多窗口时菜单命令只给当前窗口（设置窗口在前面时，给后面那个主窗口）
     private var isKeyWindow: Bool {
         #if os(macOS)
-        return NSApp.windows.filter { $0.isVisible && $0.canBecomeMain }.count <= 1 || NSApp.keyWindow?.isMainWindow == true
+        guard let window = store.hostWindow as? NSWindow else { return true }
+        return window.isKeyWindow || window.isMainWindow
         #else
         return true
         #endif
@@ -170,17 +175,22 @@ public struct WorkspaceView: View {
     /// 终端退出 / 关闭 / 标题、通知点击回到 store（mock 截图时什么都不做）
     private func hookRuntime() {
         guard store.isLive else { return }
-        store.startGuidance()
+        if store.isPrimary { store.startGuidance() }
         #if os(macOS)
-        let store = self.store
-        TerminalRegistry.shared.onExit = { id, code in store.processExited(id, code: code) }
-        TerminalRegistry.shared.onTitle = { id, title in store.terminalTitles[id] = title }
+        // 这些回调是全局的：按标签找到它所在的窗口，别的窗口打开时也不会被覆盖错
+        TerminalRegistry.shared.onExit = { id, code in WorkspaceWindows.owner(ofTab: id)?.processExited(id, code: code) }
+        TerminalRegistry.shared.onTitle = { id, title in WorkspaceWindows.owner(ofTab: id)?.terminalTitles[id] = title }
         TerminalRuntime.closer = { id, tmux in TerminalRegistry.shared.close(id, endingTmux: tmux) }
         NotificationService.shared.install()
-        NotificationService.shared.onSignIn = { alias in store.hostSheet = .signIn(alias) }
+        NotificationService.shared.onSignIn = { alias in
+            guard let primary = WorkspaceWindows.primary else { return }
+            primary.bringWindowToFront()
+            primary.hostSheet = .signIn(alias)
+        }
         NotificationService.shared.onOpen = { id in
             NSApp.activate(ignoringOtherApps: true)
-            if let s = store.session(id) { store.resume(s) }
+            guard let target = WorkspaceWindows.primary, let s = target.session(id) else { return }
+            target.resume(s)      // 标签开在别的窗口时 resume 会把那个窗口叫到前面
         }
         #endif
     }
@@ -194,13 +204,15 @@ public struct WorkspaceView: View {
             guard store.loadState == .loaded else { continue }
             tick += 1
             // 有新会话标签等着认领时，每 5 秒读一次本机会话库（走缓存，很快）；平时每分钟一次
-            if (!store.pendingClaims.isEmpty && tick % 5 == 0) || tick % 60 == 0 {
+            // 多窗口时每分钟刷新、主机状态、重新登录只由主窗口做（数据是共用的）
+            let primary = store.isPrimary
+            if (!store.pendingClaims.isEmpty && tick % 5 == 0) || (primary && tick % 60 == 0) {
                 Task { await store.refresh() }
             }
             // SSH 主机：每 5 秒问一次状态；有远程新会话等认领时每 10 秒刷新那台主机
-            if tick % 5 == 0 { Task { await store.pollRemoteStatus() } }
+            if primary, tick % 5 == 0 { Task { await store.pollRemoteStatus() } }
             // 定期重新登录：每 5 分钟查一次，刚到期的发通知
-            if tick % 300 == 3, !store.signInConfigs.isEmpty {
+            if primary, tick % 300 == 3, !store.signInConfigs.isEmpty {
                 Task { for alias in await store.checkSignIns() { NotificationService.shared.postSignInDue(alias) } }
             }
             if tick % 10 == 0 {
@@ -209,7 +221,9 @@ public struct WorkspaceView: View {
                 }
             }
             #if os(macOS)
-            let active = NSApp.isActive
+            // 这个窗口在屏幕上（没最小化）、app 在前台，才算「你看得到这个窗口里的标签」
+            let window = store.hostWindow as? NSWindow
+            let active = NSApp.isActive && (window.map { $0.isVisible && !$0.isMiniaturized } ?? true)
             #else
             let active = true
             #endif
@@ -320,3 +334,41 @@ private struct EmptyMain: View {
         }
     }
 }
+
+/// 记下所在的窗口；窗口关掉时从多窗口登记里拿掉
+private struct WindowLifecycle: ViewModifier {
+    let store: WorkspaceStore
+
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content
+            .background(WindowReader { store.hostWindow = $0 })
+            .onDisappear { store.windowClosed() }
+        #else
+        content
+        #endif
+    }
+}
+
+#if os(macOS)
+/// 拿到 SwiftUI 视图所在的 NSWindow
+struct WindowReader: NSViewRepresentable {
+    let onWindow: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = ReaderView()
+        view.onWindow = onWindow
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class ReaderView: NSView {
+        var onWindow: ((NSWindow?) -> Void)?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            onWindow?(window)
+        }
+    }
+}
+#endif

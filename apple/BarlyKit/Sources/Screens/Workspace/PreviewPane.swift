@@ -20,6 +20,9 @@ public struct PreviewPane: View {
     var hasEarlier = false
     var onLoadEarlier: () -> Void = {}
     @Environment(\.barly) private var t
+    #if os(macOS)
+    @Environment(\.controlActiveState) private var controlActiveState
+    #endif
     @State private var textSize: CGFloat = 14
     @State private var findOpen = false
     @State private var findQuery = ""
@@ -100,6 +103,9 @@ public struct PreviewPane: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardFindInPreview)) { note in
+            #if os(macOS)
+            guard controlActiveState == .key else { return }
+            #endif
             switch note.object as? Int {
             case 2: step(1)
             case 3: step(-1)

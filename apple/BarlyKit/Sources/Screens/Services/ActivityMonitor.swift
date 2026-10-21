@@ -102,6 +102,8 @@ public extension WorkspaceStore {
 
         for i in sessions.indices {
             let s = sessions[i]
+            // 多窗口：每个会话只由一个窗口算（标签在哪个窗口归哪个），不然几个窗口互相改、通知发好几遍
+            guard ownsActivity(of: s) else { continue }
             let tab = tab(for: s)
             var next: Activity
             if let tab, let a = tabActivity[tab.id] {
