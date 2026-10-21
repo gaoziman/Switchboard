@@ -203,7 +203,7 @@ private struct CollapsedGroup: View {
                     .padding(.leading, 8)
                     .frame(height: WorkspaceMetrics.groupHeader - 2)
                 HStack(spacing: 6) {
-                    Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).foregroundStyle(t.text4)
+                    Image(systemName: "chevron.right").font(.system(size: BarlyScale.pt(8), weight: .bold)).foregroundStyle(t.text4)
                     Text(verbatim: L("\(group.tabs.count) 个标签")).barlyText(.product.caption, color: t.text3)
                     ActivityLamp(group.mostUrgent, size: 5)
                 }
@@ -236,7 +236,7 @@ private struct TabItem: View {
     var body: some View {
         HStack(spacing: 6) {
             if tab.isPlainTerminal {
-                Image(systemName: "terminal").font(.system(size: 9)).foregroundStyle(t.text3)
+                Image(systemName: "terminal").font(.system(size: BarlyScale.pt(9))).foregroundStyle(t.text3)
             } else {
                 ActivityLamp(tab.activity, size: 5)
             }
@@ -250,11 +250,11 @@ private struct TabItem: View {
                                  startPoint: .leading, endPoint: .trailing))
             if selected || hovered {
                 Image(systemName: "xmark")
-                    .font(.system(size: 7, weight: .bold))
+                    .font(.system(size: BarlyScale.pt(7), weight: .bold))
                     .foregroundStyle(t.text3)
                     .frame(width: 14, height: 14)
                     .contentShape(Rectangle())
-                    .onTapGesture(perform: onClose)
+                    .tapButton(L("关闭标签"), perform: onClose)
                     .handCursor()
                     .help("关闭标签（⌘W）")
             }
@@ -273,6 +273,9 @@ private struct TabItem: View {
         .help(tab.title)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        // 合成一个元素后关闭按钮读屏点不到：放进动作菜单
+        .accessibilityAction(.default, action)
+        .accessibilityAction(named: L("关闭标签"), onClose)
     }
 }
 

@@ -57,7 +57,7 @@ public struct AddHostSheet: View {
                                     lineWidth: phase == .typing ? 1.5 : 1))
                         if let target {
                             HStack(spacing: 6) {
-                                Image(systemName: "arrow.turn.down.right").font(.system(size: 9)).foregroundStyle(t.text4)
+                                Image(systemName: "arrow.turn.down.right").font(.system(size: BarlyScale.pt(9))).foregroundStyle(t.text4)
                                 Text(verbatim: snapshot ? L("leo@10.0.3.21:22 · 经 ~/.ssh/config · 跳板 bastion") : target.summary)
                                     .barlyText(.product.caption.monospaced, color: t.text3)
                             }
@@ -169,10 +169,10 @@ struct CheckSteps: View {
                 HStack(spacing: 10) {
                     Group {
                         switch step.1 {
-                        case .done: Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(t.success)
+                        case .done: Image(systemName: "checkmark").font(.system(size: BarlyScale.pt(9), weight: .bold)).foregroundStyle(t.success)
                         case .running: ActivityLamp(.working, size: 7)
                         case .pending: Circle().fill(t.fill3).frame(width: 5, height: 5)
-                        case .failed: Image(systemName: "xmark").font(.system(size: 9, weight: .bold)).foregroundStyle(t.danger)
+                        case .failed: Image(systemName: "xmark").font(.system(size: BarlyScale.pt(9), weight: .bold)).foregroundStyle(t.danger)
                         }
                     }
                     .frame(width: 14)
@@ -203,7 +203,7 @@ struct Problem: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: tone == .error ? "exclamationmark.triangle.fill" : "key.horizontal")
-                    .font(.system(size: 11)).foregroundStyle(color)
+                    .font(.system(size: BarlyScale.pt(11))).foregroundStyle(color)
                 Text(title).barlyText(.product.small.weight(500), color: t.text)
             }
             Text(detail).barlyText(.product.small, color: t.text2).fixedSize(horizontal: false, vertical: true)
@@ -353,7 +353,7 @@ public struct LiveConnectSheet: View {
                             if secret { SecureField("", text: $input) } else { TextField("", text: $input) }
                         }
                         .textFieldStyle(.plain)
-                        .font(.system(size: 13, design: .monospaced))
+                        .font(.system(size: BarlyScale.pt(13), design: .monospaced))
                         .focused($focused)
                         .onSubmit(send)
                         .padding(.horizontal, 10)

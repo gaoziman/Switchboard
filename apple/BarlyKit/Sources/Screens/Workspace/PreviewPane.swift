@@ -218,10 +218,10 @@ public struct PreviewPane: View {
         let n = matchIDs.count
         return HStack(spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(t.text3)
+                Image(systemName: "magnifyingglass").font(.system(size: BarlyScale.pt(11))).foregroundStyle(t.text3)
                 TextField("在对话里查找", text: $findQuery)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13))
+                    .font(.system(size: BarlyScale.pt(13)))
                     .focused($findFocused)
                     .onSubmit { step(NSEvent.modifierFlags.contains(.shift) ? -1 : 1) }
                     .onChange(of: findQuery) { _, _ in findIndex = 0 }
@@ -249,7 +249,7 @@ public struct PreviewPane: View {
 
     private var missingFolderNote: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "questionmark.folder").font(.system(size: 13)).foregroundStyle(t.warning)
+            Image(systemName: "questionmark.folder").font(.system(size: BarlyScale.pt(13))).foregroundStyle(t.warning)
             VStack(alignment: .leading, spacing: 4) {
                 Text("原来的文件夹不在了").barlyText(.product.small.weight(500), color: t.text)
                 Text("这个会话在 \(project?.shortPath ?? "") 里运行过，文件夹被移走、改名或删除了。把它移回原处才能接着跑或分叉，回到 Switchboard 时会重新检查。")
@@ -291,7 +291,7 @@ private struct EntryView: View {
             }
         case .tools(let count, let summary):
             HStack(spacing: 8) {
-                Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold)).foregroundStyle(t.text4)
+                Image(systemName: "chevron.right").font(.system(size: BarlyScale.pt(8), weight: .bold)).foregroundStyle(t.text4)
                 Text("\(count) TOOL CALLS").barlyText(.product.caption.weight(500).monospaced, color: t.text3)
                 Text(summary).barlyText(.product.caption.monospaced, color: t.text4).lineLimit(1)
             }

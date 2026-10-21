@@ -72,3 +72,15 @@ import BarlyKit
         #expect(TerminalStyle.current(defaults: untouched).key == TerminalStyle.current(defaults: dark).key)
     }
 }
+
+@Suite struct IncreasedContrastTests {
+    @Test("系统开了「增强对比度」：次要文字各提一档（text4 → text3，text3 → text2）")
+    func raisesSecondaryText() {
+        for dark in [false, true] {
+            let p = AppTheme.switchboard.palette(dark: dark) ?? (dark ? BarlyTokens.dark : BarlyTokens.light)
+            let raised = AppTheme.raisingContrast(p)
+            #expect(raised.text4 == p.text3 && raised.text3 == p.text2)
+            #expect(raised.text == p.text && raised.text2 == p.text2 && raised.canvas == p.canvas)
+        }
+    }
+}

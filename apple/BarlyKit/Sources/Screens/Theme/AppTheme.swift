@@ -129,12 +129,23 @@ public struct ThemedRoot: ViewModifier {
     /// 自定义颜色改了就加一，让色板重算
     @AppStorage(ThemeColors.revisionKey) private var revision = 0
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
 
     public init() {}
 
     public func body(content: Content) -> some View {
         _ = revision
-        return content.environment(\.barlyPaletteOverride, (AppTheme(rawValue: theme) ?? .switchboard).palette(dark: scheme == .dark))
+        let dark = scheme == .dark
+        var palette = (AppTheme(rawValue: theme) ?? .switchboard).palette(dark: dark)
+        if contrast == .increased { palette = AppTheme.raisingContrast(palette ?? (dark ? BarlyTokens.dark : BarlyTokens.light)) }
+        return content.environment(\.barlyPaletteOverride, palette)
+    }
+}
+
+public extension AppTheme {
+    /// 系统设置里开了「增强对比度」：次要文字各提一档。时间、数量、路径这些用 text3 / text4 的字在浅色主题上只有 1.4–2.4 : 1
+    static func raisingContrast(_ p: BarlyPalette) -> BarlyPalette {
+        p.replacing([.text3: p.text2, .text4: p.text3, .headline2: p.text2])
     }
 }
 

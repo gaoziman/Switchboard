@@ -10,7 +10,7 @@ struct TipCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "lightbulb").font(.system(size: 11)).foregroundStyle(t.text3).padding(.top, 1)
+            Image(systemName: "lightbulb").font(.system(size: BarlyScale.pt(11))).foregroundStyle(t.text3).padding(.top, 1)
             VStack(alignment: .leading, spacing: 4) {
                 MonoLabel("TIP", color: t.text4)
                 Text(text).barlyText(.product.caption, color: t.text2).fixedSize(horizontal: false, vertical: true)

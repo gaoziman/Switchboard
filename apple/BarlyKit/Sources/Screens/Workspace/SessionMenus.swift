@@ -265,7 +265,7 @@ struct FilterMenu: View {
 
     private var icon: some View {
         Image(systemName: store.filter == .all && !store.showsArchived ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
-            .font(.system(size: 14))
+            .font(.system(size: BarlyScale.pt(14)))
             .foregroundStyle(store.filter == .all && !store.showsArchived ? t.text2 : t.text)
             .frame(width: BarlyScale.pt(28), height: BarlyScale.pt(28))
     }

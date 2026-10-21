@@ -16,7 +16,7 @@ struct FolderEmptyState: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Image(systemName: "folder.badge.plus").font(.system(size: 16)).foregroundStyle(t.text3)
+            Image(systemName: "folder.badge.plus").font(.system(size: BarlyScale.pt(16))).foregroundStyle(t.text3)
             Text("添加一个文件夹").barlyText(.product.small.weight(500), color: t.text)
             Text("侧栏只显示你添加的文件夹和它们的会话。也可以把文件夹从访达拖到这里。")
                 .barlyText(.product.caption, color: t.text3)
@@ -49,7 +49,7 @@ private struct SuggestionRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                Image(systemName: "plus").font(.system(size: 9, weight: .bold)).foregroundStyle(hovered ? t.text : t.text4)
+                Image(systemName: "plus").font(.system(size: BarlyScale.pt(9), weight: .bold)).foregroundStyle(hovered ? t.text : t.text4)
                     .frame(width: 12)
                 Text(candidate.name).barlyText(.product.small, color: t.text2).lineLimit(1)
                 Text("\(candidate.sessionCount)").barlyText(.product.caption.monospaced, color: t.text4)
@@ -190,7 +190,7 @@ struct FolderPickerSheet: View {
         }
         .padding(.horizontal, 8).padding(.vertical, 6)
         .contentShape(Rectangle())
-        .onTapGesture {
+        .tapButton {
             guard !isAdded else { return }
             if picked.contains(c.id) { picked.remove(c.id) } else { picked.insert(c.id) }
         }

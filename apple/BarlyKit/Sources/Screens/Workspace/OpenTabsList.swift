@@ -59,7 +59,7 @@ private struct GroupHeading: View {
         Button(action: action) {
             HStack(spacing: 7) {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 8, weight: .bold))
+                    .font(.system(size: BarlyScale.pt(8), weight: .bold))
                     .foregroundStyle(t.text4)
                     .rotationEffect(.degrees(group.isCollapsed ? 0 : 90))
                     .frame(width: 10)
@@ -94,13 +94,13 @@ private struct OpenTabRow: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if picked {
-                    Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(t.text)
+                    Image(systemName: "checkmark").font(.system(size: BarlyScale.pt(9), weight: .bold)).foregroundStyle(t.text)
                         .frame(width: 16, height: 16)
                         .background(t.fill3, in: RoundedRectangle(cornerRadius: 3))
                 } else if case .session(_, let cli) = tab.kind {
                     CLIMark(cli)
                 } else {
-                    Image(systemName: "terminal").font(.system(size: 10)).foregroundStyle(t.text3).frame(width: 16)
+                    Image(systemName: "terminal").font(.system(size: BarlyScale.pt(10))).foregroundStyle(t.text3).frame(width: 16)
                 }
                 Text(tab.title)
                     .barlyText(.product.small.weight(current ? 500 : 400), color: current || picked ? t.text : t.text2)
@@ -166,7 +166,7 @@ struct BellPopover: View {
                         }
                         .padding(.horizontal, 12).padding(.vertical, 9)
                         .contentShape(Rectangle())
-                        .onTapGesture { onOpen(session) }
+                        .tapButton { onOpen(session) }
                         .handCursor()
                     }
                 }

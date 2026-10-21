@@ -334,7 +334,7 @@ private struct StatusCounts: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 if counts.isEmpty {
-                    Image(systemName: "bell").font(.system(size: 13)).foregroundStyle(t.text3)
+                    Image(systemName: "bell").font(.system(size: BarlyScale.pt(13))).foregroundStyle(t.text3)
                 }
                 ForEach(counts, id: \.0) { activity, n in
                     HStack(spacing: 4) {
@@ -409,12 +409,12 @@ public enum WorkspaceMetrics {
     /// 面板 8、行和标签 6（审美底线的圆角阶梯）
     public static let panelRadius: CGFloat = 8
     public static let rowRadius: CGFloat = 6
-    /// 项目行的文件夹图标宽；会话行的树形引导线对准它的中线
-    public static let folderIcon: CGFloat = 16
-    /// 引导线离行左边的距离：行内边距 8 + 箭头 10 + 间距 6 + 图标一半 8
-    public static let guideX: CGFloat = 32
+    /// 项目行的文件夹图标宽；会话行的树形引导线对准它的中线。图标跟着界面缩放，引导线也要跟着算
+    public static var folderIcon: CGFloat { BarlyScale.pt(16) }
+    /// 引导线离行左边的距离：行内边距 8 + 箭头 10 + 间距 6 + 图标一半
+    public static var guideX: CGFloat { 24 + folderIcon / 2 }
     /// 会话行内容的起点（引导线右边留一点）
-    public static let sessionInset: CGFloat = 42
+    public static var sessionInset: CGFloat { guideX + 10 }
 }
 
 /// 外壳的两层底：窗口底（侧栏、标签栏）更暗，终端面板浮在上面。浅色时底是浅灰、面板是白
@@ -494,12 +494,12 @@ private struct HostHeading: View {
                     .padding(.horizontal, 7).frame(height: BarlyScale.pt(20))
                     .overlay(RoundedRectangle(cornerRadius: BarlyRadius.xs).stroke(t.borderStrong))
                     .contentShape(Rectangle())
-                    .onTapGesture(perform: onConnect)
+                    .tapButton(perform: onConnect)
                     .handCursor()
             case .refreshing(let done, let total):
                 Text("\(done)/\(total)").barlyText(.product.caption.monospaced, color: t.text3)
             case .unreachable(let error):
-                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10)).foregroundStyle(t.warning)
+                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: BarlyScale.pt(10))).foregroundStyle(t.warning)
                     .help("连不上：\(error)")
             case .disconnected:
                 MonoLabel("OFFLINE", color: t.text4)
@@ -508,7 +508,7 @@ private struct HostHeading: View {
                     .padding(.horizontal, 7).frame(height: BarlyScale.pt(20))
                     .overlay(RoundedRectangle(cornerRadius: BarlyRadius.xs).stroke(t.borderStrong))
                     .contentShape(Rectangle())
-                    .onTapGesture(perform: onSignIn)
+                    .tapButton(perform: onSignIn)
                     .handCursor()
                     .help("这台主机的重新登录到期了")
             case .connected:
@@ -546,12 +546,12 @@ private struct ProjectRow: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 8, weight: .bold))
+                    .font(.system(size: BarlyScale.pt(8), weight: .bold))
                     .foregroundStyle(t.text4)
                     .rotationEffect(.degrees(expanded ? 90 : 0))
                     .frame(width: 10)
                 Image(systemName: project.folderExists ? "folder" : "questionmark.folder")
-                    .font(.system(size: 12))
+                    .font(.system(size: BarlyScale.pt(12)))
                     .foregroundStyle(project.folderExists ? t.text3 : t.warning)
                     .frame(width: WorkspaceMetrics.folderIcon)
                     .help(project.folderExists ? project.path : L("文件夹已经不在了"))
@@ -565,7 +565,7 @@ private struct ProjectRow: View {
                 }
                 .layoutPriority(1)
                 if project.isPinned {
-                    Image(systemName: "pin.fill").font(.system(size: 7)).foregroundStyle(t.text4)
+                    Image(systemName: "pin.fill").font(.system(size: BarlyScale.pt(7))).foregroundStyle(t.text4)
                 }
                 Spacer(minLength: 6)
                 ActivityLamp(activity, size: 6)
@@ -582,6 +582,7 @@ private struct ProjectRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityValue(expanded ? L("已展开") : L("已折叠"))
         .overlay(alignment: .trailing) {
             if showsActions, let menu, let quickStart {
                 HStack(spacing: 2) {
@@ -637,12 +638,12 @@ struct SessionRow: View {
             HStack(spacing: 8) {
                 if childCount > 0 {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 7, weight: .bold))
+                        .font(.system(size: BarlyScale.pt(7), weight: .bold))
                         .foregroundStyle(t.text4)
                         .rotationEffect(.degrees(childrenExpanded ? 90 : 0))
                         .frame(width: 10, height: 16)
                         .contentShape(Rectangle())
-                        .onTapGesture(perform: onToggleChildren)
+                        .tapButton(L("展开或收起子代理"), perform: onToggleChildren)
                         .help("\(childCount) 个子代理会话")
                         .padding(.leading, -18)
                 }
@@ -651,10 +652,10 @@ struct SessionRow: View {
                     .barlyText(.product.small.weight(selected ? 500 : 400), color: selected ? t.text : t.text2)
                     .lineLimit(1)
                 if session.isPinned {
-                    Image(systemName: "pin.fill").font(.system(size: 7)).foregroundStyle(t.text4)
+                    Image(systemName: "pin.fill").font(.system(size: BarlyScale.pt(7))).foregroundStyle(t.text4)
                 }
                 if session.isArchived {
-                    Image(systemName: "archivebox").font(.system(size: 9)).foregroundStyle(t.text4)
+                    Image(systemName: "archivebox").font(.system(size: BarlyScale.pt(9))).foregroundStyle(t.text4)
                 }
                 Spacer(minLength: 6)
                 Group {
@@ -706,7 +707,7 @@ struct RowAction: View {
     var body: some View {
         Menu { content() } label: {
             Image(systemName: symbol)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: BarlyScale.pt(11), weight: .semibold))
                 .foregroundStyle(hovered ? t.text : t.text2)
                 .frame(width: Self.size, height: 20)
                 .background(hovered ? t.fill2 : .clear, in: RoundedRectangle(cornerRadius: 5))
@@ -785,11 +786,11 @@ private struct SidebarSearchField: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(t.text3)
+            Image(systemName: "magnifyingglass").font(.system(size: BarlyScale.pt(11))).foregroundStyle(t.text3)
             BarlyBareField(placeholder: L("项目、会话、消息"), text: $text, style: .product.small)
             if !text.isEmpty {
-                Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(t.text4)
-                    .onTapGesture { text = "" }
+                Image(systemName: "xmark.circle.fill").font(.system(size: BarlyScale.pt(11))).foregroundStyle(t.text4)
+                    .tapButton(L("清除搜索")) { text = "" }
                     .handCursor()
             }
         }
@@ -810,7 +811,7 @@ private struct SidebarMessage<Action: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Image(systemName: symbol).font(.system(size: 16)).foregroundStyle(t.text3)
+            Image(systemName: symbol).font(.system(size: BarlyScale.pt(16))).foregroundStyle(t.text3)
             Text(title).barlyText(.product.small.weight(500), color: t.text)
             Text(detail).barlyText(.product.caption, color: t.text3)
                 .fixedSize(horizontal: false, vertical: true)

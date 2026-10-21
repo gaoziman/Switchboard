@@ -2643,6 +2643,16 @@
         }
       }
     },
+    "复制命令" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Command"
+          }
+        }
+      }
+    },
     "复制对话" : {
       "localizations" : {
         "en" : {
@@ -2803,12 +2813,32 @@
         }
       }
     },
+    "展开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand"
+          }
+        }
+      }
+    },
     "展开 %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Expand %@"
+          }
+        }
+      }
+    },
+    "展开或收起子代理" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show or Hide Subagents"
           }
         }
       }
@@ -4137,6 +4167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t sign in to %@"
+          }
+        }
+      }
+    },
+    "没能导出「%@」" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t export “%@”"
           }
         }
       }

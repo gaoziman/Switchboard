@@ -87,7 +87,7 @@ struct ValueBox: View {
                 .barlyText(mono ? .product.small.monospaced : .product.small, color: dim ? t.text3 : t.text)
                 .lineLimit(1).truncationMode(.middle)
             Spacer(minLength: 4)
-            if let icon { Image(systemName: icon).font(.system(size: 10, weight: .medium)).foregroundStyle(t.text3) }
+            if let icon { Image(systemName: icon).font(.system(size: BarlyScale.pt(10), weight: .medium)).foregroundStyle(t.text3) }
         }
         .padding(.horizontal, 10)
         .frame(height: BarlyScale.pt(30))
@@ -191,7 +191,7 @@ public struct NewSessionSheet: View {
                                         .barlyText(.product.caption, color: t.text2)
                                         .padding(.horizontal, 8).frame(height: BarlyScale.pt(22))
                                         .barlySelected(expandedFolder == folder || draft.folder == folder, radius: BarlyRadius.xs, idleFill: t.fill1)
-                                        .onTapGesture { draft.folder = isRemote ? folder : abbreviate(folder) }
+                                        .tapButton { draft.folder = isRemote ? folder : abbreviate(folder) }
                                         .handCursor()
                                         .help(folder)
                                 }
@@ -232,7 +232,7 @@ public struct NewSessionSheet: View {
                     if case .cli(let cli) = option.0 {
                         CLIMark(cli, size: 18)
                     } else {
-                        Image(systemName: "terminal").font(.system(size: 12)).foregroundStyle(t.text2).frame(height: 18)
+                        Image(systemName: "terminal").font(.system(size: BarlyScale.pt(12))).foregroundStyle(t.text2).frame(height: 18)
                     }
                     Text(option.1).barlyText(.product.caption.weight(on ? 500 : 400), color: on ? t.text : t.text2)
                         .lineLimit(1)
@@ -241,7 +241,7 @@ public struct NewSessionSheet: View {
                 .frame(height: BarlyScale.pt(56))
                 .barlySelectCard(on, radius: BarlyRadius.sm, mark: false, idleFill: t.fill1)
                 .contentShape(Rectangle())
-                .onTapGesture {
+                .tapButton {
                     draft.target = option.0
                     if case .cli(let cli) = option.0 { draft.savedCommand = savedCommandFor(cli) } else { draft.savedCommand = nil }
                     draft.editingCommand = nil
@@ -348,7 +348,7 @@ public struct CloseTabDialog: View {
                     Text("在\(hostName)上不再询问，以后照这次的选择做").barlyText(.product.small, color: t.text2)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture { remember.toggle() }
+                .tapButton { remember.toggle() }
                 .handCursor()
             }
         } buttons: {

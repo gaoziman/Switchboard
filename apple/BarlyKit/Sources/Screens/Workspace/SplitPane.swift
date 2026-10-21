@@ -57,7 +57,7 @@ public struct SplitPane: View {
                 }
             }
             .contentShape(Rectangle())
-            .onTapGesture { store.selection = .tab(id) }
+            .tapButton { store.selection = .tab(id) }
         }
     }
 
@@ -86,6 +86,11 @@ private struct TabChooser: View {
     let groupFor: (TerminalTab) -> TabGroup?
     let pick: (TerminalTab) -> Void
     @Environment(\.barly) private var t
+    /// ↑ ↓ 移动的高亮，Return 选它（最近用过的在前，默认第一个）
+    @State private var highlighted = 0
+    @FocusState private var focused: Bool
+
+    private var current: Int { min(highlighted, max(candidates.count - 1, 0)) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -103,9 +108,9 @@ private struct TabChooser: View {
                         if case .session(_, let cli) = tab.kind {
                             CLIMark(cli)
                         } else {
-                            Image(systemName: "terminal").font(.system(size: 10)).foregroundStyle(t.text3).frame(width: 16)
+                            Image(systemName: "terminal").font(.system(size: BarlyScale.pt(10))).foregroundStyle(t.text3).frame(width: 16)
                         }
-                        Text(tab.title).barlyText(.product.small.weight(index == 0 ? 500 : 400), color: index == 0 ? t.text : t.text2)
+                        Text(tab.title).barlyText(.product.small.weight(index == current ? 500 : 400), color: index == current ? t.text : t.text2)
                             .lineLimit(1)
                         Spacer(minLength: 8)
                         if let group {
@@ -115,9 +120,9 @@ private struct TabChooser: View {
                     }
                     .padding(.horizontal, 12)
                     .frame(height: BarlyScale.pt(34))
-                    .barlySelected(index == 0, radius: BarlyRadius.sm, idleBorder: .clear)
+                    .barlySelected(index == current, radius: BarlyRadius.sm, idleBorder: .clear)
                     .contentShape(Rectangle())
-                    .onTapGesture { pick(tab) }
+                    .tapButton { pick(tab) }
                     .handCursor()
                 }
             }
@@ -131,6 +136,17 @@ private struct TabChooser: View {
             .padding(16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .focusable()
+        .focused($focused)
+        .focusEffectDisabled()
+        .onAppear { focused = true }
+        .onKeyPress(.upArrow) { highlighted = max(current - 1, 0); return .handled }
+        .onKeyPress(.downArrow) { highlighted = min(current + 1, max(candidates.count - 1, 0)); return .handled }
+        .onKeyPress(.return) {
+            guard candidates.indices.contains(current) else { return .ignored }
+            pick(candidates[current])
+            return .handled
+        }
         .background(t.canvas)
         .clipShape(RoundedRectangle(cornerRadius: BarlyRadius.md))
         .overlay(RoundedRectangle(cornerRadius: BarlyRadius.md).stroke(t.borderStrong, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))

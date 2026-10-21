@@ -40,7 +40,7 @@ struct TerminalBannerView: View {
         case .exited:
             ActivityLamp(.ended, size: 8)
         case .failed:
-            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 12)).foregroundStyle(t.danger)
+            Image(systemName: "exclamationmark.triangle.fill").font(.system(size: BarlyScale.pt(12))).foregroundStyle(t.danger)
         case .reconnecting:
             ActivityLamp(.working, size: 8)
         }

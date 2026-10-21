@@ -11,6 +11,7 @@ public struct ActivityLamp: View {
     var size: CGFloat
     @Environment(\.barly) private var t
     @Environment(\.barlySnapshot) private var snapshot
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(_ activity: Activity, size: CGFloat = 7) {
         self.activity = activity
@@ -45,8 +46,9 @@ public struct ActivityLamp: View {
         .accessibilityLabel(activity.label)
     }
 
+    /// 系统设置了「减弱动态效果」就不转：缺口的弧本身就和别的状态分得开
     @ViewBuilder private var arc: some View {
-        if snapshot {
+        if snapshot || reduceMotion {
             WorkingArc(size: glyph - 1, angle: -30)
         } else {
             TimelineView(.animation(minimumInterval: 1 / 30)) { context in
@@ -153,7 +155,7 @@ struct PaneIcon: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 14, weight: .regular))
+                .font(.system(size: BarlyScale.pt(14), weight: .regular))
                 .foregroundStyle(hovered ? t.text : t.text2)
                 .frame(width: BarlyScale.pt(28), height: BarlyScale.pt(28))
                 .background(hovered ? t.fill2 : .clear, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
@@ -171,14 +173,28 @@ struct PaneIcon: View {
 }
 
 extension View {
-    /// 可点处一律手型光标（macOS 14 没有 pointerStyle，用 NSCursor）
+    /// 可点处一律手型光标。用系统的 pointerStyle：NSCursor push / pop 在「悬停才出现、点完就消失」的元素上
+    /// （标签的关闭按钮）收不到移出，光标栈不平衡，会一直是手型
     func handCursor() -> some View {
         #if os(macOS)
-        onHover { inside in
-            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-        }
+        pointerStyle(.link)
         #else
         self
         #endif
+    }
+
+    /// 用点按手势做的按钮（为了不套一层 Button 改掉外观）：补上按钮语义和 VoiceOver 的「按下」，不然读屏只当它是文字
+    func tapButton(_ label: String? = nil, perform action: @escaping () -> Void) -> some View {
+        onTapGesture(perform: action)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(.default, action)
+            .modifier(OptionalAccessibilityLabel(label: label))
+    }
+}
+
+private struct OptionalAccessibilityLabel: ViewModifier {
+    let label: String?
+    func body(content: Content) -> some View {
+        if let label { content.accessibilityLabel(label) } else { content }
     }
 }

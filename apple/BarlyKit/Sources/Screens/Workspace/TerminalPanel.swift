@@ -56,7 +56,7 @@ struct PanelHeader: View {
                 Text("/").barlyText(.product.small, color: t.text4)
             } else {
                 Image(systemName: "terminal")
-                    .font(.system(size: 11))
+                    .font(.system(size: BarlyScale.pt(11)))
                     .foregroundStyle(t.text4)
             }
             Text(tab.title)

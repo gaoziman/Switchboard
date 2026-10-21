@@ -84,7 +84,7 @@ private struct Finding: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: level == .ok ? "checkmark" : level == .problem ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
-                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(color)
+                    .font(.system(size: BarlyScale.pt(11), weight: .semibold)).foregroundStyle(color)
                 MonoLabel(level == .problem ? "PROBLEM" : level == .warning ? "WARNING" : "OK", color: color)
                 Text(title).barlyText(.product.small.weight(500), color: t.text).lineLimit(1)
             }
@@ -226,7 +226,7 @@ public struct ReadingWindow: View {
     private var findBar: some View {
         HStack(spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(t.text3)
+                Image(systemName: "magnifyingglass").font(.system(size: BarlyScale.pt(11))).foregroundStyle(t.text3)
                 Text("分组▏").barlyText(.product.small, color: t.text)
                 Spacer()
                 Text("3 / 12").barlyText(.product.caption.monospaced, color: t.text3)
@@ -284,7 +284,7 @@ public struct LivePortForwardSheet: View {
                                 .padding(.horizontal, 12).frame(height: BarlyScale.pt(30))
                                 .barlySelected(on, radius: 0, idleBorder: .clear)
                                 .contentShape(Rectangle())
-                                .onTapGesture { remote = String(p.port); local = String(p.port); error = nil }
+                                .tapButton { remote = String(p.port); local = String(p.port); error = nil }
                                 .handCursor()
                             }
                         }
@@ -325,7 +325,7 @@ public struct LivePortForwardSheet: View {
     private func field(_ text: Binding<String>, _ placeholder: String) -> some View {
         TextField(placeholder, text: text)
             .textFieldStyle(.plain)
-            .font(.system(size: 13, design: .monospaced))
+            .font(.system(size: BarlyScale.pt(13), design: .monospaced))
             .padding(.horizontal, 10)
             .frame(width: BarlyScale.pt(120), height: BarlyScale.pt(30))
             .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
@@ -436,7 +436,7 @@ public struct SignInSettingsSheet: View {
     private func input(_ text: Binding<String>, _ placeholder: String) -> some View {
         TextField(placeholder, text: text)
             .textFieldStyle(.plain)
-            .font(.system(size: 13, design: .monospaced))
+            .font(.system(size: BarlyScale.pt(13), design: .monospaced))
             .padding(.horizontal, 10)
             .frame(height: BarlyScale.pt(30))
             .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
