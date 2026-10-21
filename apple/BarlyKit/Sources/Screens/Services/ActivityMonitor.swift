@@ -193,8 +193,9 @@ public extension WorkspaceStore {
             return appIsActive ? ids : []
         }()
 
-        for i in sessions.indices {
-            let s = sessions[i]
+        var updated = sessions             // 改完一次写回（逐个改 sessions[i] 每次都整组拷贝）
+        for i in updated.indices {
+            let s = updated[i]
             // 多窗口：每个会话只由一个窗口算（标签在哪个窗口归哪个），不然几个窗口互相改、通知发好几遍
             guard ownsActivity(of: s) else { continue }
             let tab = tab(for: s)
@@ -223,8 +224,9 @@ public extension WorkspaceStore {
             if next == .waitingForAnswer, previous != .waitingForAnswer, !seen {
                 changes.append(ActivityChange(kind: .needsInput, sessionID: s.id))
             }
-            if next != previous { sessions[i].activity = next }
+            if next != previous { updated[i].activity = next }
         }
+        if updated != sessions { sessions = updated }
 
         // 标签上的灯跟会话一致
         for g in tabGroups.indices {

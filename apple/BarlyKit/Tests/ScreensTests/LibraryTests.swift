@@ -21,6 +21,21 @@ struct LibraryStateTests {
         return WorkspaceStore(hosts: [MockData.local], projects: [Project(hostID: Host.localID, path: "/p")], sessions: sessions)
     }
 
+    @Test("几千个会话时盖本地状态不卡：一次写回，不是每改一个字段就整组拷贝一遍")
+    func applyIsLinear() {
+        let sessions = (1...3000).map { i in
+            Session(id: "s\(i)", cli: .claude, hostID: Host.localID, projectPath: "/p", title: "会话 \(i)", lastActivity: .now, messageCount: 1)
+        }
+        let s = WorkspaceStore(hosts: [MockData.local], projects: [Project(hostID: Host.localID, path: "/p")], sessions: sessions)
+        s.library.pinnedSessions = ["s7"]
+        s.library.names = ["s9": "改过名"]
+        let start = Date()
+        s.applyLibraryState()
+        #expect(Date().timeIntervalSince(start) < 0.5)   // 逐个改的写法要几秒
+        #expect(s.session("s7")?.isPinned == true && s.session("s8")?.isPinned == false)
+        #expect(s.session("s9")?.localName == "改过名")
+    }
+
     @Test("置顶按置顶的先后排，不按时间")
     func pinOrder() {
         let s = store()
