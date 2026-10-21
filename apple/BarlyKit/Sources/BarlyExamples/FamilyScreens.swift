@@ -3,7 +3,7 @@ import BarlyKit
 
 // 风格族示例屏：每个风格族一张能体现特色的屏（iOS 393×852；console 另有 macOS 1440×1024）。
 // 都由 BarlyKit 组件拼成——组件按 BarlyFamily.current 自己换字形 / 分层 / 圆角，屏幕只管内容和构图。
-// 照片是 tools/photos.sh 生成的本地质感占位图（BarlyPhoto），不外链。
+// 照片位用 BarlyPhoto：包里不带图片，显示灰色占位，不外链。
 // 对应参考：gallery/lovable/<slug>/mobile.jpg（见 references/apple.md §8 表）。
 
 // MARK: - 共用零件

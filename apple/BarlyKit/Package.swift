@@ -22,7 +22,7 @@ let package = Package(
     targets: [
         .target(
             name: "BarlyKit",
-            resources: [.copy("Resources/Fonts"), .copy("Resources/Brand"), .copy("Resources/Photos")]
+            resources: [.copy("Resources/Fonts"), .copy("Resources/Brand")]
         ),
         .target(name: "BarlyExamples", dependencies: ["BarlyKit"]),
         .target(name: "Screens", dependencies: ["BarlyKit", "BarlyExamples",

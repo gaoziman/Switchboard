@@ -250,7 +250,7 @@ public struct DisplayTitle: View {
     }
 }
 
-// MARK: - 本地质感照片（tools/photos.sh 生成，Resources/Photos/*.jpg）
+// MARK: - 占位照片（原来的 Resources/Photos 来源不明，已从包里删掉；没有图片时显示灰色占位）
 
 public enum PhotoMask: Sendable { case rect, arch, blob, circle, rounded(CGFloat) }
 
