@@ -151,9 +151,7 @@ public extension WorkspaceStore {
         var order = library.pinnedSessions.filter { $0 != dragged }
         let i = order.firstIndex(of: target) ?? order.count
         order.insert(dragged, at: i)
-        library.pinnedSessions = order
-        if isLive { library.save() }
-        applyLibraryState()
+        updateLibrary { $0.pinnedSessions = order }
     }
 
     func movePinnedProject(_ dragged: String, before target: String) {
@@ -161,9 +159,7 @@ public extension WorkspaceStore {
         var order = library.pinnedProjects.filter { $0 != dragged }
         let i = order.firstIndex(of: target) ?? order.count
         order.insert(dragged, at: i)
-        library.pinnedProjects = order
-        if isLive { library.save() }
-        applyLibraryState()
+        updateLibrary { $0.pinnedProjects = order }
     }
 
     // MARK: 子代理

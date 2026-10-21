@@ -78,7 +78,8 @@ import Testing
     }
 }
 
-/// library.json：新字段、旧文件兼容、坏文件不覆盖
+/// library.json：新字段、旧文件兼容（坏文件不覆盖见 PersistenceTests）
+@MainActor
 @Suite struct LibraryFileTests {
     func tempFile(_ text: String?) -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sb-lib-\(UUID().uuidString)")
@@ -90,7 +91,7 @@ import Testing
 
     @Test func oldFileWithoutFolderFieldsStillLoads() {
         let url = tempFile(#"{"pinnedProjects":["local:/a"],"addedProjects":["/b"]}"#)
-        let s = LibraryState.load(from: url)
+        let s = WorkspacePersistence.disk(url.deletingLastPathComponent()).loadLibrary()
         #expect(s.pinnedProjects == ["local:/a"])
         #expect(s.addedProjects == ["/b"])
         #expect(s.folders.isEmpty)
@@ -98,17 +99,8 @@ import Testing
         #expect(s.dismissedFolders.isEmpty)
     }
 
-    @Test func corruptFileIsBackedUpNotOverwritten() throws {
-        let url = tempFile("{ not json")
-        let s = LibraryState.load(from: url)
-        #expect(s == LibraryState())
-        let siblings = try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)
-        #expect(siblings.contains { $0.hasPrefix("library.json.bak") })
-        #expect(!FileManager.default.fileExists(atPath: url.path))
-    }
-
     @Test func missingFileIsEmpty() {
-        #expect(LibraryState.load(from: tempFile(nil)) == LibraryState())
+        #expect(WorkspacePersistence.disk(tempFile(nil).deletingLastPathComponent()).loadLibrary() == LibraryState())
     }
 
     @Test func migrationFoldsOldAddedProjects() {

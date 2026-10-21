@@ -122,9 +122,7 @@ public extension WorkspaceStore {
     }
 
     /// 上次开着的标签所在的本机文件夹（启动时自动加回库里；升级挑选时默认勾上）
-    static func savedTabFolders() -> Set<String> {
-        guard let data = try? Data(contentsOf: tabsFile),
-              let records = try? JSONDecoder().decode([TabRecord].self, from: data) else { return [] }
-        return localFolders(of: records)
+    func savedTabFolders() -> Set<String> {
+        Self.localFolders(of: data.persistence.loadTabs())
     }
 }

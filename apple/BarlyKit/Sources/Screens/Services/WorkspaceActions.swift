@@ -16,9 +16,7 @@ public extension WorkspaceStore {
             store.attachTab(transfer)
         }
         if first {
-            // 先读会话库状态，再做任何会改它的事（以前等第一次扫描完才读，期间的改动会把文件整个盖掉）
-            store.library = LibraryState.load()
-            store.loadHosts()
+            store.loadSavedState()
             Task {
                 await store.refresh(restoringTabs: true)
                 await store.refreshHosts()
@@ -47,7 +45,7 @@ public extension WorkspaceStore {
 
     private func refreshOnce(restoringTabs: Bool) async {
         // 启动恢复标签：上次开着的文件夹自动加回库里（升级挑选时默认勾上）
-        let savedTabs = restoringTabs && isLive ? Self.savedTabFolders() : []
+        let savedTabs = restoringTabs ? savedTabFolders() : []
         if library.foldersMigrated, savedTabs.contains(where: { !isInLibrary($0) }) {
             updateLibrary { s in for id in savedTabs.sorted() where !s.folders.contains(id) { s.folders.append(id) } }
         }
@@ -602,17 +600,9 @@ public extension WorkspaceStore {
         return open + pending.filter { $0.sessionID.map { !ids.contains($0) } ?? false }
     }
 
-    internal static var tabsFile: URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Switchboard", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("tabs.json")
-    }
-
     func saveTabs() {
-        guard isLive else { return }
         // 所有窗口的标签记在一起，下次启动都恢复到第一个窗口
-        let records = WorkspaceWindows.live.flatMap { store in
+        let records = (isLive ? WorkspaceWindows.live : [self]).flatMap { store in
             store.allTabs.compactMap { tab -> TabRecord? in
                 guard case .session(let id, let cli) = tab.kind, !id.hasPrefix("new-"), !id.hasPrefix("fork-") else { return nil }
                 return TabRecord(cli: cli.rawValue, sessionID: id, projectPath: tab.projectPath, title: tab.title,
@@ -620,16 +610,15 @@ public extension WorkspaceStore {
                                  hostID: tab.hostID == Host.localID ? nil : tab.hostID)
             }
         }
-        let all = Self.records(open: records, pending: data.pendingRemoteTabs)
-        if let encoded = try? JSONEncoder().encode(all) { try? encoded.write(to: Self.tabsFile, options: .atomic) }
+        data.persistence.saveTabs(Self.records(open: records, pending: data.pendingRemoteTabs))
     }
 
     /// 本机的标签现在恢复；主机上的先记着，等那台主机的会话读进来（reloadHostSessions）再恢复
     internal func restoreTabs() {
-        guard UserDefaults.standard.object(forKey: "restoreTabs") as? Bool ?? true,
-              let data = try? Data(contentsOf: Self.tabsFile),
-              let records = try? JSONDecoder().decode([TabRecord].self, from: data) else { return }
-        self.data.pendingRemoteTabs = records.filter { $0.host != Host.localID }
+        guard UserDefaults.standard.object(forKey: "restoreTabs") as? Bool ?? true else { return }
+        let records = data.persistence.loadTabs()
+        guard !records.isEmpty else { return }
+        data.pendingRemoteTabs = records.filter { $0.host != Host.localID }
         var selected: UUID?
         for r in records where r.host == Host.localID {
             guard let id = r.sessionID, let s = session(id), tab(for: s) == nil else { continue }

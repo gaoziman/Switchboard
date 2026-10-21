@@ -1,7 +1,7 @@
 import Foundation
 
 /// Switchboard 自己的会话库状态：置顶顺序、本地重命名、归档、按 CLI 保存的启动命令。
-/// 不改 CLI 的任何文件，存在 ~/Library/Application Support/Switchboard/library.json
+/// 不改 CLI 的任何文件，存在 library.json（WorkspacePersistence）
 public struct LibraryState: Codable, Equatable, Sendable {
     /// 置顶的项目 ID，按置顶顺序
     public var pinnedProjects: [String] = []
@@ -48,31 +48,6 @@ public struct LibraryState: Codable, Equatable, Sendable {
         foldersMigrated = try c.decodeIfPresent(Bool.self, forKey: .foldersMigrated) ?? false
         dismissedFolders = try c.decodeIfPresent(Set<String>.self, forKey: .dismissedFolders) ?? []
     }
-
-    static var file: URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Switchboard", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("library.json")
-    }
-
-    public static func load() -> LibraryState { load(from: file) }
-
-    /// 没有文件 = 空状态；读不出来（半截、格式不对）先改名成 library.json.bak-<时间> 留着，再用空状态，
-    /// 免得下一次保存把用户的置顶、重命名、归档整个盖掉
-    static func load(from url: URL) -> LibraryState {
-        guard let data = try? Data(contentsOf: url) else { return LibraryState() }
-        if let state = try? JSONDecoder().decode(LibraryState.self, from: data) { return state }
-        let stamp = Int(Date().timeIntervalSince1970)
-        try? FileManager.default.moveItem(at: url, to: url.deletingLastPathComponent().appendingPathComponent("library.json.bak-\(stamp)"))
-        return LibraryState()
-    }
-
-    public func save() {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if let data = try? encoder.encode(self) { try? data.write(to: Self.file, options: .atomic) }
-    }
 }
 
 @MainActor
@@ -110,7 +85,7 @@ public extension WorkspaceStore {
 
     func updateLibrary(_ change: (inout LibraryState) -> Void) {
         change(&library)
-        if isLive { library.save() }
+        data.persistence.saveLibrary(library)
         applyLibraryState()
     }
 

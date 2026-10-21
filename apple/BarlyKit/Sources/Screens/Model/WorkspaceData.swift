@@ -52,8 +52,12 @@ public final class WorkspaceData {
     @ObservationIgnored var isRefreshing = false
     @ObservationIgnored var refreshQueued = false
 
+    /// library.json、hosts.json、tabs.json 存在哪：shared 存磁盘，其余（截图、单测）存内存
+    public let persistence: WorkspacePersistence
+
     public init(hosts: [Host], projects: [Project], sessions: [Session], transcripts: [String: [TranscriptEntry]] = [:],
-                loadState: LoadState = .loaded) {
+                loadState: LoadState = .loaded, persistence: WorkspacePersistence? = nil) {
+        self.persistence = persistence ?? .memory()
         self.hosts = hosts
         self.projects = projects
         self.sessions = sessions
@@ -62,7 +66,7 @@ public final class WorkspaceData {
     }
 
     public static let shared = WorkspaceData(hosts: [Host(id: Host.localID, kind: .local, displayName: L("这台 Mac"))],
-                                             projects: [], sessions: [], loadState: .loading)
+                                             projects: [], sessions: [], loadState: .loading, persistence: .applicationSupport)
 }
 
 /// 会话列表的查询索引（WorkspaceData.sessionIndex）

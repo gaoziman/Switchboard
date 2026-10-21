@@ -167,8 +167,10 @@ public final class WorkspaceStore {
     public static let defaultVisibleLimit = 10
 
     public init(hosts: [Host], projects: [Project], sessions: [Session], tabGroups: [TabGroup] = [],
-                transcripts: [String: [TranscriptEntry]] = [:], loadState: LoadState = .loaded) {
-        data = WorkspaceData(hosts: hosts, projects: projects, sessions: sessions, transcripts: transcripts, loadState: loadState)
+                transcripts: [String: [TranscriptEntry]] = [:], loadState: LoadState = .loaded,
+                persistence: WorkspacePersistence? = nil) {
+        data = WorkspaceData(hosts: hosts, projects: projects, sessions: sessions, transcripts: transcripts, loadState: loadState,
+                             persistence: persistence)
         self.tabGroups = tabGroups
     }
 

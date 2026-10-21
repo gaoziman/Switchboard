@@ -18,31 +18,21 @@ public struct SignInConfig: Codable, Equatable, Sendable {
 
 @MainActor
 public extension WorkspaceStore {
-    private static var hostsFile: URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Switchboard", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("hosts.json")
-    }
-
-    private struct HostRecord: Codable {
-        let alias: String
-        var installed: [String]?
-        var disconnected: Bool?
-        var signIn: SignInConfig?
-    }
-
     /// 设置窗口用：存过的 SSH 主机别名
     static func savedHostAliases() -> [String] {
-        guard let data = try? Data(contentsOf: hostsFile),
-              let records = try? JSONDecoder().decode([HostRecord].self, from: data) else { return [] }
-        return records.map(\.alias)
+        WorkspacePersistence.applicationSupport.loadHosts().map(\.alias)
     }
 
-    /// 启动时：本机 + 存过的 SSH 主机（连同重新登录设置）
+    /// 启动时：会话库状态 + 存过的 SSH 主机（连同重新登录设置）。要在任何会改它们的操作之前读
+    /// （以前等第一次扫描完才读，期间的改动会把文件整个盖掉）
+    func loadSavedState() {
+        library = data.persistence.loadLibrary()
+        loadHosts()
+    }
+
+    /// 本机 + 存过的 SSH 主机（连同重新登录设置）
     func loadHosts() {
-        guard let data = try? Data(contentsOf: Self.hostsFile),
-              let records = try? JSONDecoder().decode([HostRecord].self, from: data) else { return }
+        let records = data.persistence.loadHosts()
         for r in records { if let c = r.signIn { signInConfigs[r.alias] = c } }
         for r in records where !hosts.contains(where: { $0.id == r.alias }) {
             hosts.append(Host(id: r.alias, kind: .ssh(target: r.alias), displayName: r.alias,
@@ -52,12 +42,11 @@ public extension WorkspaceStore {
     }
 
     private func saveHosts() {
-        guard isLive else { return }
         let records = hosts.filter { !$0.isLocal }.map {
             HostRecord(alias: $0.id, installed: $0.installedCLIs.map(\.rawValue), disconnected: $0.connection == .disconnected ? true : nil,
                        signIn: signInConfigs[$0.id])
         }
-        if let data = try? JSONEncoder().encode(records) { try? data.write(to: Self.hostsFile, options: .atomic) }
+        data.persistence.saveHosts(records)
     }
 
     /// 添加：试连通过（或用户点了「仍然添加」）之后调
