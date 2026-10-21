@@ -101,7 +101,7 @@ public extension WorkspaceStore {
     var showsSubagents: Bool { UserDefaults.standard.bool(forKey: "showSubagents") }
 
     func subagents(of session: Session) -> [Session] {
-        sessions.filter { $0.parentSessionID == session.id }.sorted { $0.lastActivity > $1.lastActivity }
+        (data.sessionIndex.children[session.id] ?? []).sorted { $0.lastActivity > $1.lastActivity }
     }
 
     func toggleSubagents(_ session: Session) {

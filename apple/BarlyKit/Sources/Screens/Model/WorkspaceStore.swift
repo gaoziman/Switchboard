@@ -189,10 +189,11 @@ public final class WorkspaceStore {
     public func projects(on hostID: String) -> [Project] {
         let candidates = projects.filter { $0.hostID == hostID && (showsArchived || !$0.isArchived) }
         let matched = isFiltering ? candidates.filter { !sessions(in: $0).isEmpty } : candidates
+        let latest = data.sessionIndex.lastActivity
         return matched.sorted { lhs, rhs in
             if lhs.isPinned != rhs.isPinned { return lhs.isPinned }
             if lhs.isPinned, let a = library.pinnedProjects.firstIndex(of: lhs.id), let b = library.pinnedProjects.firstIndex(of: rhs.id) { return a < b }
-            return lastActivity(of: lhs) > lastActivity(of: rhs)
+            return latest[lhs.id] ?? .distantPast > latest[rhs.id] ?? .distantPast
         }
     }
 
@@ -200,8 +201,8 @@ public final class WorkspaceStore {
     public func sessions(in project: Project) -> [Session] {
         let query = trimmedQuery
         let projectHit = !query.isEmpty && (project.name.localizedStandardContains(query) || project.path.localizedStandardContains(query))
-        return sessions
-            .filter { $0.projectID == project.id && $0.parentSessionID == nil }
+        return (data.sessionIndex.byProject[project.id] ?? [])
+            .filter { $0.parentSessionID == nil }
             .filter { showsArchived || !$0.isArchived }
             .filter(passesFilter)
             .filter { query.isEmpty || projectHit || $0.displayTitle.localizedStandardContains(query) || $0.id.localizedStandardContains(query)
@@ -239,16 +240,16 @@ public final class WorkspaceStore {
     }
 
     public func lastActivity(of project: Project) -> Date {
-        sessions.filter { $0.projectID == project.id }.map(\.lastActivity).max() ?? .distantPast
+        data.sessionIndex.lastActivity[project.id] ?? .distantPast
     }
 
     /// 项目行右侧的状态：组内最急的运行中会话
     public func activity(of project: Project) -> Activity {
-        sessions.filter { $0.projectID == project.id }.map(\.activity).max { $0.urgency < $1.urgency } ?? .notRunning
+        data.sessionIndex.activity[project.id] ?? .notRunning
     }
 
     public func sessionCount(of project: Project) -> Int {
-        sessions.filter { $0.projectID == project.id && $0.parentSessionID == nil && !$0.isArchived }.count
+        data.sessionIndex.count[project.id] ?? 0
     }
 
     public var hasAnySession: Bool { !sessions.isEmpty }
@@ -283,7 +284,7 @@ public final class WorkspaceStore {
         return session(id)
     }
 
-    public func session(_ id: String) -> Session? { sessions.first { $0.id == id } }
+    public func session(_ id: String) -> Session? { data.sessionIndex.positions[id].map { sessions[$0] } }
 
     public func project(for session: Session) -> Project? { projects.first { $0.id == session.projectID } }
 

@@ -174,9 +174,11 @@ public struct SessionSidebar: View {
         BarlyScroll {
             LazyVStack(alignment: .leading, spacing: 2) {
                 ForEach(store.hosts) { host in
-                    let duplicateNames = Set(Dictionary(grouping: store.projects(on: host.id), by: \.name).filter { $0.value.count > 1 }.keys)
+                    // 过滤、排序算一次，下面几处都用这一份
+                    let hostProjects = store.projects(on: host.id)
+                    let duplicateNames = Set(Dictionary(grouping: hostProjects, by: \.name).filter { $0.value.count > 1 }.keys)
                     let collapsed = store.collapsedHostIDs.contains(host.id) && !store.isFiltering
-                    HostHeading(host: host, collapsed: collapsed, count: store.projects(on: host.id).count,
+                    HostHeading(host: host, collapsed: collapsed, count: hostProjects.count,
                                 onConnect: { store.connectingHost = host.id },
                                 onSignIn: { store.hostSheet = .signIn(host.id) }) {
                         if store.collapsedHostIDs.contains(host.id) { store.collapsedHostIDs.remove(host.id) } else { store.collapsedHostIDs.insert(host.id) }
@@ -188,14 +190,14 @@ public struct SessionSidebar: View {
                             HostMenu(store: store, host: host)
                         }
                     }
-                    if !collapsed, store.projects(on: host.id).isEmpty, !store.isFiltering {
+                    if !collapsed, hostProjects.isEmpty, !store.isFiltering {
                         if host.isLocal {
                             FolderEmptyState(store: store, onAdd: addProjectFolder)
                         } else {
                             HostEmptyNote(host: host)
                         }
                     }
-                    ForEach(collapsed ? [] : store.projects(on: host.id)) { project in
+                    ForEach(collapsed ? [] : hostProjects) { project in
                         ProjectRow(project: project,
                                    expanded: store.isExpanded(project),
                                    activity: store.activity(of: project),

@@ -8,7 +8,7 @@ import Observation
 public final class WorkspaceData {
     public var hosts: [Host]
     public var projects: [Project]
-    public var sessions: [Session]
+    public var sessions: [Session] { didSet { cachedIndex = nil } }
     public var loadState: LoadState
     public var transcripts: [String: [TranscriptEntry]]
     public var transcriptBudgets: [String: Int] = [:]
@@ -24,6 +24,15 @@ public final class WorkspaceData {
     public var migrationPicks: [String] = []
     /// 库外有会话在跑的文件夹（侧栏底部提示）
     public var outsideRunning: [FolderLibrary.Outside] = []
+    @ObservationIgnored private var cachedIndex: SessionIndex?
+    /// 会话按项目、按 ID 分好：侧栏每次重画、轮询每秒都要查，会话列表变了才重算一次
+    var sessionIndex: SessionIndex {
+        _ = sessions   // 让读索引的视图也跟着会话变（索引本身不被观察）
+        if let cachedIndex { return cachedIndex }
+        let index = SessionIndex(sessions)
+        cachedIndex = index
+        return index
+    }
     /// 状态轮询最近一次在后台读到的（所有窗口共用）
     @ObservationIgnored var activityInputs = ActivityInputs()
     @ObservationIgnored var isGatheringActivity = false
@@ -43,4 +52,35 @@ public final class WorkspaceData {
 
     public static let shared = WorkspaceData(hosts: [Host(id: Host.localID, kind: .local, displayName: L("这台 Mac"))],
                                              projects: [], sessions: [], loadState: .loading)
+}
+
+/// 会话列表的查询索引（WorkspaceData.sessionIndex）
+struct SessionIndex {
+    /// 会话 ID → 在 sessions 里的位置（同 ID 取第一个，和 first(where:) 一样）
+    let positions: [String: Int]
+    /// 项目 ID → 会话（含子代理、归档，保持原顺序）
+    let byProject: [String: [Session]]
+    /// 父会话 ID → 子代理
+    let children: [String: [Session]]
+    let lastActivity: [String: Date]
+    /// 组内最急的状态
+    let activity: [String: Activity]
+    /// 不算子代理和归档
+    let count: [String: Int]
+
+    init(_ sessions: [Session]) {
+        var positions: [String: Int] = [:], byProject: [String: [Session]] = [:], children: [String: [Session]] = [:]
+        var lastActivity: [String: Date] = [:], activity: [String: Activity] = [:], count: [String: Int] = [:]
+        for (i, s) in sessions.enumerated() {
+            if positions[s.id] == nil { positions[s.id] = i }
+            let p = s.projectID
+            byProject[p, default: []].append(s)
+            if let parent = s.parentSessionID { children[parent, default: []].append(s) }
+            if s.lastActivity > lastActivity[p] ?? .distantPast { lastActivity[p] = s.lastActivity }
+            if let a = activity[p] { if s.activity.urgency > a.urgency { activity[p] = s.activity } } else { activity[p] = s.activity }
+            if s.parentSessionID == nil, !s.isArchived { count[p, default: 0] += 1 }
+        }
+        (self.positions, self.byProject, self.children) = (positions, byProject, children)
+        (self.lastActivity, self.activity, self.count) = (lastActivity, activity, count)
+    }
 }
