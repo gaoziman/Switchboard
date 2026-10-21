@@ -57,6 +57,16 @@ protocol EngineTerminalView: NSView {
     func apply(_ style: TerminalStyle)
 }
 
+/// 拖文件进终端时输入的文字
+enum TerminalDrop {
+    /// 转义好的路径，空格隔开。文件名里有控制字符就不输入（nil）：引号挡不住它们，
+    /// 回车、Ctrl-U 这些会被终端当成按键，拼出一条命令直接执行
+    static func text(for paths: [String]) -> String? {
+        let unsafe = paths.contains { $0.unicodeScalars.contains { $0.value < 0x20 || $0.value == 0x7f } }
+        return unsafe ? nil : paths.map(Tmux.shellQuote).joined(separator: " ") + " "
+    }
+}
+
 extension EngineTerminalView {
     func sendText(_ text: String) { sendBytes(Array(text.utf8)) }
 
@@ -64,8 +74,8 @@ extension EngineTerminalView {
     func typeDroppedFiles(_ urls: [URL]) -> Bool {
         guard !urls.isEmpty else { return false }
         window?.makeFirstResponder(self)
-        if isRemote { NSSound.beep(); return false }
-        sendText(urls.map { Tmux.shellQuote($0.path) }.joined(separator: " ") + " ")
+        guard !isRemote, let text = TerminalDrop.text(for: urls.map(\.path)) else { NSSound.beep(); return false }
+        sendText(text)
         return true
     }
 

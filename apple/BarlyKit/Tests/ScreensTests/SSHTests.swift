@@ -132,6 +132,31 @@ struct RemoteSessionTests {
         #expect(SSH.killTmuxCommand("claude-abc") == "tmux kill-session -t '=claude-abc'")
     }
 
+    @Test("复用连接的套接字放在只有自己能进的目录里（/tmp 下别人能抢先占名字）；ssh 建临时套接字时还要加 17 字节，也不能超 104")
+    func controlPathIsPrivate() throws {
+        let dir = (SSH.controlPath as NSString).deletingLastPathComponent
+        #expect(dir != "/tmp")
+        #expect(SSH.isPrivateDirectory(dir))
+        let expanded = SSH.controlPath.replacingOccurrences(of: "%C", with: String(repeating: "f", count: 40))
+        #expect(expanded.utf8.count + 17 < 104)
+    }
+
+    @Test("别人的、权限开着的、符号链接都不算私有目录")
+    func privateDirectoryCheck() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("sb-priv-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: base) }
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        let mine = base.appendingPathComponent("mine").path
+        #expect(SSH.isPrivateDirectory(mine))                                     // 没有就建一个 0700 的
+        let open = base.appendingPathComponent("open").path
+        try FileManager.default.createDirectory(atPath: open, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o777])
+        chmod(open, 0o777)
+        #expect(!SSH.isPrivateDirectory(open))
+        let link = base.appendingPathComponent("link").path
+        try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: mine)
+        #expect(!SSH.isPrivateDirectory(link))
+    }
+
     @Test("主机家目录：只认标记行，rc 文件的输出不算")
     func parseHome() {
         #expect(SSH.parseHome("Welcome!\n__SB_HOME__/home/leo\n") == "/home/leo")

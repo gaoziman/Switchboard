@@ -43,9 +43,21 @@ public enum SSH {
         return Target(user: values["user"] ?? NSUserName(), hostname: host, port: values["port"] ?? "22", proxyJump: values["proxyjump"])
     }
 
-    /// 连接复用的套接字。Unix 套接字路径上限 104 字节：macOS 的临时目录太长，放 /tmp（%C 是连接参数的哈希）。
-    /// 后台命令、Connect…、终端标签都用它：Connect… 登录一次，大家共用
-    public static let controlPath = "/tmp/sb-%C"
+    /// 连接复用的套接字（%C 是连接参数的哈希）。后台命令、Connect…、终端标签都用它：Connect… 登录一次，大家共用。
+    /// Unix 套接字路径上限 104 字节，ssh 建的时候还要临时加 17 字节：macOS 的临时目录太长，只能放 /tmp。
+    /// 但 /tmp 谁都能写，名字也算得出来，别的用户能抢先占位：放进 /tmp 下只有自己能进的目录，不行再退到 ~/.ssh
+    public static let controlPath: String = {
+        let dir = "/tmp/sb-\(getuid())"
+        return isPrivateDirectory(dir) ? dir + "/%C" : NSHomeDirectory() + "/.ssh/sb-%C"
+    }()
+
+    /// 目录是自己的、0700、不是符号链接（没有就建一个）
+    static func isPrivateDirectory(_ path: String) -> Bool {
+        _ = mkdir(path, 0o700)
+        var st = stat()
+        guard lstat(path, &st) == 0 else { return false }
+        return (st.st_mode & S_IFMT) == S_IFDIR && st.st_uid == getuid() && (st.st_mode & 0o077) == 0
+    }
 
     /// 后台命令共用的 ssh 选项：不弹密码、连接超时、复用一条连接（Touch ID / 硬件密钥只按一次）
     static func options(_ alias: String) -> [String] {

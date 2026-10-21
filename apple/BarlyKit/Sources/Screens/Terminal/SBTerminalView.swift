@@ -148,15 +148,15 @@ enum LinkOpener {
         // 主机上的路径在这台 Mac 上打不开
         guard !remote else { NSSound.beep(); return }
         guard let (path, line) = resolve(link, directory: directory) else { NSSound.beep(); return }
-        var isDir: ObjCBool = false
-        FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
         let url = URL(fileURLWithPath: path)
-        if isDir.boolValue { NSWorkspace.shared.open(url); return }
-        // 会执行的东西（脚本、可执行文件）不打开，只在访达里显示
-        if FileManager.default.isExecutableFile(atPath: path), url.pathExtension != "app" {
+        // 终端里打出来的路径可能来自别人的仓库或提示注入：会运行东西的不打开，只在访达里显示
+        if revealsInsteadOfOpening(path) {
             NSWorkspace.shared.activateFileViewerSelecting([url])
             return
         }
+        var isDir: ObjCBool = false
+        FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
+        if isDir.boolValue { NSWorkspace.shared.open(url); return }
         switch UserDefaults.standard.string(forKey: "cmdClickFiles") ?? "system" {
         case "vscode": openInEditor("vscode", path: path, line: line)
         case "cursor": openInEditor("cursor", path: path, line: line)
@@ -164,6 +164,21 @@ enum LinkOpener {
         case "ask": askMenu(path: path, line: line)
         default: NSWorkspace.shared.open(url)
         }
+    }
+
+    /// 打开就会运行、安装或跳到别处的类型：在 Mac 上它们不用可执行位也能跑
+    private static let runnableExtensions: Set<String> = [
+        "terminal", "command", "tool", "webloc", "inetloc", "fileloc", "url", "pkg", "mpkg", "mobileconfig",
+        "scpt", "scptd", "applescript", "workflow", "action", "jar", "prefpane", "saver", "dmg",
+    ]
+
+    /// ⌘-click 时只在访达里显示、不打开：包（.app、.workflow 这种看着是文件夹的）、可执行文件、上面这些类型
+    static func revealsInsteadOfOpening(_ path: String) -> Bool {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return false }
+        let ext = (path as NSString).pathExtension.lowercased()
+        if isDir.boolValue { return NSWorkspace.shared.isFilePackage(atPath: path) || runnableExtensions.contains(ext) || ext == "app" }
+        return runnableExtensions.contains(ext) || FileManager.default.isExecutableFile(atPath: path)
     }
 
     /// 去掉 `:行号(:列)`，相对路径按标签目录解析；文件不存在返回 nil
