@@ -134,6 +134,8 @@ public final class WorkspaceStore {
     public var selectedSessionIDs: Set<String> = []
     /// ⇧-click 的起点
     public var selectionAnchor: String?
+    /// 侧栏键盘导航停在哪一行（会话行就是在预览的那个）
+    public var libraryCursor: LibraryRow?
     /// 展开了子代理的会话
     public var expandedSubagentParents: Set<String> = []
     /// 后退 / 前进历史（像浏览器）

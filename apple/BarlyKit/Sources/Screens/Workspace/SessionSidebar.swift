@@ -13,6 +13,8 @@ public struct SessionSidebar: View {
     @Environment(\.openSettings) private var openSettings
     #endif
     @State private var addingHost = false
+    /// 会话库列表有键盘焦点：方向键在里面走（点了行就给它焦点）
+    @FocusState private var libraryFocused: Bool
 
     public static var width: CGFloat { BarlyScale.pt(288) }
 
@@ -176,6 +178,7 @@ public struct SessionSidebar: View {
     }
 
     private var library: some View {
+        ScrollViewReader { proxy in
         BarlyScroll {
             LazyVStack(alignment: .leading, spacing: 2) {
                 ForEach(store.hosts) { host in
@@ -205,13 +208,17 @@ public struct SessionSidebar: View {
                     ForEach(collapsed ? [] : hostProjects) { project in
                         ProjectRow(project: project,
                                    expanded: store.isExpanded(project),
+                                   focused: libraryFocused && store.libraryCursor == .project(project.id),
                                    activity: store.activity(of: project),
                                    count: store.sessionCount(of: project),
                                    showsParent: duplicateNames.contains(project.name) || ProjectRow.looksGenerated(project.name),
                                    menu: { AnyView(ProjectMenu(store: store, project: project)) },
                                    quickStart: { AnyView(NewSessionItems(store: store, project: project, includesTerminal: true)) }) {
+                            store.libraryCursor = .project(project.id)
+                            libraryFocused = true
                             store.toggleExpanded(project)
                         }
+                        .id(LibraryRow.project(project.id))
                         .contextMenu { ProjectMenu(store: store, project: project) }
                         .draggable("project:" + project.id)
                         .dropDestination(for: String.self) { ids, _ in
@@ -229,12 +236,14 @@ public struct SessionSidebar: View {
                                            childCount: children.count, childrenExpanded: store.expandedSubagentParents.contains(session.id),
                                            onToggleChildren: { store.toggleSubagents(session) }) {
                                     store.click(session, command: Self.modifier(.command), shift: Self.modifier(.shift))
+                                    libraryFocused = true
                                 } onOpen: {
                                     store.resume(session)
                                 } menu: {
                                     AnyView(sessionMenu(session))
                                 }
                                 .contextMenu { sessionMenu(session) }
+                                .id(LibraryRow.session(session.id))
                                 .draggable(session.id)
                                 .dropDestination(for: String.self) { ids, _ in
                                     guard session.isPinned, let id = ids.first, store.session(id) != nil else { return false }
@@ -245,7 +254,10 @@ public struct SessionSidebar: View {
                                     ForEach(children) { child in
                                         SessionRow(session: child, selected: store.isSelected(child), indent: 18) {
                                             store.select(child)
+                                            store.libraryCursor = .session(child.id)
+                                            libraryFocused = true
                                         }
+                                        .id(LibraryRow.session(child.id))
                                     }
                                 }
                             }
@@ -267,6 +279,24 @@ public struct SessionSidebar: View {
             }
             .padding(.horizontal, 8)
             .padding(.bottom, 12)
+        }
+        .onChange(of: store.libraryCursor) { _, row in
+            if let row, libraryFocused { proxy.scrollTo(row) }
+        }
+        }
+        // 键盘：↑ ↓ 走、→ 展开 / 进去、← 收起 / 回上一层、Return 打开（WorkspaceStore.libraryKey）
+        .focusable()
+        .focused($libraryFocused)
+        .focusEffectDisabled()
+        .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow, .return]) { press in
+            let key: LibraryKey = switch press.key {
+            case .upArrow: .up
+            case .downArrow: .down
+            case .leftArrow: .left
+            case .rightArrow: .right
+            default: .open
+            }
+            return store.libraryKey(key) ? .handled : .ignored
         }
     }
 
@@ -528,6 +558,8 @@ private struct HostHeading: View {
 private struct ProjectRow: View {
     let project: Project
     let expanded: Bool
+    /// 键盘光标停在这一行（会话行停住就是选中，项目行要自己画出来）
+    var focused = false
     let activity: Activity
     let count: Int
     /// 名字分不清时（同一台主机上重名、或者是 UUID 这类看不出是什么的）在下面写上一级路径
@@ -583,7 +615,7 @@ private struct ProjectRow: View {
             .padding(.horizontal, 8)
             .frame(minHeight: WorkspaceMetrics.row)
             .padding(.vertical, showsParent ? 3 : 0)
-            .background(hovered ? t.fill1 : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
+            .background(focused ? t.fill2 : hovered ? t.fill1 : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
