@@ -117,6 +117,13 @@ public struct PreviewPane: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(t.canvas)
+        #if os(macOS)
+        // 回复里的 Markdown 链接可能被提示注入、主机镜像过来的会话也可能被改过：和终端 ⌘-点按走同一套白名单，不交给系统直接打开
+        .environment(\.openURL, OpenURLAction { url in
+            LinkOpener.open(url.absoluteString, relativeTo: session.projectPath, remote: !(host?.isLocal ?? true))
+            return .handled
+        })
+        #endif
     }
 
     // MARK: 页头

@@ -73,6 +73,29 @@ struct LinkTests {
         #expect(LinkOpener.resolve(file.path, directory: "/")?.1 == nil)
         #expect(LinkOpener.resolve("nope.swift", directory: dir.path) == nil)
     }
+
+    @Test("预览里的链接也走这套：只放行网址，别的协议不交给系统；会运行的文件只显示")
+    func linkTargets() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sb-target-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        for name in ["setup.terminal", "notes.md"] {
+            try "x".write(to: dir.appendingPathComponent(name), atomically: true, encoding: .utf8)
+        }
+        let base = (dir.path as NSString).standardizingPath
+        let target = { (link: String, remote: Bool) in LinkOpener.target(for: link, relativeTo: dir.path, remote: remote) }
+        #expect(target("https://example.com/a", false) == .web(URL(string: "https://example.com/a")!))
+        #expect(target("https://example.com/a", true) == .web(URL(string: "https://example.com/a")!))
+        // 系统设置、第三方 app 的自定义协议：一律不打开
+        #expect(target("x-apple.systempreferences:com.apple.preference.security", false) == .refuse)
+        #expect(target("someapp://run?cmd=rm", false) == .refuse)
+        #expect(target("file://\(base)/setup.terminal", false) == .reveal(base + "/setup.terminal"))
+        #expect(target("file://\(base)/notes.md", false) == .file(base + "/notes.md", line: nil))
+        #expect(target("notes.md:3", false) == .file(base + "/notes.md", line: 3))
+        #expect(target("notes.md", false) == .file(base + "/notes.md", line: nil))
+        // 主机会话里的路径在这台 Mac 上不打开
+        #expect(target("file://\(base)/notes.md", true) == .refuse)
+    }
 }
 
 @MainActor

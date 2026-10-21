@@ -137,23 +137,36 @@ enum TerminalKeys {
     }
 }
 
-/// ⌘-click 打开：网址开浏览器；文件按「设置 · 通用 · ⌘-点按终端里的文件」
+/// ⌘-click 打开（终端里的链接、预览里的 Markdown 链接）：网址开浏览器；文件按「设置 · 通用 · ⌘-点按终端里的文件」
 @MainActor
 enum LinkOpener {
-    static func open(_ link: String, relativeTo directory: String, remote: Bool) {
-        if let url = URL(string: link), let scheme = url.scheme, ["http", "https", "mailto", "ftp"].contains(scheme) {
-            NSWorkspace.shared.open(url)
-            return
+    enum Target: Equatable {
+        case web(URL)
+        case reveal(String)              // 会运行东西的：只在访达里显示
+        case file(String, line: Int?)
+        case refuse
+    }
+
+    /// 链接可能来自别人的仓库或提示注入：只放行网址；别的协议（系统设置、第三方 app 的自定义协议）不交给系统，
+    /// 只当路径解析（`main.swift:42` 在 URL 看来协议是 main.swift），这台 Mac 上没这个文件就不打开
+    static func target(for link: String, relativeTo directory: String, remote: Bool) -> Target {
+        if let url = URL(string: link), let scheme = url.scheme?.lowercased(), ["http", "https", "mailto", "ftp"].contains(scheme) {
+            return .web(url)
         }
         // 主机上的路径在这台 Mac 上打不开
-        guard !remote else { NSSound.beep(); return }
-        guard let (path, line) = resolve(link, directory: directory) else { NSSound.beep(); return }
-        let url = URL(fileURLWithPath: path)
-        // 终端里打出来的路径可能来自别人的仓库或提示注入：会运行东西的不打开，只在访达里显示
-        if revealsInsteadOfOpening(path) {
-            NSWorkspace.shared.activateFileViewerSelecting([url])
-            return
+        guard !remote, let (path, line) = resolve(link, directory: directory) else { return .refuse }
+        return revealsInsteadOfOpening(path) ? .reveal(path) : .file(path, line: line)
+    }
+
+    static func open(_ link: String, relativeTo directory: String, remote: Bool) {
+        let path: String, line: Int?
+        switch target(for: link, relativeTo: directory, remote: remote) {
+        case .web(let url): NSWorkspace.shared.open(url); return
+        case .reveal(let p): NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: p)]); return
+        case .refuse: NSSound.beep(); return
+        case .file(let p, let l): (path, line) = (p, l)
         }
+        let url = URL(fileURLWithPath: path)
         var isDir: ObjCBool = false
         FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
         if isDir.boolValue { NSWorkspace.shared.open(url); return }
