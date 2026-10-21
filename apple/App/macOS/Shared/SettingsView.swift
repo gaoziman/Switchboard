@@ -96,7 +96,7 @@ private struct GeneralSettings: View {
 // MARK: - 外观
 
 private struct AppearanceSettings: View {
-    @AppStorage("appearance") private var appearance = "dark"
+    @AppStorage(AppAppearance.defaultsKey) private var appearance = AppAppearance.defaultValue
     @AppStorage("appTheme") private var theme = AppTheme.switchboard.rawValue
     @AppStorage(BarlyScale.defaultsKey) private var interfaceScale = 1.0
     @Environment(\.colorScheme) private var scheme

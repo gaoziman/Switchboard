@@ -8,7 +8,7 @@ import Screens
 @main
 struct BarlyMacApp: App {
     @State private var store = AppStore.live()
-    @AppStorage("appearance") private var appearance = "dark"
+    @AppStorage(AppAppearance.defaultsKey) private var appearance = AppAppearance.defaultValue
     init() { BarlyFonts.register(); LiveShot.handle(); _ = AppUpdater.shared }
     var body: some Scene {
         WindowGroup(id: "workspace") {

@@ -59,3 +59,16 @@ import BarlyKit
         #expect(style.scaled(1) == style)
     }
 }
+
+@MainActor
+@Suite struct AppearanceDefaultTests {
+    @Test("没动过「外观」设置时，终端和外壳用同一个默认值（外壳深色，终端也深色）")
+    func terminalFollowsShellDefault() {
+        let untouched = UserDefaults(suiteName: "sb-appearance-\(UUID().uuidString)")!
+        let dark = UserDefaults(suiteName: "sb-appearance-\(UUID().uuidString)")!
+        dark.set("dark", forKey: AppAppearance.defaultsKey)
+        #expect(AppAppearance.current(untouched) == AppAppearance.defaultValue)
+        #expect(AppAppearance.isDark(AppAppearance.defaultValue) == true)
+        #expect(TerminalStyle.current(defaults: untouched).key == TerminalStyle.current(defaults: dark).key)
+    }
+}

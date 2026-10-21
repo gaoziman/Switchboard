@@ -109,6 +109,20 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
     public static var current: AppTheme { AppTheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "") ?? .switchboard }
 }
 
+/// 「外观」设置：light / dark / system。外壳的 @AppStorage、终端、AppKit 面板读同一个默认值，
+/// 不然没动过设置时外壳是深色、终端却跟着浅色的系统走
+public enum AppAppearance {
+    public static let defaultsKey = "appearance"
+    public static let defaultValue = "dark"
+
+    public static func current(_ defaults: UserDefaults = .standard) -> String { defaults.string(forKey: defaultsKey) ?? defaultValue }
+
+    /// nil = 跟随系统
+    public static func isDark(_ value: String) -> Bool? {
+        switch value { case "light": false; case "dark": true; default: nil }
+    }
+}
+
 /// 根视图用：按设置里的主题给整棵视图换色板
 public struct ThemedRoot: ViewModifier {
     @AppStorage("appTheme") private var theme = AppTheme.switchboard.rawValue

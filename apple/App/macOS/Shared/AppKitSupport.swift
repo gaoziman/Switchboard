@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Screens
 
 /// 菜单栏 / 浮动面板形态共用的 AppKit 小工具（这两种形态没有 SwiftUI 主窗口，弹窗和面板由 AppKit 承载）。
 @MainActor
@@ -7,7 +8,7 @@ enum AppKitSupport {
     /// 「外观」偏好 → NSAppearance。NSPanel / NSPopover 里的 NSHostingView 不认 SwiftUI 的 preferredColorScheme
     /// （Stash 实测：浅色截出来仍是深色），面板 / 货架 / 弹窗每次弹出前都要把外观设在窗口上
     static func appearance() -> NSAppearance? {
-        switch UserDefaults.standard.string(forKey: "appearance") ?? "system" {
+        switch AppAppearance.current() {
         case "light": NSAppearance(named: .aqua)
         case "dark": NSAppearance(named: .darkAqua)
         default: nil

@@ -90,14 +90,10 @@ public struct TerminalStyle {
 
     public static let defaultFontSize = 13
 
-    public static func current() -> TerminalStyle {
-        let d = UserDefaults.standard
+    public static func current(defaults d: UserDefaults = .standard) -> TerminalStyle {
         let theme = AppTheme.current
-        let appDark: Bool = switch d.string(forKey: "appearance") ?? "system" {
-        case "light": false
-        case "dark": true
-        default: NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        }
+        let appDark = AppAppearance.isDark(AppAppearance.current(d))
+            ?? (NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua)
         let dark: Bool = switch d.string(forKey: "terminalBrightness") ?? "app" {
         case "light": false
         case "dark": true
