@@ -455,7 +455,7 @@ public extension WorkspaceStore {
         switch Self.closeBehavior(for: tab.hostID) {
         case "keep": close(tab, keepRunning: true)
         case "end": close(tab, keepRunning: false)
-        default: closingTab = tab
+        default: presentation = .closeTab(tab)
         }
     }
 
@@ -474,7 +474,7 @@ public extension WorkspaceStore {
         }
         launches[tab.id] = nil
         tabBanners[tab.id] = nil
-        closingTab = nil
+        if presentation?.closingTab?.id == tab.id { presentation = nil }
         let ordered = allTabs
         let index = ordered.firstIndex { $0.id == tab.id }
         for g in tabGroups.indices { tabGroups[g].tabs.removeAll { $0.id == tab.id } }

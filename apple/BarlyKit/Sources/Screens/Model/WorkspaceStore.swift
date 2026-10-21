@@ -94,8 +94,6 @@ public final class WorkspaceStore {
     // 真实运行（mock / 截图时都是空的）
     /// 每个终端标签要启动的进程；没有 = 原型里的假终端
     public var launches: [UUID: TerminalLaunch] = [:]
-    /// 正在问「关闭这个标签？」的标签
-    public var closingTab: TerminalTab?
     /// 本机装了的 CLI
     public var installedCLIs: [CLIKind] {
         get { data.installedCLIs }
@@ -110,14 +108,8 @@ public final class WorkspaceStore {
         get { data.library }
         set { data.library = newValue }
     }
-    /// 正在重命名的会话（弹输入框）
-    public var renaming: Session?
-    /// 等确认删除的会话
-    public var pendingDelete: [Session] = []
-    /// 删除确认通过后要归档的项目（「归档项目并删除所有会话」）
-    public var pendingArchiveProject: String?
-    /// 正在重命名的项目（弹输入框）
-    public var renamingProject: Project?
+    /// 窗口上正开着的弹窗（重命名、删除确认、主机工具、登录、关闭标签）：同一时刻只有一个，新的顶掉旧的
+    public var presentation: Presentation?
     /// 上一次删除失败的（会话 ID → 原因）
     public var deleteFailures: [String: String] = [:]
     /// 预览读了文件尾部多少字节
@@ -147,15 +139,11 @@ public final class WorkspaceStore {
         get { data.remoteSnapshots }
         set { data.remoteSnapshots = newValue }
     }
-    /// 正在 Connect… 登录的主机（弹登录对话框）
-    public var connectingHost: String?
     /// 每台主机的定期重新登录设置
     public var signInConfigs: [String: SignInConfig] {
         get { data.signInConfigs }
         set { data.signInConfigs = newValue }
     }
-    /// 打开中的主机工具对话框
-    public var hostSheet: HostSheet?
     /// 远程标签断线后自动重连了几次、上次重连的时间
     public var reconnectAttempts: [UUID: Int] = [:]
     @ObservationIgnored var lastRelaunch: [UUID: Date] = [:]
@@ -396,6 +384,27 @@ public final class WorkspaceStore {
 }
 
 /// 主机右键菜单打开的对话框
+/// 工作区窗口上的弹窗。原来是 7 个各自的字段，理论上能同时有好几个；收成一个，类型上就只有一个
+public enum Presentation: Equatable, Sendable {
+    case renameSession(Session)
+    case renameProject(Project)
+    /// 删除确认；archivingProject：删完再归档这个项目（「归档项目并删除所有会话」）
+    case confirmDelete([Session], archivingProject: String? = nil)
+    case hostSheet(HostSheet)
+    /// Connect…：在对话框里交互登录这台主机
+    case connect(host: String)
+    /// 「关闭这个标签？」（CLI 还在跑、这台主机没设关闭行为）
+    case closeTab(TerminalTab)
+
+    public var renamingSession: Session? { if case .renameSession(let s) = self { s } else { nil } }
+    public var renamingProject: Project? { if case .renameProject(let p) = self { p } else { nil } }
+    public var deleting: [Session]? { if case .confirmDelete(let s, _) = self { s } else { nil } }
+    public var archivingProject: String? { if case .confirmDelete(_, let p) = self { p } else { nil } }
+    public var hostSheet: HostSheet? { if case .hostSheet(let h) = self { h } else { nil } }
+    public var connectingHost: String? { if case .connect(let h) = self { h } else { nil } }
+    public var closingTab: TerminalTab? { if case .closeTab(let t) = self { t } else { nil } }
+}
+
 public enum HostSheet: Identifiable, Equatable, Sendable {
     case portForward(String)
     case check(String)

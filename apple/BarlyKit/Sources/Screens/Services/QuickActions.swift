@@ -56,10 +56,9 @@ public extension WorkspaceStore {
 
     /// 删除确认里点了「删除」：删完再归档（「归档项目并删除所有会话」）
     func confirmPendingDelete() async {
-        let targets = pendingDelete
-        let archive = pendingArchiveProject
-        pendingDelete = []
-        pendingArchiveProject = nil
+        guard let targets = presentation?.deleting else { return }
+        let archive = presentation?.archivingProject
+        presentation = nil
         deleteFailures = await delete(targets)
         if let archive, let project = projects.first(where: { $0.id == archive }) { setArchived(project, true) }
     }

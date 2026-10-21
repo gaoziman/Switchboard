@@ -89,13 +89,13 @@ public struct WorkspaceView: View {
         }
         .ignoresSafeArea()
         .modifier(LibraryDialogs(store: store))
-        .sheet(item: $store.closingTab) { tab in
+        .sheet(item: store.presented(\.closingTab)) { tab in
             CloseTabDialog(tabTitle: tab.title, hostName: tab.hostID == Host.localID ? L("这台 Mac ") : " \(tab.hostID) ",
                            onEnd: { remember in
                                if remember { WorkspaceStore.setCloseBehavior("end", for: tab.hostID) }
                                store.close(tab, keepRunning: false)
                            },
-                           onCancel: { store.closingTab = nil },
+                           onCancel: { store.presentation = nil },
                            onKeep: { remember in
                                if remember { WorkspaceStore.setCloseBehavior("keep", for: tab.hostID) }
                                store.close(tab, keepRunning: true)
@@ -189,7 +189,7 @@ public struct WorkspaceView: View {
         NotificationService.shared.onSignIn = { alias in
             guard let primary = WorkspaceWindows.primary else { return }
             primary.bringWindowToFront()
-            primary.hostSheet = .signIn(alias)
+            primary.presentation = .hostSheet(.signIn(alias))
         }
         NotificationService.shared.onOpen = { id in
             NSApp.activate(ignoringOtherApps: true)

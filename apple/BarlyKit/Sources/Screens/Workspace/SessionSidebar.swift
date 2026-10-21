@@ -78,30 +78,30 @@ public struct SessionSidebar: View {
             }, onConnect: { alias in
                 addingHost = false
                 store.addHost(alias, installed: [])
-                store.connectingHost = alias
+                store.presentation = .connect(host: alias)
             })
         }
         #if os(macOS)
-        .sheet(isPresented: Binding(get: { store.connectingHost != nil }, set: { if !$0 { store.connectingHost = nil } })) {
-            if let alias = store.connectingHost {
+        .sheet(isPresented: store.isPresenting(\.connectingHost)) {
+            if let alias = store.presentation?.connectingHost {
                 LiveConnectSheet(alias: alias) { ok in
-                    store.connectingHost = nil
+                    store.presentation = nil
                     if ok { store.setDisconnected(alias, false) }
                 }
             }
         }
-        .sheet(item: $store.hostSheet) { sheet in
+        .sheet(item: store.presented(\.hostSheet)) { sheet in
             switch sheet {
             case .portForward(let alias):
-                LivePortForwardSheet(alias: alias) { store.hostSheet = nil }
+                LivePortForwardSheet(alias: alias) { store.presentation = nil }
             case .check(let alias):
                 LiveHostCheckSheet(alias: alias, onFixWithAgent: { report in
-                    store.hostSheet = nil
+                    store.presentation = nil
                     store.fixHostWithAgent(alias, report: report)
-                }, onDone: { store.hostSheet = nil })
+                }, onDone: { store.presentation = nil })
             case .signInSettings(let alias):
                 SignInSettingsSheet(alias: alias, config: store.signInConfigs[alias]) { config in
-                    store.hostSheet = nil
+                    store.presentation = nil
                     if config != store.signInConfigs[alias] { store.setSignIn(config, for: alias) }
                 }
             case .addFolder(let alias):
@@ -109,8 +109,8 @@ public struct SessionSidebar: View {
                                   subtitle: L("勾选要在侧栏里显示的项目；主机上还没有会话的文件夹可以直接填路径。"),
                                   candidates: store.folderCandidates(on: alias), added: store.folderIDs(on: alias),
                                   allowsPath: true, loading: !store.folderCandidatesLoaded(on: alias),
-                                  secondaryTitle: L("取消"), onSecondary: { store.hostSheet = nil }) { picked, path in
-                    store.hostSheet = nil
+                                  secondaryTitle: L("取消"), onSecondary: { store.presentation = nil }) { picked, path in
+                    store.presentation = nil
                     for id in picked { store.addFolder(String(id.dropFirst(alias.count + 1)), on: alias, refreshNow: false) }
                     Task {
                         if let path { await store.addRemoteFolder(path, on: alias, refreshNow: false) }
@@ -121,7 +121,7 @@ public struct SessionSidebar: View {
             case .signIn(let alias):
                 if let config = store.signInConfigs[alias] {
                     LiveConnectSheet(alias: alias, command: config.command) { ok in
-                        store.hostSheet = nil
+                        store.presentation = nil
                         if ok { store.signedIn(alias) }
                     }
                 }
@@ -187,8 +187,8 @@ public struct SessionSidebar: View {
                     let duplicateNames = Set(Dictionary(grouping: hostProjects, by: \.name).filter { $0.value.count > 1 }.keys)
                     let collapsed = store.collapsedHostIDs.contains(host.id) && !store.isFiltering
                     HostHeading(host: host, collapsed: collapsed, count: hostProjects.count,
-                                onConnect: { store.connectingHost = host.id },
-                                onSignIn: { store.hostSheet = .signIn(host.id) }) {
+                                onConnect: { store.presentation = .connect(host: host.id) },
+                                onSignIn: { store.presentation = .hostSheet(.signIn(host.id)) }) {
                         if store.collapsedHostIDs.contains(host.id) { store.collapsedHostIDs.remove(host.id) } else { store.collapsedHostIDs.insert(host.id) }
                     }
                     .contextMenu {
@@ -412,7 +412,7 @@ private struct MultiSelectBar: View {
                 store.clearMultiSelection()
             }
             BarlyButton(L("删除…"), variant: .outline, size: .sm) {
-                store.pendingDelete = picked
+                store.presentation = .confirmDelete(picked)
                 store.clearMultiSelection()
             }
             PaneIcon(symbol: "xmark", help: L("取消选择（Esc）")) { store.clearMultiSelection() }

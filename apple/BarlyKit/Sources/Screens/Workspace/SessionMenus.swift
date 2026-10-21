@@ -26,7 +26,7 @@ struct SessionMenu: View {
                 .help(L("结束这个会话的 CLI，会话文件保留"))
         }
         Divider()
-        Button { store.renaming = session } label: { Label("重命名", systemImage: "pencil") }
+        Button { store.presentation = .renameSession(session) } label: { Label("重命名", systemImage: "pencil") }
         Button { store.togglePin(session) } label: {
             Label(session.isPinned ? "取消置顶会话" : "置顶会话", systemImage: session.isPinned ? "pin.slash" : "pin")
         }
@@ -54,7 +54,7 @@ struct SessionMenu: View {
         }
         #endif
         Divider()
-        Button { store.pendingDelete = [session] } label: {
+        Button { store.presentation = .confirmDelete([session]) } label: {
             Label(running ? "关闭并删除会话…" : "删除会话…", systemImage: "trash")
         }
     }
@@ -105,7 +105,7 @@ struct MultiSessionMenu: View {
         Button("置顶 \(picked.count) 个") { for s in picked where !s.isPinned { store.togglePin(s) } }
         Divider()
         Button("删除 \(picked.count) 个会话…", role: .destructive) {
-            store.pendingDelete = picked
+            store.presentation = .confirmDelete(picked)
             store.clearMultiSelection()
         }
     }
@@ -154,7 +154,7 @@ struct ProjectMenu: View {
             NSPasteboard.general.setString(project.path, forType: .string)
         } label: { Label("复制项目路径", systemImage: "doc.on.doc") }
         #endif
-        Button { store.renamingProject = project } label: { Label("重命名项目…", systemImage: "pencil") }
+        Button { store.presentation = .renameProject(project) } label: { Label("重命名项目…", systemImage: "pencil") }
         Button { store.togglePin(project) } label: {
             Label(project.isPinned ? "取消置顶项目" : "置顶项目", systemImage: project.isPinned ? "pin.slash" : "pin")
         }
@@ -168,14 +168,13 @@ struct ProjectMenu: View {
         Divider()
         let deletable = store.deletableSessions(in: project)
         let all = store.allSessions(in: project)
-        Button { store.pendingDelete = deletable } label: {
+        Button { store.presentation = .confirmDelete(deletable) } label: {
             Label("删除所有可删除的会话（\(deletable.count)）…", systemImage: "trash")
         }
         .disabled(deletable.isEmpty)
         .help(L("在跑的、开着标签的会话不算"))
         Button {
-            store.pendingArchiveProject = project.id
-            store.pendingDelete = all
+            store.presentation = .confirmDelete(all, archivingProject: project.id)
         } label: {
             Label("归档项目并删除所有会话（\(all.count)）…", systemImage: "trash")
         }
@@ -225,14 +224,14 @@ struct HostMenu: View {
     let host: Host
 
     var body: some View {
-        Button("添加文件夹…") { store.hostSheet = .addFolder(host.id) }
+        Button("添加文件夹…") { store.presentation = .hostSheet(.addFolder(host.id)) }
             .disabled(host.connection == .disconnected)
         Divider()
         Button("刷新") { Task { await store.refreshHost(host.id) } }
             .disabled(host.connection == .disconnected)
-        Button("Connect…（交互登录）") { store.connectingHost = host.id }
+        Button("Connect…（交互登录）") { store.presentation = .connect(host: host.id) }
         Divider()
-        Button("转发端口…") { store.hostSheet = .portForward(host.id) }.disabled(host.connection == .disconnected)
+        Button("转发端口…") { store.presentation = .hostSheet(.portForward(host.id)) }.disabled(host.connection == .disconnected)
         let forwards = PortForwardManager.shared.forwards(on: host.id)
         ForEach(forwards) { f in
             Menu("localhost:\(f.local) → \(f.remote)") {
@@ -242,10 +241,10 @@ struct HostMenu: View {
             }
         }
         Divider()
-        Button("检查这台主机…") { store.hostSheet = .check(host.id) }.disabled(host.connection == .disconnected)
-        Button("重新登录命令…") { store.hostSheet = .signInSettings(host.id) }
+        Button("检查这台主机…") { store.presentation = .hostSheet(.check(host.id)) }.disabled(host.connection == .disconnected)
+        Button("重新登录命令…") { store.presentation = .hostSheet(.signInSettings(host.id)) }
         if store.signInConfigs[host.id] != nil {
-            Button("现在重新登录…") { store.hostSheet = .signIn(host.id) }
+            Button("现在重新登录…") { store.presentation = .hostSheet(.signIn(host.id)) }
         }
         if host.connection == .disconnected {
             Button("连接") { store.setDisconnected(host.id, false) }
@@ -309,38 +308,33 @@ struct LibraryDialogs: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .alert("重命名会话", isPresented: Binding(get: { store.renaming != nil }, set: { if !$0 { store.renaming = nil } })) {
+            .alert("重命名会话", isPresented: store.isPresenting(\.renamingSession)) {
                 TextField("名字", text: $name)
-                Button("取消", role: .cancel) { store.renaming = nil }
+                Button("取消", role: .cancel) { store.presentation = nil }
                 Button("保存") {
-                    if let s = store.renaming { store.rename(s, to: name) }
-                    store.renaming = nil
+                    if let s = store.presentation?.renamingSession { store.rename(s, to: name) }
+                    store.presentation = nil
                 }
             } message: {
                 Text("只改 Switchboard 里显示的名字，不改 CLI 的会话。留空恢复原标题。")
             }
-            .onChange(of: store.renaming?.id) { _, _ in name = store.renaming?.displayTitle ?? "" }
-            .alert("重命名项目", isPresented: Binding(get: { store.renamingProject != nil }, set: { if !$0 { store.renamingProject = nil } })) {
+            .onChange(of: store.presentation?.renamingSession?.id) { _, _ in name = store.presentation?.renamingSession?.displayTitle ?? "" }
+            .alert("重命名项目", isPresented: store.isPresenting(\.renamingProject)) {
                 TextField("名字", text: $name)
-                Button("取消", role: .cancel) { store.renamingProject = nil }
+                Button("取消", role: .cancel) { store.presentation = nil }
                 Button("保存") {
-                    if let p = store.renamingProject { store.rename(p, to: name) }
-                    store.renamingProject = nil
+                    if let p = store.presentation?.renamingProject { store.rename(p, to: name) }
+                    store.presentation = nil
                 }
             } message: {
                 Text("只改 Switchboard 里显示的名字，不改文件夹。留空恢复文件夹名。")
             }
-            .onChange(of: store.renamingProject?.id) { _, _ in name = store.renamingProject?.name ?? "" }
-            .confirmationDialog(deleteTitle, isPresented: Binding(get: { !store.pendingDelete.isEmpty },
-                                                                  set: { if !$0 { store.pendingDelete = [] } }),
-                                titleVisibility: .visible) {
-                Button(store.pendingArchiveProject == nil ? "删除" : "归档并删除", role: .destructive) {
+            .onChange(of: store.presentation?.renamingProject?.id) { _, _ in name = store.presentation?.renamingProject?.name ?? "" }
+            .confirmationDialog(deleteTitle, isPresented: store.isPresenting(\.deleting), titleVisibility: .visible) {
+                Button(store.presentation?.archivingProject == nil ? "删除" : "归档并删除", role: .destructive) {
                     Task { await store.confirmPendingDelete() }
                 }
-                Button("取消", role: .cancel) {
-                    store.pendingDelete = []
-                    store.pendingArchiveProject = nil
-                }
+                Button("取消", role: .cancel) { store.presentation = nil }
             } message: {
                 Text(deleteMessage)
             }
@@ -353,16 +347,18 @@ struct LibraryDialogs: ViewModifier {
     }
 
     private var deleteTitle: String {
-        if let id = store.pendingArchiveProject, let p = store.projects.first(where: { $0.id == id }) {
-            return L("归档「\(p.name)」并删除它的 \(store.pendingDelete.count) 个会话？")
+        let pending = store.presentation?.deleting ?? []
+        if let id = store.presentation?.archivingProject, let p = store.projects.first(where: { $0.id == id }) {
+            return L("归档「\(p.name)」并删除它的 \(pending.count) 个会话？")
         }
-        return store.pendingDelete.count == 1 ? L("删除「\(store.pendingDelete[0].displayTitle)」？") : L("删除 \(store.pendingDelete.count) 个会话？")
+        return pending.count == 1 ? L("删除「\(pending[0].displayTitle)」？") : L("删除 \(pending.count) 个会话？")
     }
 
     private var deleteMessage: String {
-        let running = store.pendingDelete.filter { store.tab(for: $0) != nil }.count
-        let permanent = store.pendingDelete.contains { SessionDeletion.isPermanent($0) }
-        let remote = store.pendingDelete.contains { $0.hostID != Host.localID }
+        let pending = store.presentation?.deleting ?? []
+        let running = pending.filter { store.tab(for: $0) != nil }.count
+        let permanent = pending.contains { SessionDeletion.isPermanent($0) }
+        let remote = pending.contains { $0.hostID != Host.localID }
         var parts: [String] = []
         if running > 0 { parts.append(L("其中 \(running) 个还在运行，会先关标签、结束 CLI。")) }
         if remote { parts.append(L("SSH 主机上没有废纸篓，主机上的会话会永久删除。")) }
