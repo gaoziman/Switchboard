@@ -20,7 +20,8 @@ Switchboard gathers the sessions that Claude Code, Codex, OpenCode and omp leave
 <a id="start"></a>
 ## Getting started
 
-1. Open Switchboard. The sidebar lists every session of the four CLIs on this Mac, grouped by project folder. The first read can take a few seconds; after that it is cached.
+1. Open Switchboard. The sidebar shows only **the folders you add** and the four CLIs' sessions in them. When it's empty, click Add a folder, or drag folders in from Finder. The first read can take a few seconds; after that it is cached.
+   When you upgrade from an older version, Switchboard asks once which folders to keep: it lists the folders it found sessions in, with pinned ones, ones that had open tabs, and ones used in the last 14 days already checked.
 2. **Click** a session to read the conversation on the right without starting the CLI.
 3. **Double-click** it (or use Resume in the preview) to open a terminal tab in the original project folder, with the CLI continuing that session.
 4. The **+** at the top right of the sidebar (⌘N) starts a new session: pick a CLI and a project folder.
@@ -31,7 +32,11 @@ Install the CLIs you use yourself; they only need to be on the `PATH` of your lo
 ## The session library
 
 - **Projects / Open**: switch between all sessions by project and only the tabs that are open.
-- **Right-click a session**: Resume, Fork as a new session (Claude Code, Codex, OpenCode), Move To (Claude Code only, see below), Rename, Pin, Archive, copy or export the conversation as Markdown, copy the session ID, show in Finder, Delete.
+- **Adding folders**: right-click This Mac › Add Folder…, or drag folders in from Finder. For an SSH host, right-click its name › Add Folder… and check folders it has sessions in; for a folder with no sessions yet, type its path (`~/project` works too).
+- **Remove from Sidebar**: right-click a project › Remove from Sidebar. It only hides the folder; session files, pins and names stay, and come back if you add it again. Tabs open in it keep working.
+- **Sessions running outside the library**: when Claude Code is running in a folder you haven't added, the bottom of the sidebar says so; click Add to Sidebar or Ignore (an ignored folder isn't mentioned again).
+- **Right-click a project** (or hover its row and click …, or + to start something right away): New Session, New Terminal, Open Project in Finder, Open Project In (installed editors and terminals), Copy Project Path, Rename Project… (changes only the name shown in the sidebar), Pin Project, Archive Project, Remove from Sidebar, Delete All Deletable Sessions (running sessions and ones with open tabs don't count), Archive Project and Delete All Sessions.
+- **Right-click a session**: Resume, Fork as a new session (Claude Code, Codex, OpenCode), End Session (ends the CLI, keeps the session file), Move To (Claude Code only, see below), Rename, Pin, Archive, copy or export the conversation (Markdown, plain text, or the original session file), copy the session ID, show in Finder, Delete.
 - **Multiple selection**: ⌘-click or ⇧-click; actions for the selection appear at the bottom. Esc clears it.
 - **Search** (magnifier at the top of the sidebar): searches titles and the full text of every message. The first search builds an index; later searches are fast.
 - **Filter**: last 7 days, one CLI, running, or waiting for you.
@@ -159,6 +164,8 @@ When it's due, the host's heading shows Sign In… and a system notification is 
 
 <a id="troubleshooting"></a>
 ## Troubleshooting
+
+**A folder's sessions are missing from the sidebar**: the sidebar shows only folders you've added; add it first (right-click This Mac › Add Folder…).
 
 **A CLI's sessions are missing from the sidebar**: make sure you've run sessions with that CLI on this Mac and that its data folder is in the default place (`~/.claude`, `~/.codex`, and so on). Press ⌘R to reload.
 
