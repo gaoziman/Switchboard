@@ -42,10 +42,13 @@ public final class WorkspaceData {
     /// 主机上正在做的活（「poll:别名」「refresh:别名」）、状态连续问不到的次数
     @ObservationIgnored var hostJobs: Set<String> = []
     @ObservationIgnored var snapshotFailures: [String: Int] = [:]
+    /// 上次开着、还没恢复的主机标签（那台主机的会话读进来后恢复）
+    @ObservationIgnored var pendingRemoteTabs: [WorkspaceStore.TabRecord] = []
     /// 问过的 SSH 主机家目录（主机文件夹里的 ~ 靠它展开）
     @ObservationIgnored var remoteHomes: [String: String] = [:]
-    /// 正在读会话库：别的窗口这时再要刷新就跳过
+    /// 正在读会话库；读的时候又有人要刷新：读完再补读一次
     @ObservationIgnored var isRefreshing = false
+    @ObservationIgnored var refreshQueued = false
 
     public init(hosts: [Host], projects: [Project], sessions: [Session], transcripts: [String: [TranscriptEntry]] = [:],
                 loadState: LoadState = .loaded) {

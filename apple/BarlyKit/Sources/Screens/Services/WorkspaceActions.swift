@@ -27,10 +27,25 @@ public extension WorkspaceStore {
         return store
     }
 
+    /// 读一遍本机的会话库。正在读（别的窗口、定时刷新）时不叠着读，也不丢掉这次：
+    /// 那次读的时候还没有这次的改动（刚删的会话、刚加的文件夹），读完补读一次，补读完这里才返回
     func refresh(restoringTabs: Bool = false) async {
-        guard !data.isRefreshing else { return }
+        if data.isRefreshing {
+            data.refreshQueued = true
+            while data.isRefreshing { try? await Task.sleep(for: .milliseconds(50)) }
+            return
+        }
         data.isRefreshing = true
         defer { data.isRefreshing = false }
+        var restoring = restoringTabs
+        repeat {
+            data.refreshQueued = false
+            await refreshOnce(restoringTabs: restoring)
+            restoring = false
+        } while data.refreshQueued
+    }
+
+    private func refreshOnce(restoringTabs: Bool) async {
         // 启动恢复标签：上次开着的文件夹自动加回库里（升级挑选时默认勾上）
         let savedTabs = restoringTabs && isLive ? Self.savedTabFolders() : []
         if library.foldersMigrated, savedTabs.contains(where: { !isInLibrary($0) }) {
@@ -51,11 +66,12 @@ public extension WorkspaceStore {
         }
         let previous = Dictionary(sessions.map { ($0.id, $0.activity) }, uniquingKeysWith: { a, _ in a })
         // 只替换本机的；SSH 主机的会话由 refreshHost 管
-        sessions = result.sessions.map { s in
+        let fresh = result.sessions.map { s in
             var s = s
             s.activity = previous[s.id] ?? .notRunning   // 刷新不打断状态灯
             return s
-        } + sessions.filter { $0.hostID != Host.localID }
+        }
+        sessions = keepingOpenTabSessions(fresh, on: Host.localID) + sessions.filter { $0.hostID != Host.localID }
         projects = result.projects + projects.filter { $0.hostID != Host.localID }
         applyLibraryState()
         installedCLIs = result.installed
@@ -521,13 +537,28 @@ public extension WorkspaceStore {
 
     // MARK: 标签记录（退出后重开时恢复）
 
-    internal struct TabRecord: Codable {
+    internal struct TabRecord: Codable, Sendable {
         let cli: String?
         let sessionID: String?
         let projectPath: String
         let title: String
         let tmuxName: String?
         let selected: Bool
+        /// 旧版本没记：都是本机的
+        var hostID: String? = nil
+
+        var host: String { hostID ?? Host.localID }
+    }
+
+    /// 本机标签所在的文件夹（项目 ID）。主机上的路径不能当本机文件夹加进库里
+    internal static func localFolders(of records: [TabRecord]) -> Set<String> {
+        Set(records.filter { $0.host == Host.localID }.map { "\(Host.localID):\(($0.projectPath as NSString).standardizingPath)" })
+    }
+
+    /// 要写下的：开着的标签 + 主机还没连上、还没恢复的远程标签（不写就丢了）
+    internal static func records(open: [TabRecord], pending: [TabRecord]) -> [TabRecord] {
+        let ids = Set(open.compactMap(\.sessionID))
+        return open + pending.filter { $0.sessionID.map { !ids.contains($0) } ?? false }
     }
 
     internal static var tabsFile: URL {
@@ -544,23 +575,52 @@ public extension WorkspaceStore {
             store.allTabs.compactMap { tab -> TabRecord? in
                 guard case .session(let id, let cli) = tab.kind, !id.hasPrefix("new-"), !id.hasPrefix("fork-") else { return nil }
                 return TabRecord(cli: cli.rawValue, sessionID: id, projectPath: tab.projectPath, title: tab.title,
-                                 tmuxName: store.launches[tab.id]?.tmuxName, selected: store === self && selectedTab?.id == tab.id)
+                                 tmuxName: store.launches[tab.id]?.tmuxName, selected: store === self && selectedTab?.id == tab.id,
+                                 hostID: tab.hostID == Host.localID ? nil : tab.hostID)
             }
         }
-        if let data = try? JSONEncoder().encode(records) { try? data.write(to: Self.tabsFile, options: .atomic) }
+        let all = Self.records(open: records, pending: data.pendingRemoteTabs)
+        if let encoded = try? JSONEncoder().encode(all) { try? encoded.write(to: Self.tabsFile, options: .atomic) }
     }
 
+    /// 本机的标签现在恢复；主机上的先记着，等那台主机的会话读进来（reloadHostSessions）再恢复
     internal func restoreTabs() {
         guard UserDefaults.standard.object(forKey: "restoreTabs") as? Bool ?? true,
               let data = try? Data(contentsOf: Self.tabsFile),
               let records = try? JSONDecoder().decode([TabRecord].self, from: data) else { return }
+        self.data.pendingRemoteTabs = records.filter { $0.host != Host.localID }
         var selected: UUID?
-        for r in records {
+        for r in records where r.host == Host.localID {
             guard let id = r.sessionID, let s = session(id), tab(for: s) == nil else { continue }
             resume(s)
             if r.selected { selected = selectedTab?.id }
         }
         if let selected { selection = .tab(selected) }
+    }
+
+    /// 主机的会话读进来了：恢复上次开着的它的标签（只恢复一次）
+    internal func restoreRemoteTabs(on alias: String) {
+        let mine = data.pendingRemoteTabs.filter { $0.host == alias }
+        guard !mine.isEmpty else { return }
+        data.pendingRemoteTabs.removeAll { $0.host == alias }
+        for r in mine {
+            guard let id = r.sessionID, let s = session(id), tab(for: s) == nil else { continue }
+            resume(s)
+        }
+    }
+
+    /// 开着标签的会话：所在文件夹从库里拿掉了也留着，不然断线重连、接着跑都找不到它
+    internal func keepingOpenTabSessions(_ fresh: [Session], on hostID: String) -> [Session] {
+        let open = openTabSessionIDs
+        let have = Set(fresh.map(\.id))
+        return fresh + sessions.filter { $0.hostID == hostID && open.contains($0.id) && !have.contains($0.id) }
+    }
+
+    /// 所有窗口里开着标签的会话
+    internal var openTabSessionIDs: Set<String> {
+        Set((isLive ? WorkspaceWindows.live : [self]).flatMap(\.allTabs).compactMap { tab -> String? in
+            if case .session(let id, _) = tab.kind { id } else { nil }
+        })
     }
 }
 

@@ -51,7 +51,8 @@ public extension WorkspaceStore {
     func removeFolder(_ project: Project) {
         updateLibrary { s in s.folders.removeAll { $0 == project.id } }
         projects.removeAll { $0.id == project.id }
-        sessions.removeAll { $0.projectID == project.id && tab(for: $0) == nil }
+        let open = openTabSessionIDs
+        sessions.removeAll { $0.projectID == project.id && !open.contains($0.id) }
         expandedProjectIDs.remove(project.id)
         if case .preview(let id)? = selection, session(id)?.projectID == project.id || session(id) == nil { selection = nil }
     }
@@ -124,6 +125,6 @@ public extension WorkspaceStore {
     static func savedTabFolders() -> Set<String> {
         guard let data = try? Data(contentsOf: tabsFile),
               let records = try? JSONDecoder().decode([TabRecord].self, from: data) else { return [] }
-        return Set(records.map { "\(Host.localID):\(($0.projectPath as NSString).standardizingPath)" })
+        return localFolders(of: records)
     }
 }

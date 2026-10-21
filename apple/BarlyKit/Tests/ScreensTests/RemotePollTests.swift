@@ -39,3 +39,18 @@ import Testing
         #expect(value == 42)
     }
 }
+
+@MainActor
+@Suite struct RefreshQueueTests {
+    @Test("正在刷新时再要刷新：记下补读一次，等读完才返回（不再直接丢掉）")
+    func refreshDuringRefreshQueuesAndWaits() async throws {
+        let st = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [])
+        st.data.isRefreshing = true                       // 假装别的窗口正在读
+        let waiter = Task { await st.refresh() }
+        try await Task.sleep(for: .milliseconds(120))
+        #expect(st.data.refreshQueued)
+        st.data.isRefreshing = false                      // 那次读完了
+        await waiter.value                                // 这时才返回
+        #expect(st.data.isRefreshing == false)
+    }
+}
