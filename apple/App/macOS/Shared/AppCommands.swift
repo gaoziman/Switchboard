@@ -5,6 +5,7 @@ import Screens
 /// 菜单栏命令。自绘外壳不是 NavigationSplitView，菜单项只发通知，工作区窗口用 `.onReceive` 接。
 /// 每个主要动作都在菜单里、带快捷键（references/apple.md「Mac 形态」）
 struct AppCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
     private func post(_ name: Notification.Name, _ object: Any? = nil) { NotificationCenter.default.post(name: name, object: object) }
 
     /// 查找：焦点在终端上就交给 SwiftTerm 自带的查找条，否则交给对话预览
@@ -29,6 +30,7 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("新会话…") { post(.switchboardNewSession) }.keyboardShortcut("n")
             Button("新标签…") { post(.switchboardNewSession) }.keyboardShortcut("t")
+            Button("新窗口") { openWindow(id: "workspace") }.keyboardShortcut("n", modifiers: [.shift, .command])
         }
         // 系统的「关闭窗口 ⌘W」换成关标签，关窗口挪到 ⇧⌘W
         CommandGroup(replacing: .saveItem) {

@@ -1,0 +1,18 @@
+name: 反馈和建议 / Feedback
+description: 想要的功能、用起来别扭的地方 / Feature ideas and things that feel off
+labels: [feedback]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: 想说的 / Your feedback
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: Switchboard 版本 / version
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS 版本 / version

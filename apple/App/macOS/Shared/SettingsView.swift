@@ -83,8 +83,8 @@ private struct GeneralSettings: View {
             }
             Section {
                 HStack {
-                    Button("发送反馈…") {}
-                    Button("报告问题…") {}
+                    Button("发送反馈…") { NSWorkspace.shared.open(FeedbackLinks.feedback()) }
+                    Button("报告问题…") { NSWorkspace.shared.open(FeedbackLinks.bugReport()) }
                     Spacer()
                 }
             }
@@ -277,26 +277,31 @@ private struct CloseBehaviorPicker: View {
 // MARK: - 权限
 
 private struct PermissionSettings: View {
+    @State private var status = PermissionStatus()
+
     var body: some View {
         Form {
             Section {
-                PermissionRow(title: L("通知"), detail: L("CLI 跑完一轮、停下来等你时提醒"), state: .granted)
-                PermissionRow(title: L("完全磁盘访问"), detail: L("可选。终端里的 CLI 打开「文稿」等受保护文件夹时不再逐个弹窗"), state: .notGranted)
-                PermissionRow(title: L("辅助功能"), detail: L("可选。允许终端里的 CLI 控制其他 app（点菜单、按键）。会给所有 CLI，按需开启"), state: .notGranted)
-                PermissionRow(title: L("本地网络"), detail: L("连局域网里的 SSH 主机需要。macOS 不让 app 查询，请在系统设置里确认"), state: .unknown)
+                PermissionRow(title: L("通知"), detail: L("CLI 跑完一轮、停下来等你时提醒"), state: status.notifications, pane: .notifications)
+                PermissionRow(title: L("完全磁盘访问"), detail: L("可选。终端里的 CLI 打开「文稿」等受保护文件夹时不再逐个弹窗"), state: status.fullDiskAccess, pane: .fullDisk)
+                PermissionRow(title: L("辅助功能"), detail: L("可选。允许终端里的 CLI 控制其他 app（点菜单、按键）。会给所有 CLI，按需开启"), state: status.accessibility, pane: .accessibility)
+                PermissionRow(title: L("本地网络"), detail: L("连局域网里的 SSH 主机需要。macOS 不让 app 查询，请在系统设置里确认"), state: .unknown, pane: .localNetwork)
             } footer: {
                 Text("从系统设置回来时会自动重新检查，检查本身不会弹出授权请求。").foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+        .onAppear { status.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in status.refresh() }
     }
 }
 
 private struct PermissionRow: View {
-    enum State { case granted, notGranted, unknown }
+    typealias State = PermissionStatus.State
     let title: String
     let detail: String
     let state: State
+    let pane: PermissionStatus.Pane
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -310,7 +315,7 @@ private struct PermissionRow: View {
             if state == .granted {
                 Text("已允许").font(.caption).foregroundStyle(.secondary)
             } else {
-                Button("打开系统设置") {}
+                Button("打开系统设置") { PermissionStatus.openSettings(pane) }
             }
         }
         .padding(.vertical, 2)
@@ -339,8 +344,10 @@ private struct HelpSettings: View {
             }
             Section("上手") {
                 Toggle("每次打开时在侧栏底部显示一条小贴士", isOn: $showTips)
-                LabeledContent("引导") { Button("重新看一遍") {} }
-                LabeledContent("使用说明") { Button("打开帮助") {} }
+                LabeledContent("引导") {
+                    Button("重新看一遍") { NotificationCenter.default.post(name: .switchboardReplayTour, object: nil) }
+                }
+                LabeledContent("使用说明") { Button("打开帮助") { NSWorkspace.shared.open(AppLinks.guide()) } }
             }
             Section("更新") {
                 LabeledContent("版本") { Text(verbatim: AppUpdater.versionString).monospacedDigit() }

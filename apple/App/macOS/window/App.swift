@@ -11,7 +11,7 @@ struct BarlyMacApp: App {
     @AppStorage("appearance") private var appearance = "dark"
     init() { BarlyFonts.register(); LiveShot.handle(); _ = AppUpdater.shared }
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "workspace") {
             MacRoot()
                 .environment(store)
                 .switchboardTheme()
@@ -22,7 +22,7 @@ struct BarlyMacApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1440, height: 1024)
-        .commands { AppCommands() }
+        .commands { AppCommands(); HelpCommands() }
         // 主题、明暗变了，终端跟着换（UserDefaults 通知覆盖不到系统明暗切换）
         .onChange(of: appearance) { _, _ in TerminalRegistry.shared.restyleAll() }
 
@@ -42,6 +42,7 @@ struct MacRoot: View {
     @State private var workspace = WorkspaceStore.live()
     var body: some View {
         WorkspaceView(store: workspace)
+            .task { CrashReportOffer.checkOnce() }
     }
     private var examples: some View {
         Group {

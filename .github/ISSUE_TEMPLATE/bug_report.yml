@@ -1,0 +1,55 @@
+name: 报告问题 / Bug report
+description: Switchboard 出错、崩溃或者和预期不一样 / Something broke, crashed or didn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        从 Switchboard 的「帮助 › 报告问题…」打开时，版本号已经填好。
+        Opened from Help › Report an Issue… in Switchboard, the versions are already filled in.
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎么出现的 / Steps to reproduce
+      placeholder: |
+        1. 
+        2. 
+    validations:
+      required: false
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: 期望 / Expected behavior
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: 实际 / Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: Switchboard 版本 / version
+      placeholder: "0.1.0 (202610201901)"
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS 版本 / version
+      placeholder: "26.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: cli
+    attributes:
+      label: 涉及的 CLI / CLI involved
+      multiple: true
+      options: [Claude Code, Codex, OpenCode, omp, 不涉及 / none]
+  - type: textarea
+    id: supporting-details
+    attributes:
+      label: 其他信息 / Supporting details
+      description: |
+        崩溃报告、「检查这台主机」的报告、截图都可以贴在这里或拖进来。
+        Crash reports, Check Host reports and screenshots are welcome — paste or drag them here.
