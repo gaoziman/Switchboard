@@ -46,7 +46,7 @@ public struct NewSessionDraft: Equatable, Sendable {
             } else if ch == "\"" || ch == "'" {
                 quote = ch
             } else if [";", "|", "&", "#", "`"].contains(ch) {
-                return L("启动命令里不能有 shell 运算符「\(ch)」，要组合多条命令请写成脚本再填脚本路径。")
+                return L("启动命令里不能有 shell 运算符「\(String(ch))」，要组合多条命令请写成脚本再填脚本路径。")
             }
         }
         if quote != nil { return L("引号没有闭合。") }

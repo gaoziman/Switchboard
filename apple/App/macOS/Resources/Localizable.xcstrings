@@ -451,6 +451,26 @@
         }
       }
     },
+    "SSH 主机连不上…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH Host Won’t Connect…"
+          }
+        }
+      }
+    },
+    "Switchboard 上次意外退出了" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switchboard quit unexpectedly last time"
+          }
+        }
+      }
+    },
     "Switchboard 不保存你在这里输入的任何内容。" : {
       "localizations" : {
         "en" : {
@@ -467,6 +487,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Switchboard Host Check: %@"
+          }
+        }
+      }
+    },
+    "Switchboard 使用说明" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switchboard User Guide"
           }
         }
       }
@@ -711,6 +741,36 @@
         }
       }
     },
+    "⌘1–9 切到第几个标签，⌃Tab 在标签之间轮换。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘1–9 jumps to a tab; ⌃Tab cycles through tabs."
+          }
+        }
+      }
+    },
+    "⌘F 在终端或对话预览里查找。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘F finds in the terminal or the conversation preview."
+          }
+        }
+      }
+    },
+    "⌥⌘N 分屏，同时看两个会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌥⌘N splits the view so you can watch two sessions at once."
+          }
+        }
+      }
+    },
     "上一个标签" : {
       "localizations" : {
         "en" : {
@@ -847,6 +907,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not your process"
+          }
+        }
+      }
+    },
+    "不用了" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
           }
         }
       }
@@ -1131,6 +1201,16 @@
         }
       }
     },
+    "侧栏顶上的铃铛列出所有在等你回答的会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bell at the top of the sidebar lists every session waiting for you."
+          }
+        }
+      }
+    },
     "保存" : {
       "localizations" : {
         "en" : {
@@ -1207,6 +1287,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "All"
+          }
+        }
+      }
+    },
+    "关标签时可以让 CLI 留在 tmux 里接着跑，下次点这个会话直接接上。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When closing a tab, you can leave the CLI running in tmux and pick it up next time you click the session."
           }
         }
       }
@@ -1701,6 +1791,16 @@
         }
       }
     },
+    "单击会话先读对话，不启动 CLI；双击在原来的目录里接着跑。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Click a session to read it without starting the CLI; double-click to resume it in its original folder."
+          }
+        }
+      }
+    },
     "原来的文件夹不在了" : {
       "localizations" : {
         "en" : {
@@ -1841,6 +1941,16 @@
         }
       }
     },
+    "可以把这次崩溃报告给开发者。会打开 GitHub 的问题表单，版本和崩溃摘要已经填好，不含你的文件路径；你可以补一句当时在做什么。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can report this crash to the developer. This opens a GitHub issue form with the versions and a crash summary filled in, without your file paths. Add a line about what you were doing."
+          }
+        }
+      }
+    },
     "可选。允许终端里的 CLI 控制其他 app（点菜单、按键）。会给所有 CLI，按需开启" : {
       "localizations" : {
         "en" : {
@@ -1877,6 +1987,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Which tab goes on the right?"
+          }
+        }
+      }
+    },
+    "右键主机标题可以转发端口、检查这台主机。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Right-click a host’s heading to forward ports or check the host."
           }
         }
       }
@@ -2051,6 +2171,26 @@
         }
       }
     },
+    "在 GitHub 上报告…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report on GitHub…"
+          }
+        }
+      }
+    },
+    "在 GitHub 上查看源代码" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Source on GitHub"
+          }
+        }
+      }
+    },
     "在%@上不再询问，以后照这次的选择做" : {
       "localizations" : {
         "en" : {
@@ -2197,6 +2337,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Session File in Finder"
+          }
+        }
+      }
+    },
+    "在访达中显示报告" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Report in Finder"
           }
         }
       }
@@ -2653,6 +2803,16 @@
         }
       }
     },
+    "把文件拖进终端会粘贴它的路径。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drop a file on the terminal to paste its path."
+          }
+        }
+      }
+    },
     "折叠 %@" : {
       "localizations" : {
         "en" : {
@@ -2999,6 +3159,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updates"
+          }
+        }
+      }
+    },
+    "更新说明" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Release Notes"
           }
         }
       }
