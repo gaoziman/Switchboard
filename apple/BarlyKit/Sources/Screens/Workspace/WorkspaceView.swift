@@ -79,9 +79,12 @@ public struct WorkspaceView: View {
                     .padding(.bottom, BarlyScale.pt(44) + 4)
             }
         }
-        .overlay {
+        .overlayPreferenceValue(TourAnchorKey.self) { anchors in
             if let step = store.tourStep {
-                TourOverlay(step: step, onNext: { store.nextTourStep() }, onSkip: { store.finishTour() })
+                GeometryReader { proxy in
+                    TourOverlay(step: step, spots: anchors.mapValues { proxy[$0] },
+                                onNext: { store.nextTourStep() }, onSkip: { store.finishTour() })
+                }
             }
         }
         .ignoresSafeArea()

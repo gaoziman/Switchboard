@@ -26,63 +26,97 @@ struct TipCard: View {
     }
 }
 
+/// 首启引导讲到的那几块：视图上打 `.tourAnchor(…)`，引导层按它们真实的位置挖亮（界面缩放、窗口大小、侧栏收起都对得上）
+enum TourSpot: Hashable { case library, newSession, addHost }
+
+struct TourAnchorKey: PreferenceKey {
+    static let defaultValue: [TourSpot: Anchor<CGRect>] = [:]
+    static func reduce(value: inout [TourSpot: Anchor<CGRect>], nextValue: () -> [TourSpot: Anchor<CGRect>]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+extension View {
+    func tourAnchor(_ spot: TourSpot) -> some View {
+        anchorPreference(key: TourAnchorKey.self, value: .bounds) { [spot: $0] }
+    }
+}
+
+/// 说明卡放哪：讲到的那块右边、和它顶端错开一点；右边放不下放左边；上下不出窗口。那块不在界面上就放窗口中间
+enum TourLayout {
+    static let gap: CGFloat = 28
+    static let margin: CGFloat = 16
+
+    static func cardOrigin(spot: CGRect?, card: CGSize, in window: CGSize) -> CGPoint {
+        guard let spot else { return CGPoint(x: (window.width - card.width) / 2, y: (window.height - card.height) / 2) }
+        let right = spot.maxX + gap
+        let x = right + card.width <= window.width - margin ? right : max(margin, spot.minX - gap - card.width)
+        let y = min(max(margin, spot.minY + 58), window.height - card.height - margin)
+        return CGPoint(x: x, y: y)
+    }
+}
+
 /// 首启引导：把窗口压暗，只把讲到的那块挖亮，旁边一张说明卡（第几步 · 一句标题 · 一句说明 · 跳过 / 下一步）
 struct TourOverlay: View {
     let step: Int
+    /// 讲到的那几块在这个视图坐标里的位置（WorkspaceView 用 overlayPreferenceValue 交进来）
+    let spots: [TourSpot: CGRect]
     var onNext: () -> Void = {}
     var onSkip: () -> Void = {}
     @Environment(\.barly) private var t
+    @State private var cardSize = CGSize(width: 320, height: 180)
 
     private struct Step {
-        let spot: CGRect
-        let card: CGPoint
+        let spot: TourSpot
         let title: String
         let body: String
     }
 
-    private func steps(_ size: CGSize) -> [Step] {
-        let h = size.height
-        return [
-            Step(spot: CGRect(x: 6, y: 92, width: 276, height: max(200, h - 146)), card: CGPoint(x: 310, y: 150),
-                 title: L("你所有的 AI 会话都在这里"),
-                 body: L("按机器、再按项目文件夹分好。单击先读对话，不启动 CLI；双击就在原来的目录里接着跑。")),
-            Step(spot: CGRect(x: 238, y: 6, width: 44, height: 40), card: CGPoint(x: 310, y: 40),
-                 title: L("从这里开一个新会话"),
-                 body: L("选 Claude Code、Codex、OpenCode 或 omp，再选项目文件夹。也可以按 ⌘N。")),
-            Step(spot: CGRect(x: 6, y: h - 48, width: 160, height: 40), card: CGPoint(x: 190, y: h - 184),
-                 title: L("服务器上的会话也能管"),
-                 body: L("添加一台 SSH 主机，它的会话会列在这台 Mac 下面，同样可以读、接着跑、删除。")),
-        ]
-    }
+    private static let steps = [
+        Step(spot: .library, title: L("你所有的 AI 会话都在这里"),
+             body: L("按机器、再按项目文件夹分好。单击先读对话，不启动 CLI；双击就在原来的目录里接着跑。")),
+        Step(spot: .newSession, title: L("从这里开一个新会话"),
+             body: L("选 Claude Code、Codex、OpenCode 或 omp，再选项目文件夹。也可以按 ⌘N。")),
+        Step(spot: .addHost, title: L("服务器上的会话也能管"),
+             body: L("添加一台 SSH 主机，它的会话会列在这台 Mac 下面，同样可以读、接着跑、删除。")),
+    ]
 
     var body: some View {
         GeometryReader { geo in overlay(geo.size) }
     }
 
     private func overlay(_ size: CGSize) -> some View {
-        let all = steps(size)
+        let all = Self.steps
         let s = all[max(0, min(step - 1, all.count - 1))]
+        // 挖亮的框比那块大一圈
+        let spot = spots[s.spot].map { $0.insetBy(dx: -4, dy: -4) }
+        let origin = TourLayout.cardOrigin(spot: spot, card: cardSize, in: size)
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.55)
                 .mask {
                     Rectangle()
                         .overlay(alignment: .topLeading) {
-                            RoundedRectangle(cornerRadius: BarlyRadius.md)
-                                .frame(width: s.spot.width, height: s.spot.height)
-                                .offset(x: s.spot.minX, y: s.spot.minY)
-                                .blendMode(.destinationOut)
+                            if let spot {
+                                RoundedRectangle(cornerRadius: BarlyRadius.md)
+                                    .frame(width: spot.width, height: spot.height)
+                                    .offset(x: spot.minX, y: spot.minY)
+                                    .blendMode(.destinationOut)
+                            }
                         }
                         .compositingGroup()
                 }
-            RoundedRectangle(cornerRadius: BarlyRadius.md)
-                .stroke(t.accent, lineWidth: 1.5)
-                .frame(width: s.spot.width, height: s.spot.height)
-                .offset(x: s.spot.minX, y: s.spot.minY)
-            card(s, count: all.count).offset(x: s.card.x, y: s.card.y)
+            if let spot {
+                RoundedRectangle(cornerRadius: BarlyRadius.md)
+                    .stroke(t.accent, lineWidth: 1.5)
+                    .frame(width: spot.width, height: spot.height)
+                    .offset(x: spot.minX, y: spot.minY)
+            }
+            card(s, count: all.count)
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { cardSize = $0 }
+                .offset(x: origin.x, y: origin.y)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
-
     private func card(_ s: Step, count: Int) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             MonoLabel("STEP \(step) / \(count)", color: t.text4)

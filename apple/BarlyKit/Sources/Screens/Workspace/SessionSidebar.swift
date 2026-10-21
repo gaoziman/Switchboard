@@ -47,6 +47,7 @@ public struct SessionSidebar: View {
                 }
             }
             .frame(maxHeight: .infinity, alignment: .top)
+            .tourAnchor(.library)
             // 从访达拖文件夹进来 = 添加到会话库
             .dropDestination(for: URL.self) { urls, _ in
                 let folders = urls.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
@@ -139,6 +140,7 @@ public struct SessionSidebar: View {
             Spacer()
             PaneIcon(symbol: "magnifyingglass", help: L("搜索项目、会话和消息（⌘F）")) { store.isSearching.toggle() }
             PaneIcon(symbol: "plus", help: L("新会话（⌘N）"), action: onNewSession)
+                .tourAnchor(.newSession)
         }
         .padding(.leading, 16).padding(.trailing, 8)
         .frame(height: WorkspaceMetrics.header)
@@ -273,8 +275,11 @@ public struct SessionSidebar: View {
     /// 底栏：添加主机 · 设置 ｜ 右边是全部会话的状态计数（等你 · 工作中 · 没看过的完成），点一下打开「等待你的会话」
     private var footer: some View {
         HStack(spacing: 2) {
-            PaneIcon(symbol: "folder.badge.plus", help: L("添加文件夹…")) { addProjectFolder() }
-            PaneIcon(symbol: "server.rack", help: L("添加 SSH 主机…")) { addingHost = true }
+            HStack(spacing: 2) {
+                PaneIcon(symbol: "folder.badge.plus", help: L("添加文件夹…")) { addProjectFolder() }
+                PaneIcon(symbol: "server.rack", help: L("添加 SSH 主机…")) { addingHost = true }
+            }
+            .tourAnchor(.addHost)
             PaneIcon(symbol: "gearshape", help: L("设置（⌘,）")) {
                 #if os(macOS)
                 openSettings()
