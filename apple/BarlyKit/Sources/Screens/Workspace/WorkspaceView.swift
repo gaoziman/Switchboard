@@ -79,7 +79,9 @@ public struct WorkspaceView: View {
             }
         }
         .overlay {
-            if let step = store.tourStep { TourOverlay(step: step) }
+            if let step = store.tourStep {
+                TourOverlay(step: step, onNext: { store.nextTourStep() }, onSkip: { store.finishTour() })
+            }
         }
         .background(t.canvas)
         .ignoresSafeArea()
@@ -145,6 +147,7 @@ public struct WorkspaceView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in store.retryReconnects() }
         #endif
         .onAppear(perform: hookRuntime)
+        .onReceive(NotificationCenter.default.publisher(for: .switchboardReplayTour)) { _ in if isKeyWindow { store.replayTour() } }
         .task(id: store.isLive) { await pollLoop() }
         .onChange(of: store.selection) { _, _ in
             if let tab = store.selectedTab {
@@ -167,6 +170,7 @@ public struct WorkspaceView: View {
     /// 终端退出 / 关闭 / 标题、通知点击回到 store（mock 截图时什么都不做）
     private func hookRuntime() {
         guard store.isLive else { return }
+        store.startGuidance()
         #if os(macOS)
         let store = self.store
         TerminalRegistry.shared.onExit = { id, code in store.processExited(id, code: code) }

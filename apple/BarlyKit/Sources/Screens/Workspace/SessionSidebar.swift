@@ -49,7 +49,7 @@ public struct SessionSidebar: View {
             } else if let deletion = store.deletion {
                 DeletionBar(progress: deletion) { store.deletion?.cancelling = true }
             } else if let tip = store.tip {
-                TipCard(text: tip) { store.tip = nil }
+                TipCard(text: tip, onClose: { store.tip = nil }, onNext: { store.nextTip() })
             }
             Hairline()
             footer
