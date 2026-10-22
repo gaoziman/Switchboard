@@ -160,12 +160,14 @@ public final class WorkspaceStore {
         data = WorkspaceData(hosts: hosts, projects: projects, sessions: sessions, transcripts: transcripts, loadState: loadState,
                              persistence: persistence, activity: activity)
         self.tabGroups = tabGroups
+        data.attach(self)
     }
 
     /// 新窗口：接到已有的那份共用数据上
     public init(data: WorkspaceData) {
         self.data = data
         tabGroups = []
+        data.attach(self)        // 登记成这份数据的一个窗口：刷新完认领、刷灯，第一个是主窗口
     }
 
     // MARK: 会话库
@@ -237,13 +239,6 @@ public final class WorkspaceStore {
 
     /// 这个会话现在在干什么（状态灯）
     public func activity(of session: Session) -> Activity { data.activity[session.id] ?? .notRunning }
-
-    /// 换掉一台主机的会话（刷新读完时）：状态按会话 ID 存，还在的不用搬；不在了的状态清掉（和原来一样：消失再出现的从「没在跑」算起）
-    func replaceSessions(on hostID: String, with fresh: [Session]) {
-        let gone = Set(sessions.filter { $0.hostID == hostID }.map(\.id)).subtracting(fresh.map(\.id))
-        sessions = sessions.filter { $0.hostID != hostID } + fresh
-        if !gone.isEmpty { data.activity = data.activity.filter { !gone.contains($0.key) } }
-    }
 
     /// 项目行右侧的状态：组内最急的运行中会话
     public func activity(of project: Project) -> Activity {

@@ -58,10 +58,7 @@ public struct LibraryState: Codable, Equatable, Sendable {
 
 @MainActor
 public extension WorkspaceStore {
-    func updateLibrary(_ change: (inout LibraryState) -> Void) {
-        change(&library)
-        data.persistence.saveLibrary(library)
-    }
+    func updateLibrary(_ change: (inout LibraryState) -> Void) { data.updateLibrary(change) }
 
     func togglePin(_ session: Session) {
         updateLibrary { s in

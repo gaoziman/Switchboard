@@ -35,8 +35,8 @@ import Testing
         let st = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [s1, s2],
                                 tabGroups: [TabGroup(projectID: "local:/gone", name: "gone", tint: 0, tabs: [tab])])
         // 文件夹从库里拿掉后重新读到的结果里没有它们：开着标签的那个留着（断线重连、接着跑要用），没开的不留
-        #expect(st.keepingOpenTabSessions([], on: Host.localID).map(\.id) == ["s1"])
-        #expect(st.keepingOpenTabSessions([s1], on: Host.localID).map(\.id) == ["s1"])     // 读到了就不重复
-        #expect(st.keepingOpenTabSessions([], on: "devbox").isEmpty)
+        #expect(st.data.keepingOpenTabSessions([], on: Host.localID).map(\.id) == ["s1"])
+        #expect(st.data.keepingOpenTabSessions([s1], on: Host.localID).map(\.id) == ["s1"])     // 读到了就不重复
+        #expect(st.data.keepingOpenTabSessions([], on: "devbox").isEmpty)
     }
 }

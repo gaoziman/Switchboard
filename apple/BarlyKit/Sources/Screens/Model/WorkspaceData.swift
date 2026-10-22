@@ -69,16 +69,29 @@ public final class WorkspaceData {
     @ObservationIgnored var pendingRemoteTabs: [WorkspaceStore.TabRecord] = []
     /// 问过的 SSH 主机家目录（主机文件夹里的 ~ 靠它展开）
     @ObservationIgnored var remoteHomes: [String: String] = [:]
-    /// 正在读会话库；读的时候又有人要刷新：读完再补读一次
-    @ObservationIgnored var isRefreshing = false
-    @ObservationIgnored var refreshQueued = false
+    // 刷新编排（Services/LibraryRefresh.swift）：合并本机读、等补读的调用方、开着的窗口
+    @ObservationIgnored var localReading = false
+    @ObservationIgnored var localRequested = 0
+    @ObservationIgnored var localCompleted = 0
+    @ObservationIgnored var localWaiters: [(generation: Int, continuation: CheckedContinuation<Void, Never>)] = []
+    @ObservationIgnored var restorePending = false
+    @ObservationIgnored var savedStateLoaded = false
+    @ObservationIgnored var windowRefs: [WindowRef] = []
+    final class WindowRef { weak var store: WorkspaceStore?; init(_ s: WorkspaceStore) { store = s } }
+
+    /// 读会话文件、跑 rsync / ssh：真实运行用磁盘和 ssh，截图、单测用不碰外面的（见 SessionReader / HostLink）
+    let reader: SessionReader
+    let link: HostLink
 
     /// library.json、hosts.json、tabs.json 存在哪：shared 存磁盘，其余（截图、单测）存内存
     public let persistence: WorkspacePersistence
 
     public init(hosts: [Host], projects: [Project], sessions: [Session], transcripts: [String: [TranscriptEntry]] = [:],
-                loadState: LoadState = .loaded, persistence: WorkspacePersistence? = nil, activity: [String: Activity] = [:]) {
+                loadState: LoadState = .loaded, persistence: WorkspacePersistence? = nil, activity: [String: Activity] = [:],
+                reader: SessionReader = .empty, link: HostLink = .offline) {
         self.persistence = persistence ?? .memory()
+        self.reader = reader
+        self.link = link
         self.activity = activity
         self.hosts = hosts
         self.storedProjects = projects
@@ -115,7 +128,8 @@ public final class WorkspaceData {
     }
 
     public static let shared = WorkspaceData(hosts: [Host(id: Host.localID, kind: .local, displayName: L("这台 Mac"))],
-                                             projects: [], sessions: [], loadState: .loading, persistence: .applicationSupport)
+                                             projects: [], sessions: [], loadState: .loading, persistence: .applicationSupport,
+                                             reader: .live, link: .live)
 }
 
 /// 会话列表的查询索引（WorkspaceData.sessionIndex）

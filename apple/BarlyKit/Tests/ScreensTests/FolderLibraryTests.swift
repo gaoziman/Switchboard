@@ -206,7 +206,7 @@ import Testing
     @Test func migrationWithNothingFoundFinishesSilently() {
         let s = store()
         s.library.foldersMigrated = false
-        s.prepareMigration(index: [], openTabs: [])
+        s.data.prepareMigration(index: [], openTabs: [])
         #expect(s.library.foldersMigrated)
         #expect(s.migrationCandidates == nil)
     }
@@ -218,7 +218,7 @@ import Testing
         let index = FolderLibrary.index([session("/a", "x"), Session(id: "o", cli: .codex, hostID: Host.localID, projectPath: "/old",
                                                                       title: "o", lastActivity: .distantPast, messageCount: 1)],
                                         exists: { _ in true })
-        s.prepareMigration(index: index, openTabs: [])
+        s.data.prepareMigration(index: index, openTabs: [])
         #expect(s.migrationCandidates?.count == 2)
         #expect(s.migrationPicks == ["local:/a", "local:/old"])
         s.finishMigration(picked: ["local:/old"])

@@ -23,24 +23,6 @@ public extension WorkspaceStore {
         WorkspacePersistence.applicationSupport.loadHosts().map(\.alias)
     }
 
-    /// 启动时：会话库状态 + 存过的 SSH 主机（连同重新登录设置）。要在任何会改它们的操作之前读
-    /// （以前等第一次扫描完才读，期间的改动会把文件整个盖掉）
-    func loadSavedState() {
-        library = data.persistence.loadLibrary()
-        loadHosts()
-    }
-
-    /// 本机 + 存过的 SSH 主机（连同重新登录设置）
-    func loadHosts() {
-        let records = data.persistence.loadHosts()
-        for r in records { if let c = r.signIn { signInConfigs[r.alias] = c } }
-        for r in records where !hosts.contains(where: { $0.id == r.alias }) {
-            hosts.append(Host(id: r.alias, kind: .ssh(target: r.alias), displayName: r.alias,
-                              connection: r.disconnected == true ? .disconnected : .refreshing(done: 0, total: 3),
-                              installedCLIs: (r.installed ?? []).compactMap(CLIKind.init(rawValue:))))
-        }
-    }
-
     private func saveHosts() {
         let records = hosts.filter { !$0.isLocal }.map {
             HostRecord(alias: $0.id, installed: $0.installedCLIs.map(\.rawValue), disconnected: $0.connection == .disconnected ? true : nil,
@@ -55,7 +37,7 @@ public extension WorkspaceStore {
         hosts.append(Host(id: alias, kind: .ssh(target: alias), displayName: alias,
                           connection: .refreshing(done: 0, total: 3), installedCLIs: installed))
         saveHosts()
-        Task { await refreshHost(alias) }
+        Task { await data.refresh(.host(alias)) }
     }
 
     // MARK: 定期重新登录
@@ -110,49 +92,8 @@ public extension WorkspaceStore {
         hosts[i].connection = disconnected ? .disconnected : .refreshing(done: 0, total: 3)
         if disconnected { PortForwardManager.shared.stopAll(host: alias) }
         saveHosts()
-        if !disconnected { Task { await refreshHost(alias) } }
+        if !disconnected { Task { await data.refresh(.host(alias)) } }
     }
-
-    /// 每 5 秒：问每台连着的主机「哪些 claude 在干什么、tmux 里有什么」（没断开、上次没失败的才问）
-    /// 一台主机上一次还没问完（网络慢、主机卡住）就跳过它，不叠着起 ssh；连续问不到的越隔越久再问
-    func pollRemoteStatus() async {
-        for host in hosts where !host.isLocal && host.connection == .connected {
-            let alias = host.id
-            guard shouldPoll(alias), beginHostJob(.poll, alias) else { continue }
-            let snap = await SSH.offPool { RemoteSessions.snapshot(alias) }
-            endHostJob(.poll, alias)
-            recordSnapshot(snap, for: alias)
-        }
-    }
-
-    enum HostJob { case poll, refresh }
-
-    /// 这台主机这种活没在做就记上、返回 true；在做就返回 false（调用方跳过）
-    func beginHostJob(_ job: HostJob, _ alias: String) -> Bool {
-        let key = "\(job):\(alias)"
-        return data.hostJobs.insert(key).inserted
-    }
-
-    func endHostJob(_ job: HostJob, _ alias: String) {
-        data.hostJobs.remove("\(job):\(alias)")
-    }
-
-    /// 问不到（nil）先留着上次的：偶尔一次超时灯不闪；连续 3 次问不到就清掉，别一直显示主机掉线前的状态。
-    /// 问不到还要退避：主机关机、VPN 断了的时候别每 5 秒起一次 ssh（每次最长 15 秒）
-    func recordSnapshot(_ snap: RemoteSessions.Snapshot?, for alias: String, now: Date = Date()) {
-        if let snap {
-            remoteSnapshots[alias] = snap
-            data.snapshotFailures[alias] = nil
-            data.nextPollAt[alias] = nil
-            return
-        }
-        let failures = (data.snapshotFailures[alias] ?? 0) + 1
-        data.snapshotFailures[alias] = failures
-        data.nextPollAt[alias] = now.addingTimeInterval(Self.pollBackoff(failures: failures))
-        if failures >= 3 { remoteSnapshots[alias] = nil }
-    }
-
-    func shouldPoll(_ alias: String, now: Date = Date()) -> Bool { (data.nextPollAt[alias] ?? .distantPast) <= now }
 
     /// 远程新会话等认领时隔几秒刷新那台主机：每次刷新都是整机 rsync + OpenCode 快照（6 次以上 ssh），
     /// Codex 要发出第一条消息才写文件，你一直不打字就会一直等：等得越久刷得越慢
@@ -163,53 +104,5 @@ public extension WorkspaceStore {
     /// 连续问不到 n 次后隔多久再问：10、20、40… 秒，最多 5 分钟
     static func pollBackoff(failures: Int) -> TimeInterval {
         min(300, 10 * pow(2, Double(max(0, failures - 1))))
-    }
-
-    /// 所有没断开的 SSH 主机一起刷新
-    func refreshHosts() async {
-        await withTaskGroup(of: Void.self) { group in
-            for host in hosts where !host.isLocal && host.connection != .disconnected {
-                group.addTask { await self.refreshHost(host.id) }
-            }
-        }
-    }
-
-    /// 一台主机：rsync 镜像 → 读镜像 → 替换它名下的会话。失败按原因标状态，已有的列表保留
-    func refreshHost(_ alias: String) async {
-        guard let i = hosts.firstIndex(where: { $0.id == alias }), hosts[i].connection != .disconnected,
-              beginHostJob(.refresh, alias) else { return }   // 上一次镜像还没完（rsync 最长 10 分钟）：不叠着再起一份
-        defer { endHostJob(.refresh, alias) }
-        hosts[i].connection = .refreshing(done: 0, total: 3)
-        let store = self
-        let error = await SSH.mirror(alias) { done, total in
-            Task { @MainActor in
-                if let j = store.hosts.firstIndex(where: { $0.id == alias }), case .refreshing = store.hosts[j].connection {
-                    store.hosts[j].connection = .refreshing(done: done, total: total)
-                }
-            }
-        }
-        guard let j = hosts.firstIndex(where: { $0.id == alias }) else { return }
-        if let error {
-            hosts[j].connection = error.contains("Permission denied") || error.contains("Host key verification")
-                ? .needsConnect : .unreachable(error)
-        } else {
-            hosts[j].connection = .connected
-        }
-        await reloadHostSessions(alias)
-    }
-
-    /// 从本机镜像重读一台主机：全部会话记成候选（添加列表用），只把会话库里的文件夹放进侧栏
-    func reloadHostSessions(_ alias: String) async {
-        let all = await SessionDiscovery.runRemote(alias)
-        data.folderCandidates[alias] = FolderLibrary.index(all) { _ in true }
-        let remote = FolderLibrary.sessions(all, in: library.folderIDs)
-        replaceSessions(on: alias, with: keepingOpenTabSessions(remote, on: alias))
-        projects.removeAll { $0.hostID == alias }
-        projects += SessionDiscovery.projects(for: remote)
-        if let recent = projects(on: alias).first, !expandedProjectIDs.contains(where: { $0.host == alias }) {
-            expandedProjectIDs.insert(recent.id)
-        }
-        restoreRemoteTabs(on: alias)
-        markRunning()
     }
 }

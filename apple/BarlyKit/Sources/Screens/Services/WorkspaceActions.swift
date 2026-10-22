@@ -16,67 +16,14 @@ public extension WorkspaceStore {
             store.attachTab(transfer)
         }
         if first {
-            store.loadSavedState()
-            Task {
-                await store.refresh(restoringTabs: true)
-                await store.refreshHosts()
-            }
+            store.data.loadSavedState()          // 先读，再做任何会改会话库的事
+            Task { await store.data.start() }
         }
         return store
     }
 
-    /// 读一遍本机的会话库。正在读（别的窗口、定时刷新）时不叠着读，也不丢掉这次：
-    /// 那次读的时候还没有这次的改动（刚删的会话、刚加的文件夹），读完补读一次，补读完这里才返回
-    func refresh(restoringTabs: Bool = false) async {
-        if data.isRefreshing {
-            data.refreshQueued = true
-            while data.isRefreshing { try? await Task.sleep(for: .milliseconds(50)) }
-            return
-        }
-        data.isRefreshing = true
-        defer { data.isRefreshing = false }
-        var restoring = restoringTabs
-        repeat {
-            data.refreshQueued = false
-            await refreshOnce(restoringTabs: restoring)
-            restoring = false
-        } while data.refreshQueued
-    }
-
-    private func refreshOnce(restoringTabs: Bool) async {
-        // 启动恢复标签：上次开着的文件夹自动加回库里（升级挑选时默认勾上）
-        let savedTabs = restoringTabs ? savedTabFolders() : []
-        if library.foldersMigrated, savedTabs.contains(where: { !isInLibrary($0) }) {
-            updateLibrary { s in for id in savedTabs.sorted() where !s.folders.contains(id.raw) { s.folders.append(id.raw) } }
-        }
-        // 只读会话库里的本机文件夹；还没升级挑选过：全量读一次，给挑选窗口用
-        var result: SessionDiscovery.Result
-        if library.foldersMigrated || !isLive {
-            let folders = isLive ? folderPaths(on: Host.localID) : nil
-            result = await Task.detached(priority: .userInitiated) { await SessionDiscovery.run(folders: folders) }.value
-        } else {
-            result = await Task.detached(priority: .userInitiated) { await SessionDiscovery.run(folders: nil) }.value
-            let index = FolderLibrary.index(result.sessions) { FileManager.default.fileExists(atPath: $0) }
-            data.folderCandidates[Host.localID] = index
-            prepareMigration(index: index, openTabs: savedTabs)
-            result.sessions = FolderLibrary.sessions(result.sessions, in: library.folderIDs)
-            result.projects = SessionDiscovery.projects(for: result.sessions)
-        }
-        // 只替换本机的；SSH 主机的会话由 refreshHost 管。状态灯按会话 ID 存，刷新不打断
-        replaceSessions(on: Host.localID, with: keepingOpenTabSessions(result.sessions, on: Host.localID))
-        projects = result.projects + projects.filter { $0.hostID != Host.localID }
-        installedCLIs = result.installed
-        if hosts.first?.installedCLIs != result.installed { hosts[0].installedCLIs = result.installed }
-        if expandedProjectIDs.isEmpty, let recent = projects(on: Host.localID).first {
-            expandedProjectIDs.insert(recent.id)
-        }
-        loadState = .loaded
-        if restoringTabs { restoreTabs() }
-        // 数据是共用的：每个窗口认领自己的新会话标签、标出自己在跑的
-        for store in isLive ? WorkspaceWindows.live : [self] {
-            store.claimNewSessions()
-            store.markRunning()
-        }
+    /// 本机会话库读完以后（主窗口上）：启动参数里的自检开关
+    func runLaunchHooks() {
         if CommandLine.arguments.contains("--sb-selftest") { selfTest() }
         // 自检：启动就搜一个词（--sb-search tmux）
         if let i = CommandLine.arguments.firstIndex(of: "--sb-search"), i + 1 < CommandLine.arguments.count {
@@ -592,19 +539,8 @@ public extension WorkspaceStore {
         }
     }
 
-    /// 开着标签的会话：所在文件夹从库里拿掉了也留着，不然断线重连、接着跑都找不到它
-    internal func keepingOpenTabSessions(_ fresh: [Session], on hostID: String) -> [Session] {
-        let open = openTabSessionIDs
-        let have = Set(fresh.map(\.id))
-        return fresh + sessions.filter { $0.hostID == hostID && open.contains($0.id) && !have.contains($0.id) }
-    }
-
     /// 所有窗口里开着标签的会话
-    internal var openTabSessionIDs: Set<String> {
-        Set((isLive ? WorkspaceWindows.live : [self]).flatMap(\.allTabs).compactMap { tab -> String? in
-            tab.kind.sessionID
-        })
-    }
+    internal var openTabSessionIDs: Set<String> { data.openTabSessionIDs }
 }
 
 /// 关终端的入口，store 不直接依赖 AppKit

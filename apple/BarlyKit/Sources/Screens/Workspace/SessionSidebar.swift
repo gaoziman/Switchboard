@@ -114,7 +114,7 @@ public struct SessionSidebar: View {
                     for id in picked { store.addFolder(id.path, on: alias, refreshNow: false) }
                     Task {
                         if let path { await store.addRemoteFolder(path, on: alias, refreshNow: false) }
-                        await store.reloadHostSessions(alias)
+                        await store.data.refresh(.folders(alias))
                     }
                 }
                 .task { await store.loadFolderCandidates(on: alias) }

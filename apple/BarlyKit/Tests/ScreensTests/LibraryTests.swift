@@ -76,7 +76,7 @@ struct LibraryStateTests {
         let fresh = (1...4).map { i in       // 重新读盘：读出来的会话不带任何本地标记
             Session(id: "s\(i)", cli: .claude, hostID: Host.localID, projectPath: "/p", title: "会话 \(i)", lastActivity: .now, messageCount: 1)
         }
-        s.replaceSessions(on: Host.localID, with: fresh)
+        s.data.replaceSessions(on: Host.localID, with: fresh)
         #expect(s.session("s3")?.isPinned == true)
         #expect(s.session("s3")?.displayTitle == "新名字")
     }

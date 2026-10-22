@@ -131,14 +131,11 @@ public struct WorkspaceView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardRefresh)) { _ in
             guard isKeyWindow else { return }
-            Task {
-                await store.refresh()
-                await store.refreshHosts()
-            }
+            Task { await store.data.refresh(.everything) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardBack)) { _ in if isKeyWindow { store.goBack() } }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardForward)) { _ in if isKeyWindow { store.goForward() } }
-        .onChange(of: showSubagents) { _, _ in Task { await store.refresh() } }
+        .onChange(of: showSubagents) { _, _ in Task { await store.data.refresh() } }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardSplit)) { _ in
             if isKeyWindow { store.startSplit() }
         }
@@ -213,10 +210,10 @@ public struct WorkspaceView: View {
             // 多窗口时每分钟刷新、主机状态、重新登录只由主窗口做（数据是共用的）
             let primary = store.isPrimary
             if (!store.pendingClaims.isEmpty && tick % 5 == 0) || (primary && tick % 60 == 0) {
-                Task { await store.refresh() }
+                Task { await store.data.refresh() }
             }
             // SSH 主机：每 5 秒问一次状态；有远程新会话等认领时刷新那台主机（刚开每 10 秒，等久了放慢）
-            if primary, tick % 5 == 0 { Task { await store.pollRemoteStatus() } }
+            if primary, tick % 5 == 0 { Task { await store.data.pollHosts() } }
             // 会话库外（没添加的文件夹）有 Claude 在跑：每 5 秒看一次，侧栏底部提示
             if primary, tick % 5 == 2 { store.checkOutsideRunning() }
             // 定期重新登录：每 5 分钟查一次，刚到期的发通知
@@ -226,7 +223,7 @@ public struct WorkspaceView: View {
             for host in Set(store.pendingClaims.values.map(\.hostID)) where host != Host.localID {
                 let newest = store.pendingClaims.values.filter { $0.hostID == host }.map(\.startedAt).max() ?? .now
                 guard tick % WorkspaceStore.claimRefreshInterval(age: Date().timeIntervalSince(newest)) == 0 else { continue }
-                Task { await store.refreshHost(host); store.claimNewSessions() }
+                Task { await store.data.refresh(.host(host)) }   // 读完各窗口自己认领
             }
             #if os(macOS)
             // 这个窗口在屏幕上（没最小化）、app 在前台，才算「你看得到这个窗口里的标签」

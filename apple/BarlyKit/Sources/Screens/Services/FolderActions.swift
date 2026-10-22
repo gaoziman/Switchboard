@@ -4,7 +4,7 @@ import Foundation
 @MainActor
 public extension WorkspaceStore {
     /// 某台主机上添加过的文件夹路径
-    func folderPaths(on hostID: String) -> Set<String> { Set(folderIDs(on: hostID).map(\.path)) }
+    func folderPaths(on hostID: String) -> Set<String> { data.folderPaths(on: hostID) }
 
     func isInLibrary(_ projectID: ProjectID) -> Bool { library.folders.contains(projectID.raw) }
 
@@ -24,9 +24,7 @@ public extension WorkspaceStore {
         }
         outsideRunning.removeAll { $0.id == id }
         guard isLive, refreshNow else { return }
-        Task {
-            if hostID == Host.localID { await refresh() } else { await reloadHostSessions(hostID) }
-        }
+        Task { await data.refresh(.folders(hostID)) }
     }
 
     /// 主机上的文件夹：`~/x` 先问主机家目录换成绝对路径（会话文件里记的是绝对路径），问不到就不加
@@ -54,23 +52,13 @@ public extension WorkspaceStore {
 
     // MARK: 升级挑选
 
-    /// 升级后第一次：用全量扫描的结果给出候选和默认勾选（置顶 / 上次开着标签 / 最近 14 天）
-    func prepareMigration(index: [FolderLibrary.Candidate], openTabs: Set<ProjectID>) {
-        guard !index.isEmpty else {
-            updateLibrary { $0.finishFolderMigration(picked: []) }
-            return
-        }
-        data.migrationPicks = FolderLibrary.defaultPicks(index, pinned: Set(library.pinnedProjectIDs), openTabs: openTabs)
-        data.migrationCandidates = index
-    }
-
     /// 挑完了（全都不要 = 空数组）
     func finishMigration(picked: [ProjectID]) {
         updateLibrary { $0.finishFolderMigration(picked: picked.map(\.raw)) }
         data.migrationCandidates = nil
         if let first = picked.first { expandedProjectIDs.insert(first) }
         // 启动时挑选还没做完，那次恢复标签时会话库是空的，什么都没接回来：挑完再恢复一次
-        if isLive { Task { await refresh(); restoreTabs() } }
+        if isLive { Task { await data.refresh(); restoreTabs() } }
     }
 
     var migrationCandidates: [FolderLibrary.Candidate]? { data.migrationCandidates }
@@ -86,10 +74,11 @@ public extension WorkspaceStore {
     /// 本机：全量扫一遍（走摘要缓存，第二次起很快）；SSH 主机：读本机镜像
     func loadFolderCandidates(on hostID: String) async {
         let sessions: [Session]
+        let reader = data.reader
         if hostID == Host.localID {
-            sessions = await Task.detached(priority: .utility) { await SessionDiscovery.run(folders: nil).sessions }.value
+            sessions = await Task.detached(priority: .utility) { await reader.local(nil).sessions }.value
         } else {
-            sessions = await SessionDiscovery.runRemote(hostID)
+            sessions = await reader.mirror(hostID)
         }
         let local = hostID == Host.localID
         data.folderCandidates[hostID] = FolderLibrary.index(sessions) { local ? FileManager.default.fileExists(atPath: $0) : true }
@@ -114,10 +103,5 @@ public extension WorkspaceStore {
     func dismissOutside(_ outside: FolderLibrary.Outside) {
         updateLibrary { s in s.dismissedFolders.insert(outside.id.raw) }
         outsideRunning.removeAll { $0.id == outside.id }
-    }
-
-    /// 上次开着的标签所在的本机文件夹（启动时自动加回库里；升级挑选时默认勾上）
-    func savedTabFolders() -> Set<ProjectID> {
-        Self.localFolders(of: data.persistence.loadTabs())
     }
 }

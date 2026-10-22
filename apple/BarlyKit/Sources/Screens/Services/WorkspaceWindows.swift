@@ -75,6 +75,7 @@ public extension WorkspaceStore {
     func windowClosed() {
         guard isLive, !WorkspaceWindows.isTerminating else { return }
         WorkspaceWindows.unregister(self)
+        data.detach(self)
         // 断开这个窗口里的终端；tmux 里的 CLI 接着跑，下次点会话就接上
         for tab in allTabs { TerminalRuntime.close(tab.id, endingTmux: nil) }
         WorkspaceWindows.primary?.saveTabs()

@@ -120,7 +120,7 @@ public extension WorkspaceStore {
         }
         deletion = nil
         // OpenCode 的库、Codex 的索引都变了：重新读一次（截图、单测里不读磁盘）
-        if isLive { await refresh() }
+        if isLive { await data.refresh() }
         return failures
     }
 }

@@ -14,7 +14,7 @@ struct ActivityStoreTests {
     func replaceKeepsActivity() {
         let st = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [session("a"), session("b"), session("r", host: "devbox")],
                                 activity: ["a": .working, "b": .waitingForAnswer, "r": .idle])
-        st.replaceSessions(on: Host.localID, with: [session("a"), session("c")])
+        st.data.replaceSessions(on: Host.localID, with: [session("a"), session("c")])
         #expect(st.sessions.map(\.id).sorted() == ["a", "c", "r"])
         #expect(st.activity(of: st.session("a")!) == .working)
         #expect(st.activity(of: st.session("c")!) == .notRunning)

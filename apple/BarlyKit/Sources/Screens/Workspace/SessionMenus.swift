@@ -227,7 +227,7 @@ struct HostMenu: View {
         Button("添加文件夹…") { store.presentation = .hostSheet(.addFolder(host.id)) }
             .disabled(host.connection == .disconnected)
         Divider()
-        Button("刷新") { Task { await store.refreshHost(host.id) } }
+        Button("刷新") { Task { await store.data.refresh(.host(host.id)) } }
             .disabled(host.connection == .disconnected)
         Button("Connect…（交互登录）") { store.presentation = .connect(host: host.id) }
         Divider()
