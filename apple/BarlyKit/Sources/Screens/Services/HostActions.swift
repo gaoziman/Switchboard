@@ -206,7 +206,6 @@ public extension WorkspaceStore {
         replaceSessions(on: alias, with: keepingOpenTabSessions(remote, on: alias))
         projects.removeAll { $0.hostID == alias }
         projects += SessionDiscovery.projects(for: remote)
-        applyLibraryState()
         if let recent = projects(on: alias).first, !expandedProjectIDs.contains(where: { $0.host == alias }) {
             expandedProjectIDs.insert(recent.id)
         }

@@ -8,15 +8,17 @@ import Testing
     private let now = Date(timeIntervalSince1970: 1_000_000)
 
     private func store() -> WorkspaceStore {
-        func s(_ id: String, _ path: String, _ age: TimeInterval, parent: String? = nil, archived: Bool = false) -> Session {
+        func s(_ id: String, _ path: String, _ age: TimeInterval, parent: String? = nil) -> Session {
             Session(id: id, cli: .claude, hostID: Host.localID, projectPath: path, title: id, lastActivity: now.addingTimeInterval(-age),
-                    messageCount: 1, parentSessionID: parent, isArchived: archived)
+                    messageCount: 1, parentSessionID: parent)
         }
-        return WorkspaceStore(hosts: [MockData.local],
+        let st = WorkspaceStore(hosts: [MockData.local],
                               projects: [Project(hostID: Host.localID, path: "/a"), Project(hostID: Host.localID, path: "/b")],
                               sessions: [s("a1", "/a", 100), s("a2", "/a", 10), s("a3", "/a", 5, parent: "a2"),
-                                         s("a4", "/a", 1, archived: true), s("b1", "/b", 50)],
+                                         s("a4", "/a", 1), s("b1", "/b", 50)],
                               activity: ["a2": .working, "b1": .waitingForAnswer])
+        st.updateLibrary { $0.archivedSessions = ["a4"] }    // 归档在会话库里
+        return st
     }
 
     @Test func perProjectFigures() throws {

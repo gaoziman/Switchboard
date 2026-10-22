@@ -145,18 +145,15 @@ public struct Project: Identifiable, Hashable, Sendable {
     public var id: ProjectID { ProjectID(host: hostID, path: path) }
     public let hostID: String
     public let path: String
-    public var customName: String?
-    public var isPinned: Bool
-    public var isArchived: Bool
+    // 本地标记：只在会话库（library.json）里存一份，WorkspaceData 合上去的，这里只读
+    public internal(set) var customName: String?
+    public internal(set) var isPinned = false
+    public internal(set) var isArchived = false
     public var folderExists: Bool
 
-    public init(hostID: String, path: String, customName: String? = nil, isPinned: Bool = false,
-                isArchived: Bool = false, folderExists: Bool = true) {
+    public init(hostID: String, path: String, folderExists: Bool = true) {
         self.hostID = hostID
         self.path = path
-        self.customName = customName
-        self.isPinned = isPinned
-        self.isArchived = isArchived
         self.folderExists = folderExists
     }
 
@@ -176,32 +173,29 @@ public struct Session: Identifiable, Hashable, Sendable {
     public let hostID: String
     public let projectPath: String
     public var title: String
-    public var localName: String?
+    // 本地标记：只在会话库（library.json）里存一份，WorkspaceData 合上去的，这里只读
+    public internal(set) var localName: String?
     public var model: String?
     public var lastActivity: Date
     public var messageCount: Int
     public var parentSessionID: String?
-    public var isPinned: Bool
-    public var isArchived: Bool
+    public internal(set) var isPinned = false
+    public internal(set) var isArchived = false
     /// 会话文件（OpenCode 是它的数据库）；mock 数据为 nil
     public var sourcePath: String?
 
     public init(id: String, cli: CLIKind, hostID: String, projectPath: String, title: String,
-                localName: String? = nil, model: String? = nil, lastActivity: Date, messageCount: Int,
-                parentSessionID: String? = nil, isPinned: Bool = false, isArchived: Bool = false,
-                sourcePath: String? = nil) {
+                model: String? = nil, lastActivity: Date, messageCount: Int,
+                parentSessionID: String? = nil, sourcePath: String? = nil) {
         self.id = id
         self.cli = cli
         self.hostID = hostID
         self.projectPath = projectPath
         self.title = title
-        self.localName = localName
         self.model = model
         self.lastActivity = lastActivity
         self.messageCount = messageCount
         self.parentSessionID = parentSessionID
-        self.isPinned = isPinned
-        self.isArchived = isArchived
         self.sourcePath = sourcePath
     }
 

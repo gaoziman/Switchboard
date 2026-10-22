@@ -65,7 +65,6 @@ public extension WorkspaceStore {
         // 只替换本机的；SSH 主机的会话由 refreshHost 管。状态灯按会话 ID 存，刷新不打断
         replaceSessions(on: Host.localID, with: keepingOpenTabSessions(result.sessions, on: Host.localID))
         projects = result.projects + projects.filter { $0.hostID != Host.localID }
-        applyLibraryState()
         installedCLIs = result.installed
         if hosts.first?.installedCLIs != result.installed { hosts[0].installedCLIs = result.installed }
         if expandedProjectIDs.isEmpty, let recent = projects(on: Host.localID).first {

@@ -58,39 +58,9 @@ public struct LibraryState: Codable, Equatable, Sendable {
 
 @MainActor
 public extension WorkspaceStore {
-    /// 把本地状态盖到刚读出来的会话和项目上。在局部数组上改完一次写回：`sessions` 是转到 data 的计算属性，`sessions[i].x = v` 每次都整组拷贝、发一次变更通知
-    func applyLibraryState() {
-        let state = library
-        var projects = self.projects
-        var known = Set(projects.map(\.id))
-        // 会话库里的文件夹还没有会话也列出来
-        for id in state.folders.compactMap(ProjectID.init(raw:)) where !known.contains(id) {   // 按添加顺序
-            let local = id.host == Host.localID
-            projects.append(Project(hostID: id.host, path: id.path, folderExists: !local || FileManager.default.fileExists(atPath: id.path)))
-            known.insert(id)
-        }
-        let pinnedProjects = Set(state.pinnedProjectIDs), archivedProjects = state.archivedProjectIDs
-        for i in projects.indices {
-            projects[i].isPinned = pinnedProjects.contains(projects[i].id)
-            projects[i].isArchived = archivedProjects.contains(projects[i].id)
-            projects[i].customName = state.projectNames[projects[i].id.raw]
-        }
-        var sessions = self.sessions
-        let pinnedSessions = Set(state.pinnedSessions)
-        for i in sessions.indices {
-            let id = sessions[i].id
-            sessions[i].isPinned = pinnedSessions.contains(id)
-            sessions[i].isArchived = state.archivedSessions.contains(id)
-            sessions[i].localName = state.names[id]
-        }
-        if projects != self.projects { self.projects = projects }
-        if sessions != self.sessions { self.sessions = sessions }
-    }
-
     func updateLibrary(_ change: (inout LibraryState) -> Void) {
         change(&library)
         data.persistence.saveLibrary(library)
-        applyLibraryState()
     }
 
     func togglePin(_ session: Session) {

@@ -7,15 +7,34 @@ import Observation
 @Observable
 public final class WorkspaceData {
     public var hosts: [Host]
-    public var projects: [Project]
-    public var sessions: [Session] { didSet { cachedIndex = nil } }
+    /// 从 CLI 文件读出来的会话和项目，不带本地标记；对外读写都走 sessions / projects
+    private var storedSessions: [Session] { didSet { marked = nil; cachedIndex = nil } }
+    private var storedProjects: [Project] { didSet { marked = nil } }
+    /// 读出来的 + 会话库里的置顶、归档、改名合在一起（会话库里加了但还没有会话的文件夹也列出来）。
+    /// 标记只在 library 里存一份：刷新换了会话列表、改了会话库都不用另外去盖（以前每次刷新完都要记得 applyLibraryState）
+    public var sessions: [Session] {
+        get { marks.sessions }
+        set { storedSessions = newValue }
+    }
+    public var projects: [Project] {
+        get { marks.projects }
+        set { storedProjects = newValue }
+    }
+    @ObservationIgnored private var marked: (sessions: [Session], projects: [Project])?
+    private var marks: (sessions: [Session], projects: [Project]) {
+        _ = (storedSessions, storedProjects, library)   // 让读它的视图跟着这三样变（缓存本身不被观察）
+        if let marked { return marked }
+        let m = Self.applying(library, sessions: storedSessions, projects: storedProjects)
+        marked = m
+        return m
+    }
     /// 每个会话现在在干什么（状态灯）：只存这一份，不挂在 Session 值上，刷新换会话列表时不用搬。没有 = 没在跑
     public var activity: [String: Activity] = [:] { didSet { cachedIndex = nil } }
     public var loadState: LoadState
     public var transcripts: [String: [TranscriptEntry]]
     public var transcriptBudgets: [String: Int] = [:]
     public var installedCLIs: [CLIKind] = CLIKind.allCases
-    public var library = LibraryState()
+    public var library = LibraryState() { didSet { marked = nil; cachedIndex = nil } }
     public var remoteSnapshots: [String: RemoteSessions.Snapshot] = [:]
     public var signInConfigs: [String: SignInConfig] = [:]
     /// 每台主机上发现过会话的文件夹（候选索引，按需算：添加列表、空状态推荐、升级挑选）
@@ -62,10 +81,37 @@ public final class WorkspaceData {
         self.persistence = persistence ?? .memory()
         self.activity = activity
         self.hosts = hosts
-        self.projects = projects
-        self.sessions = sessions
+        self.storedProjects = projects
+        self.storedSessions = sessions
         self.transcripts = transcripts
         self.loadState = loadState
+    }
+
+    /// 合上会话库里的标记。在局部数组上改完：几千个会话也只是一次遍历
+    static func applying(_ state: LibraryState, sessions stored: [Session], projects storedProjects: [Project])
+        -> (sessions: [Session], projects: [Project]) {
+        var projects = storedProjects
+        var known = Set(projects.map(\.id))
+        for id in state.folders.compactMap(ProjectID.init(raw:)) where !known.contains(id) {   // 按添加顺序
+            let local = id.host == Host.localID
+            projects.append(Project(hostID: id.host, path: id.path, folderExists: !local || FileManager.default.fileExists(atPath: id.path)))
+            known.insert(id)
+        }
+        let pinnedProjects = Set(state.pinnedProjectIDs), archivedProjects = state.archivedProjectIDs
+        for i in projects.indices {
+            projects[i].isPinned = pinnedProjects.contains(projects[i].id)
+            projects[i].isArchived = archivedProjects.contains(projects[i].id)
+            projects[i].customName = state.projectNames[projects[i].id.raw]
+        }
+        var sessions = stored
+        let pinnedSessions = Set(state.pinnedSessions)
+        for i in sessions.indices {
+            let id = sessions[i].id
+            sessions[i].isPinned = pinnedSessions.contains(id)
+            sessions[i].isArchived = state.archivedSessions.contains(id)
+            sessions[i].localName = state.names[id]
+        }
+        return (sessions, projects)
     }
 
     public static let shared = WorkspaceData(hosts: [Host(id: Host.localID, kind: .local, displayName: L("这台 Mac"))],

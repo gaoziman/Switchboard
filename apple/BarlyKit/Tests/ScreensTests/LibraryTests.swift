@@ -21,8 +21,8 @@ struct LibraryStateTests {
         return WorkspaceStore(hosts: [MockData.local], projects: [Project(hostID: Host.localID, path: "/p")], sessions: sessions)
     }
 
-    @Test("几千个会话时盖本地状态不卡：一次写回，不是每改一个字段就整组拷贝一遍")
-    func applyIsLinear() {
+    @Test("几千个会话时合上本地标记不卡；改了会话库马上生效，不用另外去盖")
+    func marksAreLiveAndFast() {
         let sessions = (1...3000).map { i in
             Session(id: "s\(i)", cli: .claude, hostID: Host.localID, projectPath: "/p", title: "会话 \(i)", lastActivity: .now, messageCount: 1)
         }
@@ -30,7 +30,7 @@ struct LibraryStateTests {
         s.library.pinnedSessions = ["s7"]
         s.library.names = ["s9": "改过名"]
         let start = Date()
-        s.applyLibraryState()
+        _ = s.sessions
         #expect(Date().timeIntervalSince(start) < 0.5)   // 逐个改的写法要几秒
         #expect(s.session("s7")?.isPinned == true && s.session("s8")?.isPinned == false)
         #expect(s.session("s9")?.localName == "改过名")
@@ -68,13 +68,15 @@ struct LibraryStateTests {
         #expect(s.library.archivedSessions == ["s3"])
     }
 
-    @Test("刷新后本地状态重新盖上去")
-    func reapply() {
+    @Test("刷新换掉会话列表：置顶、改名照样在（以前要记得刷新完再盖一遍）")
+    func marksSurviveRefresh() {
         let s = store()
         s.togglePin(s.session("s3")!)
         s.rename(s.session("s3")!, to: "新名字")
-        s.sessions = s.sessions.map { var x = $0; x.isPinned = false; x.localName = nil; return x }   // 模拟重新读盘
-        s.applyLibraryState()
+        let fresh = (1...4).map { i in       // 重新读盘：读出来的会话不带任何本地标记
+            Session(id: "s\(i)", cli: .claude, hostID: Host.localID, projectPath: "/p", title: "会话 \(i)", lastActivity: .now, messageCount: 1)
+        }
+        s.replaceSessions(on: Host.localID, with: fresh)
         #expect(s.session("s3")?.isPinned == true)
         #expect(s.session("s3")?.displayTitle == "新名字")
     }

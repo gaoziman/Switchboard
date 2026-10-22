@@ -41,30 +41,36 @@ struct StartProblemTests {
 @MainActor
 @Suite("会话库")
 struct LibraryTests {
-    private func session(_ id: String, _ path: String, minutes: Double,
-                         pinned: Bool = false, archived: Bool = false, cli: CLIKind = .claude, title: String? = nil) -> Session {
+    private func session(_ id: String, _ path: String, minutes: Double, cli: CLIKind = .claude, title: String? = nil) -> Session {
         Session(id: id, cli: cli, hostID: Host.localID, projectPath: path, title: title ?? "会话 \(id)",
-                lastActivity: Date.now.addingTimeInterval(-minutes * 60), messageCount: 1,
-                isPinned: pinned, isArchived: archived)
+                lastActivity: Date.now.addingTimeInterval(-minutes * 60), messageCount: 1)
     }
 
-    private func store(_ sessions: [Session], projects: [Project]? = nil, activity: [String: Activity] = [:]) -> WorkspaceStore {
-        WorkspaceStore(hosts: [MockData.local],
-                       projects: projects ?? [Project(hostID: Host.localID, path: "/a"), Project(hostID: Host.localID, path: "/b")],
-                       sessions: sessions, activity: activity)
+    /// 置顶、归档在会话库里（不挂在 Session / Project 上）
+    private func store(_ sessions: [Session], projects: [Project]? = nil, activity: [String: Activity] = [:],
+                       marks: (inout LibraryState) -> Void = { _ in }) -> WorkspaceStore {
+        let s = WorkspaceStore(hosts: [MockData.local],
+                               projects: projects ?? [Project(hostID: Host.localID, path: "/a"), Project(hostID: Host.localID, path: "/b")],
+                               sessions: sessions, activity: activity)
+        s.updateLibrary(marks)
+        return s
     }
 
     @Test("置顶在前，其余按最近活动")
     func ordering() {
-        let s = store([session("1", "/a", minutes: 5), session("2", "/a", minutes: 1), session("3", "/a", minutes: 99, pinned: true)])
+        let s = store([session("1", "/a", minutes: 5), session("2", "/a", minutes: 1), session("3", "/a", minutes: 99)]) {
+            $0.pinnedSessions = ["3"]
+        }
         #expect(s.sessions(in: s.projects[0]).map(\.id) == ["3", "2", "1"])
     }
 
     @Test("项目按最近活动排，置顶项目在前")
     func projectOrdering() {
-        let projects = [Project(hostID: Host.localID, path: "/a"), Project(hostID: Host.localID, path: "/b", isPinned: true),
+        let projects = [Project(hostID: Host.localID, path: "/a"), Project(hostID: Host.localID, path: "/b"),
                         Project(hostID: Host.localID, path: "/c")]
-        let s = store([session("1", "/a", minutes: 50), session("2", "/b", minutes: 500), session("3", "/c", minutes: 1)], projects: projects)
+        let s = store([session("1", "/a", minutes: 50), session("2", "/b", minutes: 500), session("3", "/c", minutes: 1)], projects: projects) {
+            $0.pinnedProjects = ["local:/b"]
+        }
         #expect(s.projects(on: Host.localID).map(\.path) == ["/b", "/c", "/a"])
     }
 
@@ -101,8 +107,8 @@ struct LibraryTests {
     func filters() {
         let s = store([session("w", "/a", minutes: 1), session("d", "/a", minutes: 2),
                        session("r", "/a", minutes: 3), session("n", "/a", minutes: 4),
-                       session("x", "/a", minutes: 5, cli: .codex), session("z", "/a", minutes: 6, archived: true)],
-                      activity: ["w": .waitingForAnswer, "d": .doneUnseen, "r": .working])
+                       session("x", "/a", minutes: 5, cli: .codex), session("z", "/a", minutes: 6)],
+                      activity: ["w": .waitingForAnswer, "d": .doneUnseen, "r": .working]) { $0.archivedSessions = ["z"] }
         let p = s.projects[0]
         s.filter = .waitingForYou
         #expect(Set(s.sessions(in: p).map(\.id)) == ["w", "d"])

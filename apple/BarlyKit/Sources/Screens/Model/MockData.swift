@@ -19,7 +19,7 @@ public enum MockData {
     public static let billing = "/home/leo/billing-api"
 
     public static let projects: [Project] = [
-        Project(hostID: Host.localID, path: relay, isPinned: true),
+        Project(hostID: Host.localID, path: relay),
         Project(hostID: Host.localID, path: notes),
         Project(hostID: Host.localID, path: market),
         Project(hostID: Host.localID, path: shelf),
@@ -35,10 +35,17 @@ public enum MockData {
     static func ago(_ minutes: Double) -> Date { Date.now.addingTimeInterval(-minutes * 60) }
 
     static func s(_ id: String, _ cli: CLIKind, _ path: String, _ title: String, _ minutes: Double,
-                  model: String? = nil, messages: Int = 40, host: String = Host.localID,
-                  pinned: Bool = false) -> Session {
+                  model: String? = nil, messages: Int = 40, host: String = Host.localID) -> Session {
         Session(id: id, cli: cli, hostID: host, projectPath: path, title: title, model: model,
-                lastActivity: ago(minutes), messageCount: messages, isPinned: pinned)
+                lastActivity: ago(minutes), messageCount: messages)
+    }
+
+    /// 截图里的本地标记（置顶在会话库里，不挂在 Session / Project 上）
+    static var library: LibraryState {
+        var s = LibraryState()
+        s.pinnedProjects = [ProjectID(host: Host.localID, path: relay).raw]
+        s.pinnedSessions = ["0c93aa51"]
+        return s
     }
 
     /// 截图里各个会话的状态灯（状态不挂在 Session 上，见 WorkspaceData.activity）
@@ -58,7 +65,7 @@ public enum MockData {
           messages: 212),
         s("7b20e4d1", .codex, relay, "渠道优先级回退时日志里缺少上游名", 6, model: "gpt-6.1 · high",
           messages: 58),
-        s("0c93aa51", .claude, relay, "首页价格表改成按分组展示", 42, model: "claude-opus-5-5", messages: 96, pinned: true),
+        s("0c93aa51", .claude, relay, "首页价格表改成按分组展示", 42, model: "claude-opus-5-5", messages: 96),
         s("e2d7b630", .omp, relay, "压测 /v1/messages 在 200 并发下的 P99", 95, model: "gemini-4-argon",
           messages: 31),
         s("91be0f47", .claude, relay, "注册页加邀请码校验，过期给明确提示", 60 * 20, model: "claude-opus-5-5", messages: 74),
@@ -241,6 +248,7 @@ public extension WorkspaceStore {
                                    tabGroups: MockData.tabGroups, transcripts: ["0c93aa51": MockData.transcript],
                                    activity: MockData.sessionActivity)
         }
+        store.library = MockData.library
         store.expandedProjectIDs = MockData.expanded
         switch state {
         case "search-empty":
