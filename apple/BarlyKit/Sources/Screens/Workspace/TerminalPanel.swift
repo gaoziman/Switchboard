@@ -1,22 +1,28 @@
 import SwiftUI
 import BarlyKit
 
-/// 终端面板：浮在外壳底上的一块（面板底 = 终端底色，一圈发丝线，8pt 圆角，不加阴影）。
-/// 单个标签、分屏的每一边、预览和空状态都放在它里面，所以主区永远是「底 + 面板」两层
+/// 终端区：单个标签、预览、空状态直接铺在主区面板里（面板底 = 终端底色）；
+/// 分屏时每一边是主区面板里的一块小面板（圆角 8、一圈细边，聚焦的那块边线亮一级）
 struct TerminalPanel<Content: View>: View {
     var focused = true
-    /// 分屏时用：聚焦的那块边线深一级
+    /// 分屏时用：画成小面板，聚焦的那块边线亮一级
     var showsFocus = false
     @ViewBuilder var content: Content
     @Environment(\.barly) private var t
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: WorkspaceMetrics.panelRadius)
-        content
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(t.panelBg)
-            .clipShape(shape)
-            .overlay(shape.strokeBorder(showsFocus && focused ? t.borderStrong : t.hairline, lineWidth: 1))
+        let shape = RoundedRectangle(cornerRadius: WorkspaceMetrics.trackRadius, style: .continuous)
+        if showsFocus {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(t.panelBg)
+                .clipShape(shape)
+                .overlay(shape.strokeBorder(focused ? t.borderStrong : t.hairline, lineWidth: 1))
+        } else {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(t.panelBg)
+        }
     }
 }
 
@@ -51,7 +57,7 @@ struct PanelHeader: View {
         HStack(spacing: 8) {
             if let group {
                 // 「项目 / 会话」：项目名用组色，和标签栏的组头对得上
-                Text(group.name).barlyText(.product.small.weight(600), color: t.groupColor(group.tint))
+                Text(group.name).barlyText(.product.small.weight(500), color: t.text2)
                     .lineLimit(1).fixedSize()
                 Text("/").barlyText(.product.small, color: t.text4)
             } else {
@@ -60,7 +66,7 @@ struct PanelHeader: View {
                     .foregroundStyle(t.text4)
             }
             Text(tab.title)
-                .barlyText(.product.small.weight(600), color: focused ? t.text : t.text2)
+                .barlyText(.product.small.weight(500), color: focused ? t.text : t.text2)
                 .lineLimit(1)
                 .layoutPriority(1)
             Text(path)
@@ -72,14 +78,14 @@ struct PanelHeader: View {
                 .barlyText(.product.caption.monospaced, color: t.text3)
                 .padding(.horizontal, 7)
                 .frame(height: BarlyScale.pt(20))
-                .background(t.fill1, in: RoundedRectangle(cornerRadius: 4))
+                .background(t.shellSelected, in: RoundedRectangle(cornerRadius: BarlyRadius.xs, style: .continuous))
                 .help(cli?.title ?? L("终端"))
             if let onClose {
                 PaneIcon(symbol: "xmark", help: L("这一边不分屏了（标签还开着）"), action: onClose)
                     .scaleEffect(0.85)
             }
         }
-        .padding(.leading, 14).padding(.trailing, onClose == nil ? 10 : 4)
+        .padding(.leading, 16).padding(.trailing, onClose == nil ? 10 : 4)
         .frame(height: WorkspaceMetrics.panelHeader)
     }
 }

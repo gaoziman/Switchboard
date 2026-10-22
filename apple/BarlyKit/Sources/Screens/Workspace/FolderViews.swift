@@ -24,7 +24,7 @@ struct FolderEmptyState: View {
             BarlyButton(L("添加文件夹…"), icon: "plus", variant: .outline, size: .sm, action: onAdd)
                 .padding(.top, 2)
             if !suggestions.isEmpty {
-                MonoLabel("RECENT", color: t.text4).padding(.top, 14)
+                Text("最近用过").barlyText(.product.caption, color: t.text3).padding(.top, 14)
                 VStack(spacing: 1) {
                     ForEach(suggestions) { c in
                         SuggestionRow(candidate: c) { store.addFolder(c.path) }
@@ -223,7 +223,7 @@ struct OutsideRunningBar: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
-        .overlay(alignment: .top) { Hairline() }
+        .sidebarCard()
     }
 }
 

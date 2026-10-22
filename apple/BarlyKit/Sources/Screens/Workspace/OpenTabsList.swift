@@ -44,8 +44,7 @@ struct OpenTabsList: View {
         }
         .padding(.horizontal, 12)
         .frame(height: BarlyScale.pt(44))
-        .background(t.fill1)
-        .overlay(alignment: .top) { Hairline() }
+        .sidebarCard()
     }
 }
 

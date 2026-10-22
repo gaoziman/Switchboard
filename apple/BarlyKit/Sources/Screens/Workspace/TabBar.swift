@@ -36,7 +36,7 @@ public struct TabBar: View {
         GeometryReader { proxy in
             let width = tabWidth(available: proxy.size.width)
             HStack(alignment: .bottom, spacing: 0) {
-                if sidebarHidden { TrafficLights().padding(.leading, 16).frame(height: WorkspaceMetrics.tabBar) }
+                if sidebarHidden { TrafficLights().padding(.leading, 16 - WorkspaceMetrics.gutter).frame(height: WorkspaceMetrics.tabBar) }
                 BarlyScroll(.horizontal) {
                     HStack(alignment: .bottom, spacing: 14) {
                         ForEach(store.tabGroups) { group in
@@ -56,8 +56,8 @@ public struct TabBar: View {
                                             } onClose: {
                                                 store.requestClose(tab)
                                             }
-                                            .draggable(TabDragItem.self, item: TabDragItem(id: tab.id))
-                                            .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: tab.id) }
+                                            .live { $0.draggable(TabDragItem.self, item: TabDragItem(id: tab.id))
+                                                .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: tab.id) } }
                                             .contextMenu { tabMenu(tab) }
                                         }
                                     }
@@ -70,11 +70,11 @@ public struct TabBar: View {
                     .padding(.bottom, 5)
                     .frame(height: WorkspaceMetrics.tabBar, alignment: .bottom)
                     .padding(.leading, 6)
-                    .onDragSessionUpdated(dragUpdated)
+                    .live { $0.onDragSessionUpdated(dragUpdated) }
                 }
                 .frame(height: WorkspaceMetrics.tabBar)
                 // 标签栏空白处：放到最后（别的窗口拖来的进它项目的组）
-                .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: nil) }
+                .live { $0.dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: nil) } }
                 PaneIcon(symbol: "plus", help: L("新会话（⌘T）"), action: onNewSession)
                     .padding(.horizontal, 8)
                     .frame(height: WorkspaceMetrics.tabHeight)
@@ -82,7 +82,6 @@ public struct TabBar: View {
             .frame(height: WorkspaceMetrics.tabBar, alignment: .bottom)
         }
         .frame(height: WorkspaceMetrics.tabBar)
-        .background(t.shellBase)
     }
 
     /// 放下一个标签：同一窗口就调顺序（只在同一个项目组里），别的窗口拖来的就搬过来
@@ -146,14 +145,14 @@ public struct TabBar: View {
     }
 }
 
-/// 组色：标签栏组头、面板头、已打开视图共用的 5 种项目色（不是强调色）。
-/// 不用蓝 / 靛（深色底上发闷、和强调色撞）；深色用提亮的一套，浅色用压暗的一套，小字也读得清
+/// 组色：标签栏组头、已打开视图共用的 5 种项目色（不是强调色）。
+/// 不用蓝 / 靛（深色底上发闷）；也离开强调色的青绿（175°）≥ 50°，组头不会被看成状态灯。
+/// 彩度压低一档，只给小字和细线用，不抢状态灯；深色提亮、浅色压暗，小字都读得清
 extension BarlyPalette {
     func groupColor(_ tint: Int) -> Color {
-        // 5 种色相互相拉开 ≥ 50°（青和绿太近，深色底上分不清，去掉了）
-        //            珊瑚橙     绿        玫红      紫        金
-        let dark:  [UInt32] = [0xF0915E, 0x5DC28B, 0xEC7FA9, 0xB48CF0, 0xD8B14E]
-        let light: [UInt32] = [0xC4602C, 0x2E8A57, 0xC2497A, 0x7B54C9, 0x977112]
+        //            珊瑚       金        玫红      紫        橄榄绿
+        let dark:  [UInt32] = [0xE39A72, 0xD9B864, 0xE48BB0, 0xB49AE8, 0xA9C46E]
+        let light: [UInt32] = [0xB5582A, 0x8E6B12, 0xB3456F, 0x7556C4, 0x5F7A1C]
         let i = ((tint % dark.count) + dark.count) % dark.count
         return Color(hex: isDark ? dark[i] : light[i])
     }
@@ -171,7 +170,7 @@ private struct GroupHeader: View {
         HStack(spacing: 6) {
             Button(action: action) {
                 Text(group.name)
-                    .barlyText(.product.caption.size(11).weight(600), color: hovered ? c.barlyMix(t.text, 0.35) : c)
+                    .barlyText(.product.caption.size(11).weight(500), color: hovered ? c.barlyMix(t.text, 0.35) : c)
                     .lineLimit(1)
                     .fixedSize()
                     .contentShape(Rectangle())
@@ -180,8 +179,7 @@ private struct GroupHeader: View {
             .onHover { hovered = $0 }
             .handCursor()
             .help(L("折叠 \(group.name)"))
-            Rectangle().fill(c.opacity(0.45)).frame(height: 1)
-                .overlay(alignment: .trailing) { Rectangle().fill(c.opacity(0.45)).frame(width: 1, height: 5).offset(y: 2) }
+            Capsule().fill(c.opacity(0.4)).frame(height: 1.5)
         }
         .padding(.leading, 10).padding(.trailing, 4)
         .frame(height: WorkspaceMetrics.groupHeader - 2, alignment: .center)
@@ -199,7 +197,7 @@ private struct CollapsedGroup: View {
         let c = t.groupColor(group.tint)
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(group.name).barlyText(.product.caption.size(11).weight(600), color: c)
+                Text(group.name).barlyText(.product.caption.size(11).weight(500), color: c)
                     .padding(.leading, 8)
                     .frame(height: WorkspaceMetrics.groupHeader - 2)
                 HStack(spacing: 6) {
@@ -209,7 +207,7 @@ private struct CollapsedGroup: View {
                 }
                 .padding(.horizontal, 8)
                 .frame(height: WorkspaceMetrics.tabHeight)
-                .background(hovered ? t.fill1 : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
+                .background(hovered ? t.shellHover : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius, style: .continuous))
             }
             .padding(.leading, 2)
             .fixedSize()
@@ -261,8 +259,8 @@ private struct TabItem: View {
         }
         .padding(.horizontal, 10)
         .frame(width: width, height: WorkspaceMetrics.tabHeight)
-        .background(selected ? t.shellSelected : hovered ? t.fill1 : .clear,
-                    in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
+        .background(selected ? t.shellSelected : hovered ? t.shellHover : .clear,
+                    in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius, style: .continuous))
         .overlay(alignment: .leading) {
             if divider { Rectangle().fill(t.hairline).frame(width: 1, height: 12) }
         }

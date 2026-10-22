@@ -17,7 +17,7 @@ public enum TranscriptExport {
             switch e.kind {
             case .user(let t): out += [L("## 你"), "", t, ""]
             case .assistant(let t): out += [t, ""]
-            case .tools(let n, let s): out += [L("*\(n) 次工具调用：\(s)*"), ""]
+            case .tools(let calls): out += [L("*\(calls.count) 次工具调用：\(ToolCall.summary(of: calls))*"), ""]
             case .code(let lang, let code): out += ["```\(lang)", code, "```", ""]
             case .image(let c): out += ["*［\(c)］*", ""]
             }
@@ -36,7 +36,7 @@ public enum TranscriptExport {
             switch e.kind {
             case .user(let t): out += [L("你：") + t, ""]
             case .assistant(let t): out += [stripMarkdown(t), ""]
-            case .tools(let n, let s): out += [L("（\(n) 次工具调用：\(s)）"), ""]
+            case .tools(let calls): out += [L("（\(calls.count) 次工具调用：\(ToolCall.summary(of: calls))）"), ""]
             case .code(_, let code): out += [code, ""]
             case .image(let c): out += ["［\(c)］", ""]
             }

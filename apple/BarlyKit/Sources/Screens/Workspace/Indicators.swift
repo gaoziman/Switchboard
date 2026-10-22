@@ -4,8 +4,8 @@ import AppKit
 import SwiftUI
 import BarlyKit
 
-/// 状态灯：靠形状区分，不用记颜色。等你回答 = 强调色圆环 + 芯（全屏唯一的强调色，接线台的来电灯），
-/// 工作中 = 转动的弧，没看过的完成 = 实心勾，回合结束 = 灰勾，已结束 = 空心圈
+/// 状态灯（接线台的信号灯）：只用一个强调色，靠形状区分。工作中 = 实心点，等你回答 = 实心点 + 一圈呼吸光晕，
+/// 没看过的完成 = 强调色空心圈，回合结束 = 淡灰勾，已结束 = 灰色空心圈
 public struct ActivityLamp: View {
     let activity: Activity
     var size: CGFloat
@@ -25,20 +25,14 @@ public struct ActivityLamp: View {
         Group {
             switch activity {
             case .notRunning: EmptyView()
-            case .working: arc
-            case .waitingForAnswer:
-                Circle().strokeBorder(t.accent, lineWidth: 1.5)
-                    .overlay(Circle().fill(t.accent).frame(width: glyph * 0.38, height: glyph * 0.38))
-                    .frame(width: glyph, height: glyph)
+            case .working: Circle().fill(t.accent).frame(width: dot, height: dot)
+            case .waitingForAnswer: halo
             case .idle:
                 Image(systemName: "checkmark")
-                    .font(.system(size: glyph * 0.78, weight: .semibold))
-                    .foregroundStyle(t.text3)
-            case .doneUnseen:
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: glyph, weight: .regular))
-                    .foregroundStyle(t.text)
-            case .ended: Circle().strokeBorder(t.text4, lineWidth: 1.2).frame(width: glyph - 2, height: glyph - 2)
+                    .font(.system(size: glyph * 0.7, weight: .semibold))
+                    .foregroundStyle(t.text4)
+            case .doneUnseen: Circle().strokeBorder(t.accent, lineWidth: 1.5).frame(width: dot + 2, height: dot + 2)
+            case .ended: Circle().strokeBorder(t.text4, lineWidth: 1.2).frame(width: dot + 1, height: dot + 1)
             }
         }
         .frame(width: glyph, height: glyph)
@@ -46,41 +40,49 @@ public struct ActivityLamp: View {
         .accessibilityLabel(activity.label)
     }
 
-    /// 系统设置了「减弱动态效果」就不转：缺口的弧本身就和别的状态分得开
-    @ViewBuilder private var arc: some View {
+    /// 实心点的直径
+    private var dot: CGFloat { size }
+
+    /// 等你回答：芯 + 光晕。光晕 1.6 秒呼吸一次；截图和「减弱动态效果」时停在最亮
+    @ViewBuilder private var halo: some View {
         if snapshot || reduceMotion {
-            WorkingArc(size: glyph - 1, angle: -30)
+            HaloLamp(dot: dot, glyph: glyph, phase: 1)
         } else {
             TimelineView(.animation(minimumInterval: 1 / 30)) { context in
-                WorkingArc(size: glyph - 1,
-                           angle: context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.1) / 1.1 * 360)
+                let x = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6
+                HaloLamp(dot: dot, glyph: glyph, phase: 0.5 - 0.5 * cos(x * 2 * .pi))
             }
         }
     }
 }
 
-private struct WorkingArc: View {
-    let size: CGFloat
-    let angle: Double
+private struct HaloLamp: View {
+    let dot: CGFloat
+    let glyph: CGFloat
+    /// 0…1，光晕的亮度
+    let phase: Double
     @Environment(\.barly) private var t
 
     var body: some View {
-        Circle().trim(from: 0, to: 0.72)
-            .stroke(t.text2, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-            .frame(width: size, height: size)
-            .rotationEffect(.degrees(angle))
+        ZStack {
+            Circle().fill(t.accent.opacity(0.12 + 0.18 * phase)).frame(width: glyph + 2, height: glyph + 2)
+            Circle().fill(t.accent).frame(width: dot, height: dot)
+        }
     }
 }
 
-/// CLI 小标记：每种 CLI 一个小图形。只有 Claude 用它自己的珊瑚色星号，其余单色，不和状态灯抢颜色
+/// CLI 小标记：每种 CLI 一个小图形，全部单色灰，不和状态灯抢颜色（屏上的彩色只留给状态和组色）
 public struct CLIMark: View {
     let cli: CLIKind
     var size: CGFloat
+    /// nil = 次要灰；选中的卡片里传强调色
+    var color: Color?
     @Environment(\.barly) private var t
 
-    public init(_ cli: CLIKind, size: CGFloat = 16) {
+    public init(_ cli: CLIKind, size: CGFloat = 16, color: Color? = nil) {
         self.cli = cli
         self.size = size
+        self.color = color
     }
 
     public var body: some View {
@@ -94,13 +96,13 @@ public struct CLIMark: View {
         switch cli {
         case .claude:
             Image(systemName: "asterisk").font(.system(size: size * 0.72, weight: .bold))
-                .foregroundStyle(Color(hex: t.isDark ? 0xE0876A : 0xC96442))
+                .foregroundStyle(color ?? t.text3)
         case .codex:
-            Image(systemName: "hexagon").font(.system(size: size * 0.66, weight: .semibold)).foregroundStyle(t.text3)
+            Image(systemName: "hexagon").font(.system(size: size * 0.66, weight: .semibold)).foregroundStyle(color ?? t.text3)
         case .opencode:
-            Image(systemName: "curlybraces").font(.system(size: size * 0.62, weight: .semibold)).foregroundStyle(t.text3)
+            Image(systemName: "curlybraces").font(.system(size: size * 0.62, weight: .semibold)).foregroundStyle(color ?? t.text3)
         case .omp:
-            Text("π").font(.system(size: size * 0.8, weight: .semibold)).foregroundStyle(t.text3)
+            Text("π").font(.system(size: size * 0.8, weight: .semibold)).foregroundStyle(color ?? t.text3)
         }
     }
 }
@@ -175,13 +177,7 @@ struct PaneIcon: View {
 extension View {
     /// 可点处一律手型光标。用系统的 pointerStyle：NSCursor push / pop 在「悬停才出现、点完就消失」的元素上
     /// （标签的关闭按钮）收不到移出，光标栈不平衡，会一直是手型
-    func handCursor() -> some View {
-        #if os(macOS)
-        pointerStyle(.link)
-        #else
-        self
-        #endif
-    }
+    func handCursor() -> some View { modifier(HandCursor()) }
 
     /// 用点按手势做的按钮（为了不套一层 Button 改掉外观）：补上按钮语义和 VoiceOver 的「按下」，不然读屏只当它是文字
     func tapButton(_ label: String? = nil, perform action: @escaping () -> Void) -> some View {
@@ -189,6 +185,36 @@ extension View {
             .accessibilityAddTraits(.isButton)
             .accessibilityAction(.default, action)
             .modifier(OptionalAccessibilityLabel(label: label))
+    }
+}
+
+/// 只在真窗口里加的修饰（拖放这类系统交互）：离屏截图（ImageRenderer）画不了它们，会把整行画成黄色占位块
+struct LiveOnly<Base: View, Live: View>: View {
+    let base: Base
+    let transform: (Base) -> Live
+    @Environment(\.barlySnapshot) private var snapshot
+
+    var body: some View {
+        if snapshot { base } else { transform(base) }
+    }
+}
+
+extension View {
+    func live<V: View>(@ViewBuilder _ transform: @escaping (Self) -> V) -> some View {
+        LiveOnly(base: self, transform: transform)
+    }
+}
+
+/// 离屏截图（ImageRenderer）画不了 pointerStyle，会画成黄色占位块：截图时不加
+private struct HandCursor: ViewModifier {
+    @Environment(\.barlySnapshot) private var snapshot
+
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        if snapshot { content } else { content.pointerStyle(.link) }
+        #else
+        content
+        #endif
     }
 }
 

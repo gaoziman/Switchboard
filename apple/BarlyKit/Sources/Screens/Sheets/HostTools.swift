@@ -85,7 +85,7 @@ private struct Finding: View {
             HStack(spacing: 8) {
                 Image(systemName: level == .ok ? "checkmark" : level == .problem ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
                     .font(.system(size: BarlyScale.pt(11), weight: .semibold)).foregroundStyle(color)
-                MonoLabel(level == .problem ? "PROBLEM" : level == .warning ? "WARNING" : "OK", color: color)
+                Text(level == .problem ? L("有问题") : level == .warning ? L("注意") : L("正常")).barlyText(.product.caption.weight(500), color: color)
                 Text(title).barlyText(.product.small.weight(500), color: t.text).lineLimit(1)
             }
             if let detail {
@@ -148,9 +148,9 @@ public struct PortForwardSheet: View {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(spacing: 0) {
                     HStack {
-                        MonoLabel("PORT", color: t.text4).frame(width: 64, alignment: .leading)
-                        MonoLabel("PROGRAM", color: t.text4).frame(width: 80, alignment: .leading)
-                        MonoLabel("WHAT", color: t.text4)
+                        Text("端口").barlyText(.product.caption, color: t.text3).frame(width: 64, alignment: .leading)
+                        Text("程序").barlyText(.product.caption, color: t.text3).frame(width: 80, alignment: .leading)
+                        Text("用途").barlyText(.product.caption, color: t.text3)
                         Spacer()
                     }
                     .padding(.horizontal, 12).frame(height: BarlyScale.pt(30))

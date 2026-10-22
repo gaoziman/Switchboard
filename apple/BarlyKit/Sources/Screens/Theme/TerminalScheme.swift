@@ -25,8 +25,9 @@ public struct TerminalColors: Codable, Equatable, Sendable {
     }
 
     static func themed(_ theme: AppTheme, dark: Bool, canvas: UInt32, text: UInt32) -> TerminalColors {
+        // Switchboard 用 app 色板的底色和字色（含设置里改过的颜色），别的主题用它自己的
         let spec = theme.spec(dark: dark)
-        let bg = spec?.canvas ?? canvas, fg = spec?.text ?? text
+        let bg = theme == .switchboard ? canvas : spec.canvas, fg = theme == .switchboard ? text : spec.text
         let ansi: [UInt32] = switch (theme, dark) {
         case (.switchboard, true): [0x1E1F22, 0xE5664A, 0x5FB86F, 0xE0A84A, 0x5B8DEF, 0xB07BE0, 0x4FB3B3, 0xC9CCD1,
                                     0x5A5D63, 0xF27A5E, 0x77CC85, 0xF0BE62, 0x7AA5F5, 0xC495EC, 0x6CCACA, 0xF2F3F5]

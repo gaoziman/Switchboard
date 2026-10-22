@@ -24,7 +24,7 @@ Switchboard 自身以 MIT 许可发布（见 `LICENSE`）。它使用或随 app 
 
 | 字体 | 文件 | 许可证 | 原文 |
 |---|---|---|---|
-| Inter Tight | `InterTight-Variable.ttf` | SIL Open Font License 1.1 | `LICENSE-fonts/intertight.txt` |
+| Geist | `Geist-Variable.ttf` | SIL Open Font License 1.1 | `LICENSE-fonts/geist.txt` |
 | Inter | `Inter-Variable.ttf` | SIL Open Font License 1.1 | `LICENSE-fonts/inter.txt` |
 | Geist Mono | `GeistMono-Variable.ttf` | SIL Open Font License 1.1 | `LICENSE-fonts/geistmono.txt` |
 | PingFang SC | （系统字体，不打包） | 系统字体 | — |

@@ -60,8 +60,8 @@ struct CodexParsingTests {
         let kinds = TranscriptLoader.load(session).map(\.kind)
         try #require(kinds.count == 3)
         #expect(kinds[0] == .user("把登录页的按钮改成蓝色"))
-        guard case .tools(let count, _) = kinds[1] else { Issue.record("第二条应该是工具调用：\(kinds[1])"); return }
-        #expect(count == 1)
+        guard case .tools(let calls) = kinds[1] else { Issue.record("第二条应该是工具调用：\(kinds[1])"); return }
+        #expect(calls.count == 1)
         #expect(kinds[2] == .assistant("改好了。"))
     }
 }

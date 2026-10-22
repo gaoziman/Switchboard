@@ -29,7 +29,7 @@ components = [
     ("bash-preexec", "https://github.com/rcaloras/bash-preexec", first_existing(
         checkouts / "libghostty-spm/Sources/GhosttyTerminal/Resources/Ghostty/shell-integration/bash/LICENSE-bash-preexec.md")),
     ("Inter", "https://rsms.me/inter/", first_existing(apple / "LICENSE-fonts/inter.txt")),
-    ("Inter Tight", "https://github.com/rsms/inter", first_existing(apple / "LICENSE-fonts/intertight.txt")),
+    ("Geist", "https://github.com/vercel/geist-font", first_existing(apple / "LICENSE-fonts/geist.txt")),
     ("Geist Mono", "https://github.com/vercel/geist-font", first_existing(apple / "LICENSE-fonts/geistmono.txt")),
 ]
 

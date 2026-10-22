@@ -12,7 +12,7 @@ struct TipCard: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "lightbulb").font(.system(size: BarlyScale.pt(11))).foregroundStyle(t.text3).padding(.top, 1)
             VStack(alignment: .leading, spacing: 4) {
-                MonoLabel("TIP", color: t.text4)
+                Text("小贴士").barlyText(.product.caption.weight(500), color: t.text3)
                 Text(text).barlyText(.product.caption, color: t.text2).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 4)
@@ -22,7 +22,7 @@ struct TipCard: View {
             }
         }
         .padding(.leading, 12).padding(.trailing, 4).padding(.vertical, 8)
-        .overlay(alignment: .top) { Hairline() }
+        .sidebarCard()
     }
 }
 
@@ -119,7 +119,7 @@ struct TourOverlay: View {
     }
     private func card(_ s: Step, count: Int) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            MonoLabel("STEP \(step) / \(count)", color: t.text4)
+            Text(verbatim: L("第 \(step) / \(count) 步")).barlyText(.product.caption, color: t.text3)
             Text(s.title).barlyText(.product.sectionTitle, color: t.text)
             Text(s.body).barlyText(.product.small, color: t.text2).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {

@@ -51,11 +51,11 @@ public struct SessionSidebar: View {
             .frame(maxHeight: .infinity, alignment: .top)
             .tourAnchor(.library)
             // 从访达拖文件夹进来 = 添加到会话库
-            .dropDestination(for: URL.self) { urls, _ in
+            .live { $0.dropDestination(for: URL.self) { urls, _ in
                 let folders = urls.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
                 for url in folders { store.addProject(url.path) }
                 return !folders.isEmpty
-            }
+            } }
             if store.selectedSessionIDs.count > 1 {
                 MultiSelectBar(store: store)
             } else if let deletion = store.deletion {
@@ -68,8 +68,8 @@ public struct SessionSidebar: View {
             footer
         }
         .frame(width: Self.width)
-        .background(t.shellBase)
-        .clipped()
+        .shellPanel()
+        .padding([.leading, .top, .bottom], WorkspaceMetrics.gutter)
         .onExitCommand { store.clearMultiSelection() }
         .sheet(isPresented: $addingHost) {
             AddHostSheet(onCancel: { addingHost = false }, onAdd: { alias, installed in
@@ -144,8 +144,9 @@ public struct SessionSidebar: View {
             PaneIcon(symbol: "plus", help: L("新会话（⌘N）"), action: onNewSession)
                 .tourAnchor(.newSession)
         }
-        .padding(.leading, 16).padding(.trailing, 8)
-        .frame(height: WorkspaceMetrics.header)
+        .padding(.leading, 16 - WorkspaceMetrics.gutter).padding(.trailing, 6)
+        // 面板顶已经让出 gutter：行高再减一个 gutter，图标行的中线和窗口顶的距离不变，和红绿灯对齐
+        .frame(height: WorkspaceMetrics.header - WorkspaceMetrics.gutter * 2)
     }
 
     private var modeBar: some View {
@@ -220,13 +221,13 @@ public struct SessionSidebar: View {
                         }
                         .id(LibraryRow.project(project.id))
                         .contextMenu { ProjectMenu(store: store, project: project) }
-                        .draggable("project:" + project.id.raw)
-                        .dropDestination(for: String.self) { ids, _ in
-                            guard project.isPinned, let id = ids.first, id.hasPrefix("project:"),
-                                  let dragged = ProjectID(raw: String(id.dropFirst(8))) else { return false }
-                            store.movePinnedProject(dragged, before: project.id)
-                            return true
-                        }
+                        .live { $0.draggable("project:" + project.id.raw)
+                            .dropDestination(for: String.self) { ids, _ in
+                                guard project.isPinned, let id = ids.first, id.hasPrefix("project:"),
+                                      let dragged = ProjectID(raw: String(id.dropFirst(8))) else { return false }
+                                store.movePinnedProject(dragged, before: project.id)
+                                return true
+                            } }
                         if store.isExpanded(project) {
                             let visible = store.visibleSessions(in: project)
                             ForEach(visible.shown) { session in
@@ -246,12 +247,12 @@ public struct SessionSidebar: View {
                                 }
                                 .contextMenu { sessionMenu(session) }
                                 .id(LibraryRow.session(session.id))
-                                .draggable(session.id)
-                                .dropDestination(for: String.self) { ids, _ in
-                                    guard session.isPinned, let id = ids.first, store.session(id) != nil else { return false }
-                                    store.movePinnedSession(id, before: session.id)
-                                    return true
-                                }
+                                .live { $0.draggable(session.id)
+                                    .dropDestination(for: String.self) { ids, _ in
+                                        guard session.isPinned, let id = ids.first, store.session(id) != nil else { return false }
+                                        store.movePinnedSession(id, before: session.id)
+                                        return true
+                                    } }
                                 if store.expandedSubagentParents.contains(session.id) {
                                     ForEach(children) { child in
                                         SessionRow(session: child, selected: store.isSelected(child), activity: store.activity(of: child), indent: 18) {
@@ -287,19 +288,7 @@ public struct SessionSidebar: View {
         }
         }
         // 键盘：↑ ↓ 走、→ 展开 / 进去、← 收起 / 回上一层、Return 打开（WorkspaceStore.libraryKey）
-        .focusable()
-        .focused($libraryFocused)
-        .focusEffectDisabled()
-        .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow, .return]) { press in
-            let key: LibraryKey = switch press.key {
-            case .upArrow: .up
-            case .downArrow: .down
-            case .leftArrow: .left
-            case .rightArrow: .right
-            default: .open
-            }
-            return store.libraryKey(key) ? .handled : .ignored
-        }
+        .modifier(LibraryKeyboard(focused: $libraryFocused) { store.libraryKey($0) })
     }
 
     // MARK: 底部
@@ -359,6 +348,14 @@ extension SessionSidebar {
 
 /// 底栏右边的状态计数：只列有的那几种，全是 0 时只留一个安静的铃铛
 private struct StatusCounts: View {
+    static func shortLabel(_ a: Activity) -> String {
+        switch a {
+        case .waitingForAnswer: L("等你")
+        case .working: L("在跑")
+        default: L("完成")
+        }
+    }
+
     /// 列表里各会话的状态（只算还在列表里的，和原来一样）
     let activities: [Activity]
     let action: () -> Void
@@ -370,21 +367,22 @@ private struct StatusCounts: View {
             (a, activities.reduce(0) { $0 + ($1 == a ? 1 : 0) })
         }.filter { $0.1 > 0 }
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 if counts.isEmpty {
                     Image(systemName: "bell").font(.system(size: BarlyScale.pt(13))).foregroundStyle(t.text3)
                 }
                 ForEach(counts, id: \.0) { activity, n in
-                    HStack(spacing: 4) {
-                        ActivityLamp(activity, size: 7)
-                        Text("\(n)").barlyText(.product.caption.monospaced.weight(500),
-                                               color: activity == .waitingForAnswer ? t.accentText : t.text2)
+                    HStack(spacing: 3) {
+                        ActivityLamp(activity, size: 6)
+                        Text("\(n)").barlyText(.product.caption.monospaced.weight(500), color: t.text)
+                        Text(Self.shortLabel(activity)).barlyText(.product.caption, color: t.text3)
                     }
+                    .fixedSize()
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
             .frame(height: BarlyScale.pt(28))
-            .background(hovered ? t.fill2 : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
+            .background(hovered ? t.shellHover : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -422,8 +420,7 @@ private struct MultiSelectBar: View {
         }
         .padding(.horizontal, 10)
         .frame(height: BarlyScale.pt(44))
-        .background(t.fill1)
-        .overlay(alignment: .top) { Hairline() }
+        .sidebarCard()
     }
 }
 
@@ -444,9 +441,10 @@ public enum WorkspaceMetrics {
     public static var gutter: CGFloat { BarlyScale.pt(8) }
     /// 面板头：标题 · 路径 · CLI
     public static var panelHeader: CGFloat { BarlyScale.pt(34) }
-    /// 面板 8、行和标签 6（审美底线的圆角阶梯）
-    public static let panelRadius: CGFloat = 8
-    public static let rowRadius: CGFloat = 6
+    /// 圆角走身份阶梯（tight）：面板 10、行和标签 6、分段控件的槽 8
+    public static let panelRadius: CGFloat = BarlyRadius.lg
+    public static let rowRadius: CGFloat = BarlyRadius.sm
+    public static let trackRadius: CGFloat = BarlyRadius.md
     /// 项目行的文件夹图标宽；会话行的树形引导线对准它的中线。图标跟着界面缩放，引导线也要跟着算
     public static var folderIcon: CGFloat { BarlyScale.pt(16) }
     /// 引导线离行左边的距离：行内边距 8 + 箭头 10 + 间距 6 + 图标一半
@@ -455,12 +453,78 @@ public enum WorkspaceMetrics {
     public static var sessionInset: CGFloat { guideX + 10 }
 }
 
-/// 外壳的两层底：窗口底（侧栏、标签栏）更暗，终端面板浮在上面。浅色时底是浅灰、面板是白
+/// 会话库的键盘焦点和方向键。离屏截图画不了焦点视图（整块画成占位），截图时不加
+private struct LibraryKeyboard: ViewModifier {
+    var focused: FocusState<Bool>.Binding
+    let onKey: (LibraryKey) -> Bool
+    @Environment(\.barlySnapshot) private var snapshot
+
+    func body(content: Content) -> some View {
+        if snapshot {
+            content
+        } else {
+            content
+                .focusable()
+                .focused(focused)
+                .focusEffectDisabled()
+                .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow, .return]) { press in
+                    let key: LibraryKey = switch press.key {
+                    case .upArrow: .up
+                    case .downArrow: .down
+                    case .leftArrow: .left
+                    case .rightArrow: .right
+                    default: .open
+                    }
+                    return onKey(key) ? .handled : .ignored
+                }
+        }
+    }
+}
+
+/// 浮在窗口底上的圆角面板（侧栏、主区）：面板底 + 一圈细边。
+/// 离屏截图（barly-snap）里圆角裁剪套着原生滚动视图会画成占位块，截图时只画圆角底不裁剪
+private struct ShellPanel: ViewModifier {
+    @Environment(\.barly) private var t
+    @Environment(\.barlySnapshot) private var snapshot
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: WorkspaceMetrics.panelRadius, style: .continuous)
+        Group {
+            if snapshot {
+                content.background(t.panelBg, in: shape)
+            } else {
+                content.background(t.panelBg).clipShape(shape)
+            }
+        }
+        .overlay(shape.strokeBorder(t.panelEdge))
+    }
+}
+
+/// 侧栏底部的提示 / 进度 / 多选条：面板里内缩的一块圆角浅底，不画横贯的分隔线
+private struct SidebarCard: ViewModifier {
+    @Environment(\.barly) private var t
+
+    func body(content: Content) -> some View {
+        content
+            .background(t.shellHover, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.trackRadius, style: .continuous))
+            .padding(.horizontal, 8).padding(.top, 4)
+    }
+}
+
+extension View {
+    func shellPanel() -> some View { modifier(ShellPanel()) }
+    func sidebarCard() -> some View { modifier(SidebarCard()) }
+}
+
+/// 外壳两层：窗口底更暗，侧栏和主区是浮在上面的两块面板（面板 = canvas = 终端底色），中间露一道缝
 extension BarlyPalette {
-    var shellBase: Color { isDark ? bg : fill1 }
+    var shellBase: Color { isDark ? canvas.barlyMix(.black, 0.32) : canvas.barlyMix(.black, 0.06) }
     var panelBg: Color { canvas }
-    /// 底上的选中块：深色抬一级，浅色用白
-    var shellSelected: Color { isDark ? fill2 : canvas }
+    /// 面板一圈细边：深色是一点白光，浅色是普通边线
+    var panelEdge: Color { isDark ? Color.white.opacity(0.06) : border }
+    /// 面板上的选中块 / 悬停块
+    var shellSelected: Color { isDark ? canvas.barlyMix(.white, 0.07) : canvas.barlyMix(.black, 0.05) }
+    var shellHover: Color { isDark ? canvas.barlyMix(.white, 0.04) : canvas.barlyMix(.black, 0.03) }
 }
 
 // MARK: - 行
@@ -509,7 +573,7 @@ private struct HostHeading: View {
                     Image(systemName: host.isLocal ? "laptopcomputer" : "server.rack")
                         .font(.system(size: BarlyScale.pt(10)))
                         .foregroundStyle(t.text4)
-                    MonoLabel(host.isLocal ? "THIS MAC" : host.displayName, color: t.text3)
+                    Text(host.isLocal ? L("本机") : host.displayName).barlyText(.product.caption, color: t.text3)
                     if collapsed {
                         Text(verbatim: L("\(count) 个项目")).barlyText(.product.caption, color: t.text4)
                     }
@@ -540,7 +604,7 @@ private struct HostHeading: View {
                 Image(systemName: "exclamationmark.triangle.fill").font(.system(size: BarlyScale.pt(10))).foregroundStyle(t.warning)
                     .help("连不上：\(error)")
             case .disconnected:
-                MonoLabel("OFFLINE", color: t.text4)
+                Text("已断开").barlyText(.product.caption, color: t.text4)
             case .needsSignIn:
                 Text("登录…").barlyText(.product.caption.weight(500), color: t.accentText)
                     .padding(.horizontal, 7).frame(height: BarlyScale.pt(20))
@@ -597,7 +661,7 @@ private struct ProjectRow: View {
                     .help(project.folderExists ? project.path : L("文件夹已经不在了"))
                 VStack(alignment: .leading, spacing: 0) {
                     Text(project.name)
-                        .barlyText(.product.small.weight(600), color: t.text)
+                        .barlyText(.product.small.weight(500), color: t.text)
                         .lineLimit(1).truncationMode(.middle)
                     if showsParent, !parent.isEmpty {
                         Text(parent).barlyText(.product.caption.size(11), color: t.text4).lineLimit(1).truncationMode(.head)
@@ -618,7 +682,8 @@ private struct ProjectRow: View {
             .padding(.horizontal, 8)
             .frame(minHeight: WorkspaceMetrics.row)
             .padding(.vertical, showsParent ? 3 : 0)
-            .background(focused ? t.fill2 : hovered ? t.fill1 : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
+            .background(focused ? t.shellSelected : hovered ? t.shellHover : .clear,
+                        in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -770,8 +835,8 @@ struct TreeRowBackground: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius)
-                .fill(selected ? t.shellSelected : hovered ? t.fill1 : .clear)
+            RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius, style: .continuous)
+                .fill(selected ? t.shellSelected : hovered ? t.shellHover : .clear)
                 .padding(.leading, WorkspaceMetrics.guideX + 5)
             Rectangle().fill(t.hairline)
                 .frame(width: 1)
@@ -798,7 +863,7 @@ private struct ModeSwitch: View {
             segment(.openTabs, L("已打开"), count: openTabs)
         }
         .padding(2)
-        .background(t.isDark ? t.fill1 : t.fill2, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius))
+        .background(t.shellBase.opacity(t.isDark ? 0.7 : 1), in: RoundedRectangle(cornerRadius: WorkspaceMetrics.trackRadius, style: .continuous))
     }
 
     private func segment(_ mode: SidebarMode, _ title: String, count: Int? = nil) -> some View {
@@ -812,7 +877,9 @@ private struct ModeSwitch: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: BarlyScale.pt(24))
-            .background(on ? (t.isDark ? t.fill3 : t.canvas) : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius - 2))
+            .background(on ? (t.isDark ? t.canvas.barlyMix(.white, 0.1) : t.canvas) : .clear,
+                        in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius, style: .continuous))
+            .shadow(color: .black.opacity(on && !t.isDark ? 0.08 : 0), radius: 1.5, y: 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -6,14 +6,31 @@ import Testing
 
 @Suite("主题与终端配色")
 struct ThemeTests {
-    @Test("每套主题的深浅两版都能出色板（Switchboard 用身份本身）")
+    @Test("每套主题的深浅两版都能出色板")
     func palettes() {
         for theme in AppTheme.allCases {
             for dark in [true, false] {
-                if theme == .switchboard { #expect(theme.palette(dark: dark) == nil); continue }
                 #expect(theme.palette(dark: dark) != nil, "\(theme) \(dark)")
                 #expect(theme.swatch(dark: dark).count == 3)
             }
+        }
+    }
+
+    @Test("强调色全局只有一个：6 套主题深浅两版都用同一个（和系统控件读的颜色一致）")
+    func oneAccent() {
+        for dark in [true, false] {
+            for theme in AppTheme.allCases {
+                #expect(theme.spec(dark: dark).accent == AppTheme.accent(dark: dark), "\(theme) \(dark)")
+            }
+        }
+    }
+
+    @Test("Switchboard 主题：窗口底比面板暗（面板浮在上面）")
+    func switchboardSpec() {
+        let luma = { (c: UInt32) in Double((c >> 16) & 0xFF) * 0.299 + Double((c >> 8) & 0xFF) * 0.587 + Double(c & 0xFF) * 0.114 }
+        for d in [true, false] {
+            let s = AppTheme.switchboard.spec(dark: d)
+            #expect(luma(s.sidebar) < luma(s.canvas), "\(d)")
         }
     }
 
@@ -23,7 +40,8 @@ struct ThemeTests {
             for dark in [true, false] {
                 let c = TerminalColors.themed(theme, dark: dark, canvas: 0x111111, text: 0xEEEEEE)
                 #expect(c.ansi.count == 16)
-                if let spec = theme.spec(dark: dark) { #expect(c.background == spec.canvas) } else { #expect(c.background == 0x111111) }
+                // Switchboard 跟着 app 色板（含改过的颜色），别的主题用自己的底色
+                #expect(c.background == (theme == .switchboard ? 0x111111 : theme.spec(dark: dark).canvas))
             }
         }
         #expect(TerminalColors.resolve(scheme: "dracula", appTheme: .github, dark: false, appCanvas: 0, appText: 0).background == 0x282A36)

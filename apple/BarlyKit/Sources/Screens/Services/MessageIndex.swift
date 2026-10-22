@@ -100,7 +100,7 @@ public actor MessageIndex {
         TranscriptLoader.load(session, maxBytes: maxBytesPerSession).compactMap { e -> String? in
             switch e.kind {
             case .user(let t), .assistant(let t): String(t.prefix(maxCharsPerEntry))
-            case .tools(_, let summary): summary
+            case .tools(let calls): ToolCall.summary(of: calls)
             case .code(_, let code): String(code.prefix(maxCharsPerEntry))
             case .image: nil
             }

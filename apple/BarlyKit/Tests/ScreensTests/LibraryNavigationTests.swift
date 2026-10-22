@@ -75,7 +75,7 @@ struct LibraryNavigationTests {
                               lastActivity: .now, messageCount: 2)
         let md = TranscriptExport.markdown(session, project: nil, entries: [
             TranscriptEntry(id: 0, kind: .user("登录页报 500"), time: .now),
-            TranscriptEntry(id: 1, kind: .tools(count: 2, summary: "Read a · Bash b"), time: .now),
+            TranscriptEntry(id: 1, kind: .tools([ToolCall(name: "Read", arg: "a"), ToolCall(name: "Bash", arg: "b")]), time: .now),
             TranscriptEntry(id: 2, kind: .assistant("修好了。"), time: .now),
         ])
         #expect(md.hasPrefix("# 修登录"))

@@ -106,8 +106,7 @@ struct DeletionBar: View {
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
-        .background(t.fill1)
-        .overlay(alignment: .top) { Hairline() }
+        .sidebarCard()
     }
 }
 

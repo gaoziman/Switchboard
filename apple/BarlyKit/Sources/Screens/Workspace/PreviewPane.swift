@@ -4,7 +4,9 @@ import BarlyKit
 import AppKit
 #endif
 
-/// 对话预览：不启动 CLI 直接读会话。页头（面包屑 · 标题 · 口径行 · Resume / 分叉）→ 阅读工具条 → 对话列
+/// 对话预览（时间线）：不启动 CLI 直接读会话。页头（项目 · 标题 · 口径行 · 分叉 / 接着跑）→ 统计条（几轮 · 几次工具 ·
+/// 几分钟 · 几个文件 | 全部 / 只看对话 / 只看工具）→ 时间线：左边时间，一根竖线串起每一步——你的话是强调色圆环，
+/// 每个工具一行（图标 · 名字 · 参数），回复是实心小点、正文按 Markdown 排版
 public struct PreviewPane: View {
     let session: Session
     let project: Project?
@@ -23,7 +25,8 @@ public struct PreviewPane: View {
     #if os(macOS)
     @Environment(\.controlActiveState) private var controlActiveState
     #endif
-    @State private var textSize: CGFloat = 14
+    @AppStorage("previewTextSize") private var textSize: Double = 14
+    @State private var filter: TimelineFilter = .all
     @State private var findOpen = false
     @State private var findQuery = ""
     @State private var findIndex = 0
@@ -71,33 +74,41 @@ public struct PreviewPane: View {
     public var body: some View {
         // 当前命中算一次：放进 ForEach 里的话每一条都把全部条目查一遍（几千条就是几百万次查找）
         let current = currentMatch
+        let rows = TimelineRow.rows(filter.apply(entries))
         VStack(spacing: 0) {
             header
-            Hairline()
-            readingBar
-            Hairline()
+            statsBar
             if findOpen { findBar; Hairline() }
             ScrollViewReader { proxy in
             BarlyScroll {
                 // 懒加载：几千条消息时只建屏幕上的
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    if folderMissing { missingFolderNote }
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    if folderMissing { missingFolderNote.padding(.bottom, 16) }
                     if hasEarlier {
                         BarlyButton(L("加载更早的消息"), icon: "arrow.up", variant: .ghost, size: .sm, action: onLoadEarlier)
                             .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.bottom, 12)
                     }
                     if entries.isEmpty {
                         Text("这个会话还没有可显示的消息。").barlyText(.product.small, color: t.text3)
                     }
-                    ForEach(entries) { EntryView(entry: $0, textSize: textSize, highlight: activeQuery, isCurrent: $0.id == current).id($0.id) }
-                    Text("— 最新消息 · \(RelativeAge.format(session.lastActivity)) —")
-                        .barlyText(.product.caption.monospaced, color: t.text4)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 8)
+                    ForEach(rows) { row in
+                        switch row {
+                        case .day(let date):
+                            DayMarker(date: date)
+                        case .entry(let entry):
+                            TimelineEntry(entry: entry, textSize: textSize, highlight: activeQuery, isCurrent: entry.id == current)
+                                .id(entry.id)
+                        }
+                    }
+                    Text("最新消息 · \(RelativeAge.format(session.lastActivity))")
+                        .barlyText(.product.caption, color: t.text4)
+                        .padding(.leading, TimelineMetrics.contentX)
+                        .padding(.top, 14)
                 }
-                .frame(maxWidth: 760, alignment: .leading)
-                .padding(.horizontal, 48)
-                .padding(.vertical, 28)
+                .frame(maxWidth: 1000, alignment: .leading)
+                .padding(.horizontal, 28)
+                .padding(.top, 18).padding(.bottom, 28)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .onChange(of: current) { _, id in
@@ -130,28 +141,38 @@ public struct PreviewPane: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                MonoLabel(breadcrumb, color: t.text3)
-                HStack(spacing: 10) {
-                    CLIMark(session.cli, size: 20)
-                    Text(session.displayTitle)
-                        .barlyText(.product.pageTitle, color: t.text)
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: (host?.isLocal ?? true) ? "folder" : "server.rack").font(.system(size: BarlyScale.pt(11)))
+                    Text(kicker).lineLimit(1)
                 }
-                Text(meta).barlyText(.product.caption.monospaced, color: t.text3)
+                .barlyText(.product.caption, color: t.text3)
+                Text(session.displayTitle)
+                    .barlyText(.product.sectionTitle.weight(600), color: t.text)
+                    .lineLimit(1)
+                HStack(spacing: 14) {
+                    meta("clock", L("\(RelativeAge.format(session.lastActivity)) 前活跃"))
+                    meta("text.bubble", L("\(session.messageCount) 条消息"))
+                    if let model = session.model { meta("cpu", model) }
+                    if let p = project {
+                        Text(p.shortPath).barlyText(.product.caption.monospaced, color: t.text4)
+                            .lineLimit(1).truncationMode(.head)
+                            .help("\(p.path)\n\(L("会话")) \(session.id)")
+                    }
+                }
             }
             Spacer(minLength: 12)
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                PaneIcon(symbol: "magnifyingglass", help: L("在对话里查找（⌘F）"), action: openFind)
                 if let menu {
                     Menu { menu() } label: {
-                        Label("更多", systemImage: "ellipsis").barlyText(.product.small, color: t.text2)
+                        Image(systemName: "ellipsis").font(.system(size: BarlyScale.pt(14))).foregroundStyle(t.text2)
+                            .frame(width: BarlyScale.pt(28), height: BarlyScale.pt(28))
+                            .contentShape(Rectangle())
                     }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
+                    .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
                     .handCursor()
-                } else {
-                    BarlyButton(L("更多"), icon: "ellipsis", variant: .ghost, size: .sm)
+                    .help(L("更多"))
                 }
                 BarlyButton(L("分叉"), icon: "arrow.triangle.branch", variant: .outline, size: .sm, action: onBranch)
                     .disabled(folderMissing || session.cli.branchArguments(session.id) == nil)
@@ -163,42 +184,62 @@ public struct PreviewPane: View {
                     .help(folderMissing ? "原来的文件夹不在了" : "在原目录里恢复这个会话（双击会话也可以）")
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 18).padding(.bottom, 16)
+        .padding(.horizontal, 28)
+        .padding(.top, 18).padding(.bottom, 14)
     }
 
-    private var breadcrumb: String {
-        let hostName = (host?.isLocal ?? true) ? "THIS MAC" : (host?.displayName ?? "")
-        return [hostName, project?.name ?? "", session.cli.title].joined(separator: " / ")
+    /// 「项目 · Claude Code」：SSH 主机上的会话前面是主机名
+    private var kicker: String {
+        let hostPart = (host?.isLocal ?? true) ? "" : "\(host?.displayName ?? "") / "
+        return hostPart + [project?.name, session.cli.title].compactMap { $0 }.joined(separator: "  ·  ")
     }
 
-    private var meta: String {
-        var parts = [session.model, L("\(session.messageCount) 条消息"), L("\(RelativeAge.format(session.lastActivity)) 前活跃"),
-                     String(session.id.prefix(8))].compactMap { $0 }
-        if let p = project { parts.insert(p.shortPath, at: 0) }
-        return parts.joined(separator: "  ·  ")
-    }
-
-    // MARK: 阅读工具条
-
-    private var readingBar: some View {
-        HStack(spacing: 2) {
-            PaneIcon(symbol: "textformat.size.smaller", help: L("缩小字号（⌘−）")) { textSize = max(12, textSize - 1) }
-            Text("\(Int(textSize))").barlyText(.product.caption.monospaced, color: t.text3).frame(width: 22)
-            PaneIcon(symbol: "textformat.size.larger", help: L("放大字号（⌘+）")) { textSize = min(22, textSize + 1) }
-            divider
-            PaneIcon(symbol: "arrow.left.and.right", help: L("阅读列宽 / 整窗宽"))
-            divider
-            PaneIcon(symbol: "arrow.up.to.line", help: L("跳到第一条"))
-            PaneIcon(symbol: "arrow.down.to.line", help: L("跳到最新"))
-            Spacer()
-            PaneIcon(symbol: "magnifyingglass", help: L("在对话里查找（⌘F）"), action: openFind)
-            if highlight == nil {
-                PaneIcon(symbol: "macwindow.badge.plus", help: L("在独立窗口里阅读"))
-            }
+    private func meta(_ icon: String, _ text: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: BarlyScale.pt(10)))
+            Text(verbatim: text).lineLimit(1)
         }
-        .padding(.horizontal, 16)
-        .frame(height: BarlyScale.pt(36))
+        .barlyText(.product.caption, color: t.text3)
+        .fixedSize()
+    }
+
+    // MARK: 统计条
+
+    private var statsBar: some View {
+        let s = TranscriptStats(entries)
+        return HStack(spacing: 18) {
+            stat(s.rounds, L("轮对话"))
+            stat(s.tools, L("次工具"))
+            if s.minutes > 0 { stat(s.minutes, L("分钟")) }
+            if s.filesChanged > 0 { stat(s.filesChanged, L("个文件改动")) }
+            if hasEarlier { Text("只算已加载的").barlyText(.product.caption, color: t.text4) }
+            Spacer(minLength: 12)
+            FilterSwitch(selection: $filter)
+            Menu {
+                Button("放大字号") { textSize = min(22, textSize + 1) }
+                Button("缩小字号") { textSize = max(12, textSize - 1) }
+                Button("恢复默认字号") { textSize = 14 }
+            } label: {
+                Image(systemName: "textformat.size").font(.system(size: BarlyScale.pt(13))).foregroundStyle(t.text2)
+                    .frame(width: BarlyScale.pt(28), height: BarlyScale.pt(28))
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+            .handCursor()
+            .help(L("字号（\(Int(textSize))）"))
+        }
+        .padding(.horizontal, 28)
+        .frame(height: BarlyScale.pt(44))
+        .overlay(alignment: .top) { Hairline() }
+        .overlay(alignment: .bottom) { Hairline() }
+    }
+
+    private func stat(_ n: Int, _ label: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text("\(n)").barlyText(.product.small.monospaced.weight(500), color: t.text)
+            Text(verbatim: label).barlyText(.product.caption, color: t.text3)
+        }
+        .fixedSize()
     }
 
     private func openFind() {
@@ -230,21 +271,17 @@ public struct PreviewPane: View {
             }
             .padding(.horizontal, 8)
             .frame(width: BarlyScale.pt(300), height: BarlyScale.pt(28))
-            .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm))
-            .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm).stroke(t.text3, lineWidth: 1.5))
+            .background(t.fieldBg, in: RoundedRectangle(cornerRadius: BarlyRadius.sm, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: BarlyRadius.sm, style: .continuous).stroke(t.borderStrong, lineWidth: 1))
             PaneIcon(symbol: "chevron.up", help: L("上一个（⇧⌘G）")) { step(-1) }
             PaneIcon(symbol: "chevron.down", help: L("下一个（⌘G）")) { step(1) }
             Spacer()
             if hasEarlier { Text("只搜已经加载的消息").barlyText(.product.caption, color: t.text4) }
             PaneIcon(symbol: "xmark", help: L("关闭查找（Esc）")) { findOpen = false; findQuery = "" }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 24)
         .frame(height: BarlyScale.pt(44))
         .onExitCommand { findOpen = false; findQuery = "" }
-    }
-
-    private var divider: some View {
-        Rectangle().fill(t.hairline).frame(width: 1, height: 14).padding(.horizontal, 6)
     }
 
     private var missingFolderNote: some View {
@@ -259,13 +296,77 @@ public struct PreviewPane: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .leading) { Rectangle().fill(t.warning).frame(width: 2) }
-        .background(t.warning.opacity(0.08))
+        .background(t.warning.opacity(0.08), in: RoundedRectangle(cornerRadius: BarlyRadius.md, style: .continuous))
     }
 }
 
-/// 一条对话：用户消息左侧一根细线，回复是正文，工具调用折叠成一行
-private struct EntryView: View {
+// MARK: - 时间线
+
+enum TimelineMetrics {
+    /// 左边时间一栏
+    static let timeWidth: CGFloat = 52
+    /// 竖线和节点那一栏
+    static let railWidth: CGFloat = 14
+    /// 正文离节点
+    static let gap: CGFloat = 18
+    static var contentX: CGFloat { timeWidth + railWidth + gap }
+}
+
+/// 时间线上的一行：跨天时插一行日期
+enum TimelineRow: Identifiable {
+    case day(Date)
+    case entry(TranscriptEntry)
+
+    var id: String {
+        switch self {
+        case .day(let d): "day-\(Int(d.timeIntervalSince1970))"
+        case .entry(let e): "entry-\(e.id)"
+        }
+    }
+
+    static func rows(_ entries: [TranscriptEntry]) -> [TimelineRow] {
+        var out: [TimelineRow] = []
+        var lastDay: Date?
+        let cal = Calendar.current
+        for e in entries {
+            let day = cal.startOfDay(for: e.time)
+            if e.time > .distantPast, day != lastDay {
+                // 第一条前面不插今天：只有内容跨天、或者不是今天时才标
+                if lastDay != nil || !cal.isDateInToday(e.time) { out.append(.day(day)) }
+                lastDay = day
+            }
+            out.append(.entry(e))
+        }
+        return out
+    }
+}
+
+/// 跨天的日期：「10月21日 星期二」，和时间栏对齐
+private struct DayMarker: View {
+    let date: Date
+    @Environment(\.barly) private var t
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(label).barlyText(.product.caption.weight(500), color: t.text3)
+            Rectangle().fill(t.hairline).frame(height: 1)
+        }
+        .padding(.vertical, 12)
+    }
+
+    private var label: String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return L("今天") }
+        if cal.isDateInYesterday(date) { return L("昨天") }
+        let f = DateFormatter()
+        f.locale = Locale.current
+        f.setLocalizedDateFormatFromTemplate(cal.isDate(date, equalTo: .now, toGranularity: .year) ? "MMMdEEEE" : "yMMMdEEEE")
+        return f.string(from: date)
+    }
+}
+
+/// 一条：时间 | 竖线 + 节点 | 内容
+private struct TimelineEntry: View {
     let entry: TranscriptEntry
     let textSize: CGFloat
     var highlight: String?
@@ -275,73 +376,162 @@ private struct EntryView: View {
     var body: some View {
         switch entry.kind {
         case .user(let text):
-            VStack(alignment: .leading, spacing: 6) {
-                MonoLabel("YOU", color: t.text4)
-                Text(marked(AttributedString(text))).barlyText(.product.body.size(textSize).leading(textSize * 1.6), color: t.text)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.leading, 14)
-            .overlay(alignment: .leading) { Rectangle().fill(t.borderStrong).frame(width: 2) }
-        case .assistant(let text):
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(text.components(separatedBy: "\n").filter { !$0.isEmpty }.enumerated()), id: \.offset) { _, line in
-                    Text(markdown(line)).barlyText(.product.body.size(textSize).leading(textSize * 1.65), color: t.text2)
+            rail(time: true, node: AnyView(Circle().strokeBorder(t.accent, lineWidth: 2).frame(width: 12, height: 12))) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("你").barlyText(.product.caption.weight(500), color: t.accent)
+                    Text(TranscriptHighlight.mark(AttributedString(text), query: highlight, current: isCurrent, palette: t))
+                        .barlyText(.product.body.size(textSize + 1).weight(500).leading((textSize + 1) * 1.55), color: t.text)
                         .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
                 }
+                .padding(.top, 2).padding(.bottom, 14)
             }
-        case .tools(let count, let summary):
-            HStack(spacing: 8) {
-                Image(systemName: "chevron.right").font(.system(size: BarlyScale.pt(8), weight: .bold)).foregroundStyle(t.text4)
-                Text("\(count) TOOL CALLS").barlyText(.product.caption.weight(500).monospaced, color: t.text3)
-                Text(summary).barlyText(.product.caption.monospaced, color: t.text4).lineLimit(1)
+            .padding(.top, 10)
+        case .assistant(let text):
+            rail(node: AnyView(Circle().fill(t.text2).frame(width: 8, height: 8))) {
+                MarkdownView(blocks: MarkdownBlocks.parse(text), size: textSize, highlight: highlight, current: isCurrent)
+                    .padding(.top, 2).padding(.bottom, 16)
             }
-            .padding(.horizontal, 10)
-            .frame(height: BarlyScale.pt(28))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(RoundedRectangle(cornerRadius: BarlyRadius.xs).stroke(t.hairline))
-            .handCursor()
+        case .tools(let calls):
+            ToolRun(calls: calls, highlight: highlight)
         case .code(let language, let code):
-            CodeBlock(language: language, code: code)
+            rail(node: AnyView(EmptyView())) {
+                TranscriptCode(language: language, code: code, size: textSize - 1).padding(.bottom, 16)
+            }
         case .image(let caption):
-            VStack(alignment: .leading, spacing: 6) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: BarlyRadius.xs).fill(t.fill1)
-                    VStack(spacing: 6) {
-                        ForEach(0..<6, id: \.self) { i in
-                            HStack(spacing: 6) {
-                                RoundedRectangle(cornerRadius: 1).fill(t.fill3).frame(width: 90, height: 8)
-                                ForEach(0..<4, id: \.self) { _ in
-                                    RoundedRectangle(cornerRadius: 1).fill(i == 2 ? t.fill3 : t.fill2).frame(width: 56, height: 8)
-                                }
-                            }
-                        }
-                    }
+            rail(node: AnyView(RoundedRectangle(cornerRadius: 2).fill(t.text3).frame(width: 8, height: 8))) {
+                HStack(spacing: 8) {
+                    Image(systemName: "photo").font(.system(size: BarlyScale.pt(12))).foregroundStyle(t.text3)
+                    Text(caption).barlyText(.product.caption, color: t.text3)
                 }
-                .frame(width: 420, height: 160)
-                .overlay(RoundedRectangle(cornerRadius: BarlyRadius.xs).stroke(t.hairline))
-                Text(caption).barlyText(.product.caption, color: t.text3)
+                .padding(.horizontal, 10).frame(height: BarlyScale.pt(28))
+                .background(t.shellHover, in: RoundedRectangle(cornerRadius: BarlyRadius.sm, style: .continuous))
+                .padding(.bottom, 14)
             }
         }
     }
 
-    private func markdown(_ s: String) -> AttributedString {
-        marked((try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(s))
+    private func rail<C: View>(time: Bool = false, node: AnyView, @ViewBuilder _ content: () -> C) -> some View {
+        TimelineRail(time: time ? entry.time : nil, node: node, content: content())
+    }
+}
+
+/// 时间 | 竖线 + 节点 | 内容。竖线铺满这一行的高度，相邻行连成一根
+private struct TimelineRail<Content: View>: View {
+    let time: Date?
+    let node: AnyView
+    let content: Content
+    var nodeTop: CGFloat = 6
+    @Environment(\.barly) private var t
+
+    /// 时间栏固定 24 小时制「14:32」：中文区域的「下午2:32」放不进这一栏
+    private static var clock: DateFormatter {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
     }
 
-    /// 查找命中：琥珀浅底 + 正文色字
-    private func marked(_ input: AttributedString) -> AttributedString {
-        guard let highlight, !highlight.isEmpty else { return input }
-        var out = input
-        var search = out.startIndex..<out.endIndex
-        var n = 0
-        while let r = out[search].range(of: highlight, options: [.caseInsensitive, .diacriticInsensitive]) {
-            // 当前命中（原型里固定为第 3 条回复的第一处）：实心琥珀 + 深字；其余浅底
-            let current = isCurrent && n == 0
-            out[r].backgroundColor = current ? t.warning : t.warning.opacity(0.28)
-            out[r].foregroundColor = current ? Color.black : t.text
-            search = r.upperBound..<out.endIndex
-            n += 1
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            Text(time.map { Self.clock.string(from: $0) } ?? "")
+                .barlyText(.product.caption.monospaced, color: t.text4)
+                .frame(width: TimelineMetrics.timeWidth, alignment: .leading)
+                .padding(.top, nodeTop - 1)
+            ZStack(alignment: .top) {
+                Rectangle().fill(t.hairline).frame(width: 1.5).frame(maxHeight: .infinity)
+                node.padding(.top, nodeTop)
+                    .padding(.vertical, 2).background(t.canvas)
+            }
+            .frame(width: TimelineMetrics.railWidth)
+            content
+                .padding(.leading, TimelineMetrics.gap)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        return out
+    }
+}
+
+/// 一串工具调用：每个一行（图标 · 名字 · 参数）。超过 6 个先收起前 5 个，「还有 N 个」点开
+private struct ToolRun: View {
+    let calls: [ToolCall]
+    var highlight: String?
+    @State private var expanded = false
+    @Environment(\.barly) private var t
+
+    private static let collapsedCount = 5
+
+    var body: some View {
+        let shown = expanded || calls.count <= Self.collapsedCount + 1 ? calls : Array(calls.prefix(Self.collapsedCount))
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, call in
+                TimelineRail(time: nil, node: AnyView(Circle().fill(t.text4).frame(width: 5, height: 5)), content: row(call), nodeTop: 10)
+            }
+            if shown.count < calls.count {
+                TimelineRail(time: nil, node: AnyView(EmptyView()), content:
+                    Button { withAnimation(.easeOut(duration: 0.15)) { expanded = true } } label: {
+                        Text("还有 \(calls.count - shown.count) 个工具调用").barlyText(.product.caption.weight(500), color: t.accent)
+                            .frame(height: BarlyScale.pt(26))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .handCursor()
+                )
+            }
+        }
+        .padding(.bottom, 8)
+    }
+
+    private func row(_ call: ToolCall) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: Self.icon(call.name)).font(.system(size: BarlyScale.pt(11))).foregroundStyle(t.text3)
+                .frame(width: 16)
+            Text(call.name).barlyText(.product.caption.weight(500), color: t.text2)
+                .lineLimit(1).frame(width: 64, alignment: .leading)
+            Text(TranscriptHighlight.mark(AttributedString(call.arg), query: highlight, current: false, palette: t))
+                .barlyText(.product.caption.monospaced, color: t.text3)
+                .lineLimit(1).truncationMode(.tail)
+                .help(call.arg)
+        }
+        .frame(height: BarlyScale.pt(26))
+    }
+
+    /// 每种工具一个 SF Symbol；认不出的用扳手
+    static func icon(_ name: String) -> String {
+        switch name.lowercased() {
+        case "bash", "shell", "local_shell", "exec_command", "bashoutput": "terminal"
+        case "read", "view", "notebookread": "doc.text"
+        case "edit", "multiedit", "apply_patch", "notebookedit": "pencil"
+        case "write", "create": "square.and.pencil"
+        case "grep", "glob", "search", "ls", "list": "magnifyingglass"
+        case "webfetch", "websearch", "fetch": "globe"
+        case "task", "agent": "person.2"
+        case "todowrite", "todo": "checklist"
+        default: "wrench.and.screwdriver"
+        }
+    }
+}
+
+/// 「全部 | 只看对话 | 只看工具」：槽 + 亮一档的滑块（和侧栏的分段一样）
+private struct FilterSwitch: View {
+    @Binding var selection: TimelineFilter
+    @Environment(\.barly) private var t
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(TimelineFilter.allCases, id: \.self) { f in
+                let on = selection == f
+                Button { selection = f } label: {
+                    Text(verbatim: f.title).barlyText(.product.caption.weight(on ? 500 : 400), color: on ? t.text : t.text3)
+                        .padding(.horizontal, 10)
+                        .frame(height: BarlyScale.pt(24))
+                        .background(on ? t.shellSelected : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius, style: .continuous))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .handCursor()
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(2)
+        .background(t.shellBase.opacity(t.isDark ? 0.7 : 1), in: RoundedRectangle(cornerRadius: WorkspaceMetrics.trackRadius, style: .continuous))
     }
 }

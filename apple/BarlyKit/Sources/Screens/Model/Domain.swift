@@ -267,12 +267,33 @@ public struct TabGroup: Identifiable, Hashable, Sendable {
 }
 
 /// 对话预览里的一条（只读，从 CLI 会话文件解析）
+/// 一次工具调用：工具名 + 最有用的那个参数（命令、文件名、搜索词）
+public struct ToolCall: Hashable, Sendable {
+    public let name: String
+    public let arg: String
+
+    public init(name: String, arg: String) {
+        self.name = name
+        self.arg = arg
+    }
+
+    /// 「名字 参数」，参数超过 48 个字截断
+    public var summary: String {
+        arg.isEmpty ? name : "\(name) \(arg.count > 48 ? String(arg.prefix(48)) + "…" : arg)"
+    }
+
+    /// 一串调用的摘要：前 4 个用 · 连起来，更多的加省略号
+    public static func summary(of calls: [ToolCall]) -> String {
+        calls.prefix(4).map(\.summary).joined(separator: " · ") + (calls.count > 4 ? " …" : "")
+    }
+}
+
 public struct TranscriptEntry: Identifiable, Hashable, Sendable {
     public enum Kind: Hashable, Sendable {
         case user(String)
         case assistant(String)
-        /// 一串连续的工具调用折叠成一行
-        case tools(count: Int, summary: String)
+        /// 一串连续的工具调用（预览的时间线上一个一行）
+        case tools([ToolCall])
         case code(language: String, code: String)
         case image(caption: String)
     }
@@ -291,7 +312,7 @@ public struct TranscriptEntry: Identifiable, Hashable, Sendable {
     public var searchableText: String {
         switch kind {
         case .user(let t), .assistant(let t): t
-        case .tools(_, let s): s
+        case .tools(let calls): calls.map(\.summary).joined(separator: " · ")
         case .code(_, let c): c
         case .image(let c): c
         }

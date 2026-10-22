@@ -1,8 +1,11 @@
 import SwiftUI
 import BarlyKit
+#if os(macOS)
+import AppKit
+#endif
 
-/// App 主题（设置 · 外观）：6 套，各有深色和浅色。Switchboard 是身份本身；其他 5 套只换外壳的底色、文字、
-/// 边框和强调色，代码高亮、图表色、状态色保留身份的。终端配色默认跟着它（见 TerminalScheme）
+/// App 主题（设置 · 外观）：6 套，各有深色和浅色。Switchboard 是身份本身；其他 5 套只换外壳的底色、文字和边框，
+/// 强调色全局只有一个（见 accent(dark:)），代码高亮、图表色、状态色保留身份的。终端配色默认跟着它（见 TerminalScheme）
 public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
     case switchboard, github, atom, tokyo, catppuccin, gruvbox
 
@@ -26,19 +29,42 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
         public var accent: UInt32
     }
 
-    /// 主题本身的颜色（Switchboard 主题就是身份色，和 Generated/Theme.generated.swift 一致）
-    public func baseSpec(dark: Bool) -> Spec {
-        if let s = spec(dark: dark) { return s }
-        return dark
-            ? Spec(canvas: 0x131313, sidebar: 0x0B0C0F, surface: 0x15171A, border: 0x232528,
-                   text: 0xE8E8EA, text2: 0xA9ABAF, text3: 0x727578, text4: 0x404246, accent: 0xDB5730)
-            : Spec(canvas: 0xFFFFFF, sidebar: 0xFFFFFF, surface: 0xFFFFFF, border: 0xE6E6E6,
-                   text: 0x141414, text2: 0x5B5B5B, text3: 0x9E9E9E, text4: 0xCECECE, accent: 0xDB5730)
+    /// 主题本身的颜色
+    public func baseSpec(dark: Bool) -> Spec { spec(dark: dark) }
+
+    /// 主题的颜色：底色、文字、边框用主题自己的，强调色换成全局那一个
+    public func spec(dark: Bool) -> Spec {
+        var s = ownSpec(dark: dark)
+        s.accent = Self.accent(dark: dark)
+        return s
     }
 
-    public func spec(dark: Bool) -> Spec? {
+    /// 强调色全局只有一个：就是系统控件（开关、焦点环、设置窗口的标签图标）读的颜色——app 包里的 AccentColor
+    /// （身份色，系统强调色设成「多彩」时生效），用户在系统设置里选了别的强调色就是那个。
+    /// 自绘的按钮、状态灯、选中条和系统控件因此永远同一个颜色，换主题也不会出现两种主体色
+    public static func accent(dark: Bool) -> UInt32 {
+        #if os(macOS)
+        var hex: UInt32 = dark ? 0x31C0B3 : 0x19B3A6
+        NSAppearance(named: dark ? .darkAqua : .aqua)?.performAsCurrentDrawingAppearance {
+            if let c = NSColor.controlAccentColor.usingColorSpace(.sRGB) {
+                let v = { (x: CGFloat) in UInt32((max(0, min(1, x)) * 255).rounded()) }
+                hex = v(c.redComponent) << 16 | v(c.greenComponent) << 8 | v(c.blueComponent)
+            }
+        }
+        return hex
+        #else
+        return dark ? 0x31C0B3 : 0x19B3A6
+        #endif
+    }
+
+    /// 各主题原本的配色（强调色一栏只是它原来的样子，实际用的是 accent(dark:)）。
+    /// Switchboard 是身份本身：石墨底，面板比窗口底亮一档
+    private func ownSpec(dark: Bool) -> Spec {
         switch (self, dark) {
-        case (.switchboard, _): nil
+        case (.switchboard, true): Spec(canvas: 0x1B1C1F, sidebar: 0x141517, surface: 0x24262A, border: 0x2E3034,
+                                        text: 0xECEDEE, text2: 0xA9ABAF, text3: 0x75787D, text4: 0x45484C, accent: 0x19B3A6)
+        case (.switchboard, false): Spec(canvas: 0xFFFFFF, sidebar: 0xF2F3F3, surface: 0xF4F5F5, border: 0xE3E6E6,
+                                         text: 0x0E1212, text2: 0x565A5B, text3: 0x989C9D, text4: 0xC8CCCC, accent: 0x12A094)
         case (.github, true): Spec(canvas: 0x0D1117, sidebar: 0x010409, surface: 0x161B22, border: 0x30363D,
                                    text: 0xE6EDF3, text2: 0xC9D1D9, text3: 0x8B949E, text4: 0x6E7681, accent: 0x2F81F7)
         case (.github, false): Spec(canvas: 0xFFFFFF, sidebar: 0xF6F8FA, surface: 0xF6F8FA, border: 0xD0D7DE,
@@ -71,7 +97,6 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
     /// 这套主题的完整色板，含你改过的颜色（nil = 用身份本身，没改过）
     public func palette(dark: Bool) -> BarlyPalette? {
         let custom = ThemeColors.changes(self, dark: dark)
-        guard spec(dark: dark) != nil || !custom.isEmpty else { return nil }
         let s = ThemeColors.apply(custom, to: baseSpec(dark: dark), dark: dark)
         let base = dark ? BarlyTokens.dark : BarlyTokens.light
         let canvas = Color(hex: s.canvas), sidebar = Color(hex: s.sidebar), surface = Color(hex: s.surface)

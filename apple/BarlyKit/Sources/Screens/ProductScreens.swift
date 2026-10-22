@@ -23,7 +23,9 @@ public enum ProductScreens {
         ExampleScreen(id: "mac-preview-missing", title: "对话预览 · 文件夹已不在", platform: .macos) { AnyView(workspace("preview-missing")) },
         ExampleScreen(id: "mac-new-session", title: "新会话", platform: .macos) {
             AnyView(SheetOverlay { workspace("default") } sheet: {
-                NewSessionSheet(draft: NewSessionDraft(folder: "~/code/relay-gateway"))
+                NewSessionSheet(draft: NewSessionDraft(folder: "~/code/relay-gateway"),
+                                recentFolders: ["~/code/relay-gateway", "~/code/notes-site", "~/code/secondhand-market", "~/code/shelf-app"],
+                                origin: "来自当前标签「上架 haiku-5-5 并核对两档计费」")
             })
         },
         ExampleScreen(id: "mac-new-session-edit", title: "新会话 · 编辑启动命令（校验失败）", platform: .macos) {

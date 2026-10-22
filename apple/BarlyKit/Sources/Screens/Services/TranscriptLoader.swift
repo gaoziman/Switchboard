@@ -40,7 +40,7 @@ public enum TranscriptLoader {
     /// 逐条收集，工具调用先攒着，遇到下一条正文时折成一行
     struct Builder {
         var entries: [TranscriptEntry] = []
-        var pendingTools: [String] = []
+        var pendingTools: [ToolCall] = []
         var lastTime = Date.distantPast
 
         mutating func user(_ text: String, _ time: Date?) {
@@ -57,8 +57,8 @@ public enum TranscriptLoader {
             append(.assistant(t), time)
         }
 
-        mutating func tool(_ summary: String, _ time: Date?) {
-            pendingTools.append(summary)
+        mutating func tool(_ call: ToolCall, _ time: Date?) {
+            pendingTools.append(call)
             if let time { lastTime = time }
         }
 
@@ -74,8 +74,7 @@ public enum TranscriptLoader {
 
         private mutating func flushTools() {
             guard !pendingTools.isEmpty else { return }
-            let summary = pendingTools.prefix(4).joined(separator: " · ") + (pendingTools.count > 4 ? " …" : "")
-            entries.append(TranscriptEntry(id: entries.count, kind: .tools(count: pendingTools.count, summary: summary), time: lastTime))
+            entries.append(TranscriptEntry(id: entries.count, kind: .tools(pendingTools), time: lastTime))
             pendingTools = []
         }
 
@@ -85,14 +84,16 @@ public enum TranscriptLoader {
         }
     }
 
-    /// 工具调用的一行摘要：工具名 + 最有用的那个参数（命令、文件名、搜索词）
-    static func toolSummary(_ name: String, _ input: [String: Any]?) -> String {
+    /// 一次工具调用：工具名 + 最有用的那个参数（命令、文件名、搜索词）。绝对路径只留文件名；参数最长 160 字
+    static func toolCall(_ name: String, _ input: [String: Any]?) -> ToolCall {
         let keys = ["command", "file_path", "path", "pattern", "query", "url", "description", "cmd"]
         let arg = keys.lazy.compactMap { input?[$0] as? String }.first
             ?? (input?["command"] as? [String])?.joined(separator: " ")
-        guard var a = arg?.replacingOccurrences(of: "\n", with: " ") else { return name }
+        guard var a = arg?.replacingOccurrences(of: "\n", with: " ") else { return ToolCall(name: name, arg: "") }
+        // 「cd 某目录; 命令」「cd 某目录 && 命令」：只留后面真正干活的命令
+        if let m = a.firstMatch(of: #/^cd\s+(?:"[^"]*"|'[^']*'|\S+)\s*(?:;|&&)\s*(.+)$/#) { a = String(m.1) }
         if a.hasPrefix("/") { a = (a as NSString).lastPathComponent }
-        return "\(name) \(a.count > 48 ? String(a.prefix(48)) + "…" : a)"
+        return ToolCall(name: name, arg: a.count > 160 ? String(a.prefix(160)) + "…" : a)
     }
 
     // MARK: Claude Code
@@ -120,7 +121,7 @@ public enum TranscriptLoader {
                 for p in message["content"] as? [[String: Any]] ?? [] {
                     switch p["type"] as? String {
                     case "text": b.assistant(p["text"] as? String ?? "", time)
-                    case "tool_use": b.tool(toolSummary(p["name"] as? String ?? "Tool", p["input"] as? [String: Any]), time)
+                    case "tool_use": b.tool(toolCall(p["name"] as? String ?? "Tool", p["input"] as? [String: Any]), time)
                     default: break   // thinking 不显示
                     }
                 }
@@ -153,7 +154,7 @@ public enum TranscriptLoader {
             case "function_call", "custom_tool_call", "local_shell_call":
                 let args = (p["arguments"] as? String).flatMap { JSONLines.object(Data($0.utf8)) }
                     ?? (p["action"] as? [String: Any])
-                b.tool(toolSummary(p["name"] as? String ?? "shell", args), time)
+                b.tool(toolCall(p["name"] as? String ?? "shell", args), time)
             default: break
             }
         }
@@ -177,7 +178,7 @@ public enum TranscriptLoader {
                 for p in parts {
                     switch p["type"] as? String {
                     case "text": b.assistant(p["text"] as? String ?? "", time)
-                    case "toolCall": b.tool(toolSummary(p["name"] as? String ?? "tool", p["arguments"] as? [String: Any]), time)
+                    case "toolCall": b.tool(toolCall(p["name"] as? String ?? "tool", p["arguments"] as? [String: Any]), time)
                     default: break
                     }
                 }
@@ -204,7 +205,7 @@ public enum TranscriptLoader {
                 if r[0] == "user" { b.user(text, time) } else { b.assistant(text, time) }
             case "tool":
                 let input = r[4].flatMap { JSONLines.object(Data($0.utf8)) }
-                b.tool(toolSummary(r[3] ?? "tool", input), time)
+                b.tool(toolCall(r[3] ?? "tool", input), time)
             case "file":
                 b.image(time)
             default: break

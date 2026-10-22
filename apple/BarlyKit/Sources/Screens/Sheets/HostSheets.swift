@@ -296,7 +296,7 @@ public struct ConnectSheet: View {
 
     private var hostKey: some View {
         VStack(alignment: .leading, spacing: 8) {
-            MonoLabel("ED25519 FINGERPRINT", color: t.text4)
+            Text("ED25519 指纹").barlyText(.product.caption, color: t.text3)
             Text("SHA256:9xQf3kLr+2bWm0vT8yHc4ZpN1sUe7aJdKoGi5RtXwBM")
                 .barlyText(.product.small.weight(500).monospaced, color: t.text)
                 .textSelection(.enabled)

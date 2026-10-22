@@ -4,11 +4,13 @@ import BarlyKit
 import AppKit
 #endif
 
-/// 工作区窗口：会话库侧栏 | 标签栏 + 终端 / 预览。自绘外壳，栏与栏之间一根发丝线
+/// 工作区窗口：深色窗口底上浮两块圆角面板——会话库侧栏 | 标签栏 + 终端 / 预览，中间一道缝，不画分隔线
 public struct WorkspaceView: View {
     @Bindable var store: WorkspaceStore
     @State private var sidebarShown = true
     @State private var newSession: NewSessionDraft?
+    /// 新会话的默认值从哪来（显示在文件夹下面）
+    @State private var newSessionOrigin: String?
     @AppStorage("showSubagents") private var showSubagents = false
     var onNewSession: (() -> Void)?
     @Environment(\.barly) private var t
@@ -25,20 +27,25 @@ public struct WorkspaceView: View {
     private func beginNewSession(in project: ProjectID?) {
         if let onNewSession { onNewSession(); return }
         var draft = NewSessionDraft()
+        var origin: String?
         if let tab = store.selectedTab {
             draft.folder = tab.projectPath
             draft.hostID = tab.hostID
             if let cli = tab.kind.cli { draft.target = .cli(cli) }
+            origin = L("来自当前标签「\(tab.title)」")
         } else if let s = store.previewedSession {
             draft.folder = s.projectPath
             draft.hostID = s.hostID
             draft.target = .cli(s.cli)
+            origin = L("来自正在看的会话「\(s.displayTitle)」")
         }
         // 项目菜单传来的项目
         if let project {
             draft.hostID = project.host
             draft.folder = project.path
+            origin = L("来自项目「\((project.path as NSString).lastPathComponent)」的菜单")
         }
+        newSessionOrigin = origin
         if case .cli(let cli) = draft.target { draft.savedCommand = store.savedCommand(for: cli) }
         let home = NSHomeDirectory()
         if draft.hostID == Host.localID, draft.folder.hasPrefix(home) { draft.folder = "~" + draft.folder.dropFirst(home.count) }
@@ -56,6 +63,7 @@ public struct WorkspaceView: View {
             if sidebarShown {
                 SessionSidebar(store: store, onNewSession: beginNewSession)
             }
+            // 主区面板：标签栏 + 终端 / 预览在同一块里，和侧栏面板之间露一道缝
             VStack(spacing: 0) {
                 if !store.tabGroups.isEmpty {
                     TabBar(store: store, sidebarHidden: !sidebarShown, onNewSession: beginNewSession)
@@ -64,9 +72,9 @@ public struct WorkspaceView: View {
                 }
                 main
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.leading, sidebarShown ? 0 : WorkspaceMetrics.gutter)
-                    .padding([.trailing, .bottom], WorkspaceMetrics.gutter)
             }
+            .shellPanel()
+            .padding(WorkspaceMetrics.gutter)
         }
         .background(t.shellBase)
         .overlay(alignment: .bottomLeading) {
@@ -114,6 +122,7 @@ public struct WorkspaceView: View {
                                 return store.sessions.filter { $0.hostID == host }.sorted { $0.lastActivity > $1.lastActivity }
                                     .map(\.projectPath).filter { seen.insert($0).inserted }.prefix(4).map { $0 }
                             },
+                            origin: newSessionOrigin,
                             onCancel: { newSession = nil },
                             onStart: {
                                 if let draft = newSession { store.start(draft) }
@@ -328,7 +337,6 @@ private struct EmptyMain: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            MonoLabel(loading ? "SCANNING SESSIONS" : failed ? "LIBRARY UNAVAILABLE" : "NO TAB OPEN", color: t.text4)
             Text(loading ? "正在读取各 CLI 的会话…" : failed ? "会话库没读出来" : hasSessions ? "选一个会话" : "从一个新会话开始")
                 .barlyText(.product.pageTitle, color: t.text)
             if !loading {

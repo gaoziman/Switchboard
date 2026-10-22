@@ -95,7 +95,7 @@ private struct TabChooser: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                MonoLabel("SPLIT VIEW", color: t.text4)
+                Text("分屏").barlyText(.product.caption, color: t.text3)
                 Text("右边放哪个标签？").barlyText(.product.sectionTitle, color: t.text)
                 Text("最近用过的在前。点一下，或用 ↑ ↓ 和 Return 选。").barlyText(.product.small, color: t.text3)
             }
