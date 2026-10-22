@@ -45,7 +45,7 @@ public extension WorkspaceStore {
 
     /// 能直接删的：没在跑、也没开着标签的（「删除所有可删除的会话」）
     func deletableSessions(in project: Project) -> [Session] {
-        allSessions(in: project).filter { !$0.activity.isRunning && tab(for: $0) == nil }
+        allSessions(in: project).filter { !activity(of: $0).isRunning && tab(for: $0) == nil }
     }
 
     /// 重命名项目：只改 Switchboard 里显示的名字；留空恢复文件夹名

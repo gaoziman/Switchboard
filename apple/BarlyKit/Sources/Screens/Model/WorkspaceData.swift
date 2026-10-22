@@ -9,6 +9,8 @@ public final class WorkspaceData {
     public var hosts: [Host]
     public var projects: [Project]
     public var sessions: [Session] { didSet { cachedIndex = nil } }
+    /// 每个会话现在在干什么（状态灯）：只存这一份，不挂在 Session 值上，刷新换会话列表时不用搬。没有 = 没在跑
+    public var activity: [String: Activity] = [:] { didSet { cachedIndex = nil } }
     public var loadState: LoadState
     public var transcripts: [String: [TranscriptEntry]]
     public var transcriptBudgets: [String: Int] = [:]
@@ -27,9 +29,9 @@ public final class WorkspaceData {
     @ObservationIgnored private var cachedIndex: SessionIndex?
     /// 会话按项目、按 ID 分好：侧栏每次重画、轮询每秒都要查，会话列表变了才重算一次
     var sessionIndex: SessionIndex {
-        _ = sessions   // 让读索引的视图也跟着会话变（索引本身不被观察）
+        _ = (sessions, activity)   // 让读索引的视图也跟着会话和状态变（索引本身不被观察）
         if let cachedIndex { return cachedIndex }
-        let index = SessionIndex(sessions)
+        let index = SessionIndex(sessions, activity: activity)
         cachedIndex = index
         return index
     }
@@ -56,8 +58,9 @@ public final class WorkspaceData {
     public let persistence: WorkspacePersistence
 
     public init(hosts: [Host], projects: [Project], sessions: [Session], transcripts: [String: [TranscriptEntry]] = [:],
-                loadState: LoadState = .loaded, persistence: WorkspacePersistence? = nil) {
+                loadState: LoadState = .loaded, persistence: WorkspacePersistence? = nil, activity: [String: Activity] = [:]) {
         self.persistence = persistence ?? .memory()
+        self.activity = activity
         self.hosts = hosts
         self.projects = projects
         self.sessions = sessions
@@ -83,7 +86,7 @@ struct SessionIndex {
     /// 不算子代理和归档
     let count: [ProjectID: Int]
 
-    init(_ sessions: [Session]) {
+    init(_ sessions: [Session], activity reported: [String: Activity] = [:]) {
         var positions: [String: Int] = [:], byProject: [ProjectID: [Session]] = [:], children: [String: [Session]] = [:]
         var lastActivity: [ProjectID: Date] = [:], activity: [ProjectID: Activity] = [:], count: [ProjectID: Int] = [:]
         for (i, s) in sessions.enumerated() {
@@ -92,7 +95,8 @@ struct SessionIndex {
             byProject[p, default: []].append(s)
             if let parent = s.parentSessionID { children[parent, default: []].append(s) }
             if s.lastActivity > lastActivity[p] ?? .distantPast { lastActivity[p] = s.lastActivity }
-            if let a = activity[p] { if s.activity.urgency > a.urgency { activity[p] = s.activity } } else { activity[p] = s.activity }
+            let now = reported[s.id] ?? .notRunning
+            if let a = activity[p] { if now.urgency > a.urgency { activity[p] = now } } else { activity[p] = now }
             if s.parentSessionID == nil, !s.isArchived { count[p, default: 0] += 1 }
         }
         (self.positions, self.byProject, self.children) = (positions, byProject, children)

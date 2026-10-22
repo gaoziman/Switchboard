@@ -125,6 +125,7 @@ private struct OpenTabRow: View {
 struct BellPopover: View {
     let sessions: [Session]
     let projectName: (Session) -> String
+    let activity: (Session) -> Activity
     var onOpen: (Session) -> Void = { _ in }
     @Environment(\.barly) private var t
 
@@ -150,15 +151,16 @@ struct BellPopover: View {
                 VStack(spacing: 1) {
                     ForEach(sessions) { session in
                         HStack(alignment: .top, spacing: 10) {
-                            ActivityLamp(session.activity, size: 7).padding(.top, 3)
+                            ActivityLamp(activity(session), size: 7).padding(.top, 3)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(session.displayTitle).barlyText(.product.small.weight(500), color: t.text).lineLimit(1)
                                 HStack(spacing: 6) {
                                     CLIMark(session.cli, size: 14)
                                     Text(projectName(session)).barlyText(.product.caption, color: t.text3)
                                     Text("·").barlyText(.product.caption, color: t.text4)
-                                    Text(session.activity == .waitingForAnswer ? "等你回答" : "回合已结束")
-                                        .barlyText(.product.caption, color: session.activity == .waitingForAnswer ? t.accentText : t.text3)
+                                    let waiting = activity(session) == .waitingForAnswer
+                                    Text(waiting ? "等你回答" : "回合已结束")
+                                        .barlyText(.product.caption, color: waiting ? t.accentText : t.text3)
                                 }
                             }
                             Spacer(minLength: 8)

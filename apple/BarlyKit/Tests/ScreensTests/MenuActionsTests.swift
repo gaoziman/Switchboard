@@ -5,16 +5,16 @@ import Testing
 
 /// 项目 / 会话菜单背后的动作
 @MainActor @Suite struct MenuActionsTests {
-    func session(_ id: String, _ path: String, activity: Activity = .notRunning, parent: String? = nil) -> Session {
+    func session(_ id: String, _ path: String, parent: String? = nil) -> Session {
         Session(id: id, cli: .claude, hostID: Host.localID, projectPath: path, title: id, lastActivity: .now, messageCount: 1,
-                parentSessionID: parent, activity: activity)
+                parentSessionID: parent)
     }
 
     @Test func deletableSkipsRunningAndSubagents() {
         let p = Project(hostID: Host.localID, path: "/p")
         let s = WorkspaceStore(hosts: [MockData.local], projects: [p],
-                               sessions: [session("a", "/p"), session("b", "/p", activity: .working),
-                                          session("c", "/p", parent: "a"), session("d", "/q")])
+                               sessions: [session("a", "/p"), session("b", "/p"),
+                                          session("c", "/p", parent: "a"), session("d", "/q")], activity: ["b": .working])
         #expect(s.deletableSessions(in: p).map(\.id) == ["a"])
         #expect(s.allSessions(in: p).map(\.id).sorted() == ["a", "b"])
     }

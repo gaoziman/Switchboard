@@ -233,6 +233,7 @@ public struct SessionSidebar: View {
                                 let children = store.showsSubagents ? store.subagents(of: session) : []
                                 SessionRow(session: session,
                                            selected: store.isSelected(session) || store.selectedSessionIDs.contains(session.id),
+                                           activity: store.activity(of: session),
                                            snippet: store.messageHits[session.id], query: store.trimmedQuery,
                                            childCount: children.count, childrenExpanded: store.expandedSubagentParents.contains(session.id),
                                            onToggleChildren: { store.toggleSubagents(session) }) {
@@ -253,7 +254,7 @@ public struct SessionSidebar: View {
                                 }
                                 if store.expandedSubagentParents.contains(session.id) {
                                     ForEach(children) { child in
-                                        SessionRow(session: child, selected: store.isSelected(child), indent: 18) {
+                                        SessionRow(session: child, selected: store.isSelected(child), activity: store.activity(of: child), indent: 18) {
                                             store.select(child)
                                             store.libraryCursor = .session(child.id)
                                             libraryFocused = true
@@ -317,7 +318,7 @@ public struct SessionSidebar: View {
                 #endif
             }
             Spacer()
-            StatusCounts(sessions: store.sessions) { store.isBellOpen.toggle() }
+            StatusCounts(activities: store.sessions.map(store.activity(of:))) { store.isBellOpen.toggle() }
         }
         .padding(.horizontal, 8)
         .frame(height: BarlyScale.pt(44))
@@ -358,14 +359,15 @@ extension SessionSidebar {
 
 /// 底栏右边的状态计数：只列有的那几种，全是 0 时只留一个安静的铃铛
 private struct StatusCounts: View {
-    let sessions: [Session]
+    /// 列表里各会话的状态（只算还在列表里的，和原来一样）
+    let activities: [Activity]
     let action: () -> Void
     @Environment(\.barly) private var t
     @State private var hovered = false
 
     var body: some View {
         let counts: [(Activity, Int)] = [Activity.waitingForAnswer, .working, .doneUnseen].map { a in
-            (a, sessions.reduce(0) { $0 + ($1.activity == a ? 1 : 0) })
+            (a, activities.reduce(0) { $0 + ($1 == a ? 1 : 0) })
         }.filter { $0.1 > 0 }
         Button(action: action) {
             HStack(spacing: 10) {
@@ -399,7 +401,7 @@ private struct MultiSelectBar: View {
 
     var body: some View {
         let picked = store.multiSelection
-        let running = picked.filter { $0.activity.isRunning }
+        let running = picked.filter { store.activity(of: $0).isRunning }
         HStack(spacing: 6) {
             Text(verbatim: L("已选 \(picked.count) 个")).barlyText(.product.small, color: t.text2)
             Spacer()
@@ -644,6 +646,7 @@ private struct ProjectRow: View {
 struct SessionRow: View {
     let session: Session
     let selected: Bool
+    var activity: Activity = .notRunning
     /// 消息全文搜索命中的那一句，显示在标题下面
     var snippet: String? = nil
     var query = ""
@@ -697,10 +700,10 @@ struct SessionRow: View {
                 }
                 Spacer(minLength: 6)
                 Group {
-                    if session.activity == .notRunning {
+                    if activity == .notRunning {
                         RelativeAge(session.lastActivity)
                     } else {
-                        ActivityLamp(session.activity)
+                        ActivityLamp(activity)
                     }
                 }
                 .opacity(hovered && menu != nil ? 0 : 1)

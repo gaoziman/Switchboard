@@ -41,17 +41,17 @@ struct StartProblemTests {
 @MainActor
 @Suite("会话库")
 struct LibraryTests {
-    private func session(_ id: String, _ path: String, minutes: Double, activity: Activity = .notRunning,
+    private func session(_ id: String, _ path: String, minutes: Double,
                          pinned: Bool = false, archived: Bool = false, cli: CLIKind = .claude, title: String? = nil) -> Session {
         Session(id: id, cli: cli, hostID: Host.localID, projectPath: path, title: title ?? "会话 \(id)",
                 lastActivity: Date.now.addingTimeInterval(-minutes * 60), messageCount: 1,
-                isPinned: pinned, isArchived: archived, activity: activity)
+                isPinned: pinned, isArchived: archived)
     }
 
-    private func store(_ sessions: [Session], projects: [Project]? = nil) -> WorkspaceStore {
+    private func store(_ sessions: [Session], projects: [Project]? = nil, activity: [String: Activity] = [:]) -> WorkspaceStore {
         WorkspaceStore(hosts: [MockData.local],
                        projects: projects ?? [Project(hostID: Host.localID, path: "/a"), Project(hostID: Host.localID, path: "/b")],
-                       sessions: sessions)
+                       sessions: sessions, activity: activity)
     }
 
     @Test("置顶在前，其余按最近活动")
@@ -99,9 +99,10 @@ struct LibraryTests {
 
     @Test("过滤：等待你、运行中、单个 CLI、归档")
     func filters() {
-        let s = store([session("w", "/a", minutes: 1, activity: .waitingForAnswer), session("d", "/a", minutes: 2, activity: .doneUnseen),
-                       session("r", "/a", minutes: 3, activity: .working), session("n", "/a", minutes: 4),
-                       session("x", "/a", minutes: 5, cli: .codex), session("z", "/a", minutes: 6, archived: true)])
+        let s = store([session("w", "/a", minutes: 1), session("d", "/a", minutes: 2),
+                       session("r", "/a", minutes: 3), session("n", "/a", minutes: 4),
+                       session("x", "/a", minutes: 5, cli: .codex), session("z", "/a", minutes: 6, archived: true)],
+                      activity: ["w": .waitingForAnswer, "d": .doneUnseen, "r": .working])
         let p = s.projects[0]
         s.filter = .waitingForYou
         #expect(Set(s.sessions(in: p).map(\.id)) == ["w", "d"])
@@ -117,8 +118,8 @@ struct LibraryTests {
 
     @Test("项目状态取最急的会话，等你回答最急")
     func urgency() {
-        let s = store([session("1", "/a", minutes: 1, activity: .idle), session("2", "/a", minutes: 2, activity: .waitingForAnswer),
-                       session("3", "/a", minutes: 3, activity: .working)])
+        let s = store([session("1", "/a", minutes: 1), session("2", "/a", minutes: 2), session("3", "/a", minutes: 3)],
+                      activity: ["1": .idle, "2": .waitingForAnswer, "3": .working])
         #expect(s.activity(of: s.projects[0]) == .waitingForAnswer)
     }
 

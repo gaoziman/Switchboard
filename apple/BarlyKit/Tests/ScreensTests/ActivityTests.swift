@@ -47,13 +47,13 @@ struct ActivityParsingTests {
 struct UnseenTurnTests {
     /// 一个开着标签、tmux 不在跑的 OpenCode 会话（OpenCode 不报状态 → 标签开着就是空闲）
     private func store(selected: Bool) -> (WorkspaceStore, TerminalTab, TerminalTab) {
-        let s1 = Session(id: "oc-1", cli: .opencode, hostID: Host.localID, projectPath: "/p", title: "a", lastActivity: .now, messageCount: 1,
-                         activity: .working)
+        let s1 = Session(id: "oc-1", cli: .opencode, hostID: Host.localID, projectPath: "/p", title: "a", lastActivity: .now, messageCount: 1)
         let s2 = Session(id: "oc-2", cli: .opencode, hostID: Host.localID, projectPath: "/p", title: "b", lastActivity: .now, messageCount: 1)
         let t1 = TerminalTab(kind: .session(id: "oc-1", cli: .opencode), projectPath: "/p", title: "a", activity: .working)
         let t2 = TerminalTab(kind: .session(id: "oc-2", cli: .opencode), projectPath: "/p", title: "b", activity: .idle)
         let store = WorkspaceStore(hosts: [MockData.local], projects: [Project(hostID: Host.localID, path: "/p")], sessions: [s1, s2],
-                                   tabGroups: [TabGroup(projectID: ProjectID(host: Host.localID, path: "/p"), name: "p", tint: 0, tabs: [t1, t2])])
+                                   tabGroups: [TabGroup(projectID: ProjectID(host: Host.localID, path: "/p"), name: "p", tint: 0, tabs: [t1, t2])],
+                                   activity: ["oc-1": .working])
         store.selection = .tab(selected ? t1.id : t2.id)
         return (store, t1, t2)
     }
@@ -62,7 +62,7 @@ struct UnseenTurnTests {
     func seen() {
         let (store, _, _) = store(selected: true)
         #expect(store.pollActivity(appIsActive: true).isEmpty)
-        #expect(store.session("oc-1")?.activity == .idle)
+        #expect(store.session("oc-1").map(store.activity(of:)) == .idle)
     }
 
     @Test("没在看的标签跑完：蓝点 + 一条通知；之后不重复通知；选中后消失")
@@ -70,13 +70,13 @@ struct UnseenTurnTests {
         let (store, t1, _) = store(selected: false)
         let changes = store.pollActivity(appIsActive: true)
         #expect(changes == [ActivityChange(kind: .turnFinished, sessionID: "oc-1")])
-        #expect(store.session("oc-1")?.activity == .doneUnseen)
+        #expect(store.session("oc-1").map(store.activity(of:)) == .doneUnseen)
         #expect(store.tab(t1.id)?.activity == .doneUnseen)
         #expect(store.pollActivity(appIsActive: true).isEmpty)
-        #expect(store.session("oc-1")?.activity == .doneUnseen)
+        #expect(store.session("oc-1").map(store.activity(of:)) == .doneUnseen)
         store.selection = .tab(t1.id)
         store.markSeen(t1)
-        #expect(store.session("oc-1")?.activity == .idle)
+        #expect(store.session("oc-1").map(store.activity(of:)) == .idle)
     }
 
     @Test("app 在后台：就算是选中的标签也算没看")
@@ -88,7 +88,7 @@ struct UnseenTurnTests {
     @Test("等你回答进铃铛")
     func bell() {
         let (store, _, _) = store(selected: false)
-        store.sessions[1].activity = .waitingForAnswer
+        store.data.activity["oc-2"] = .waitingForAnswer
         #expect(store.waitingSessions.map(\.id) == ["oc-2"])
     }
 }
@@ -158,7 +158,7 @@ struct ActivityPollTests {
         let (store, t) = codexStore(title: nil)
         store.data.activityInputs.codexRollouts["/tmp/rollout-cx-1.jsonl"] = .working
         store.pollActivity(appIsActive: true)
-        #expect(store.session("cx-1")?.activity == .working)
+        #expect(store.session("cx-1").map(store.activity(of:)) == .working)
         #expect(store.tab(t.id)?.activity == .working)
     }
 
@@ -175,10 +175,10 @@ struct ActivityPollTests {
         let s = Session(id: "cl-1", cli: .claude, hostID: Host.localID, projectPath: "/p", title: "c", lastActivity: .now, messageCount: 1)
         let store = WorkspaceStore(hosts: [MockData.local], projects: [Project(hostID: Host.localID, path: "/p")], sessions: [s])
         store.pollActivity(appIsActive: true)
-        #expect(store.session("cl-1")?.activity == .notRunning)
+        #expect(store.session("cl-1").map(store.activity(of:)) == .notRunning)
         store.data.activityInputs.tmuxRunning = [Tmux.name(for: .claude, sessionID: "cl-1")]
         store.pollActivity(appIsActive: true)
-        #expect(store.session("cl-1")?.activity == .idle)
+        #expect(store.session("cl-1").map(store.activity(of:)) == .idle)
         #expect(!store.canMove(s))                       // 在 tmux 里跑着：不能搬（不用为了画菜单起 tmux）
     }
 

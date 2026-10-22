@@ -72,7 +72,8 @@ public struct WorkspaceView: View {
         .overlay(alignment: .bottomLeading) {
             // 从侧栏底栏的状态计数弹上来
             if store.isBellOpen && sidebarShown {
-                BellPopover(sessions: store.waitingSessions, projectName: { store.project(for: $0)?.name ?? "" }) { session in
+                BellPopover(sessions: store.waitingSessions, projectName: { store.project(for: $0)?.name ?? "" },
+                            activity: { store.activity(of: $0) }) { session in
                     store.isBellOpen = false
                     store.resume(session)
                 }

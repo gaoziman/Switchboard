@@ -156,9 +156,9 @@ public final class WorkspaceStore {
 
     public init(hosts: [Host], projects: [Project], sessions: [Session], tabGroups: [TabGroup] = [],
                 transcripts: [String: [TranscriptEntry]] = [:], loadState: LoadState = .loaded,
-                persistence: WorkspacePersistence? = nil) {
+                persistence: WorkspacePersistence? = nil, activity: [String: Activity] = [:]) {
         data = WorkspaceData(hosts: hosts, projects: projects, sessions: sessions, transcripts: transcripts, loadState: loadState,
-                             persistence: persistence)
+                             persistence: persistence, activity: activity)
         self.tabGroups = tabGroups
     }
 
@@ -235,6 +235,16 @@ public final class WorkspaceStore {
         data.sessionIndex.lastActivity[project.id] ?? .distantPast
     }
 
+    /// 这个会话现在在干什么（状态灯）
+    public func activity(of session: Session) -> Activity { data.activity[session.id] ?? .notRunning }
+
+    /// 换掉一台主机的会话（刷新读完时）：状态按会话 ID 存，还在的不用搬；不在了的状态清掉（和原来一样：消失再出现的从「没在跑」算起）
+    func replaceSessions(on hostID: String, with fresh: [Session]) {
+        let gone = Set(sessions.filter { $0.hostID == hostID }.map(\.id)).subtracting(fresh.map(\.id))
+        sessions = sessions.filter { $0.hostID != hostID } + fresh
+        if !gone.isEmpty { data.activity = data.activity.filter { !gone.contains($0.key) } }
+    }
+
     /// 项目行右侧的状态：组内最急的运行中会话
     public func activity(of project: Project) -> Activity {
         data.sessionIndex.activity[project.id] ?? .notRunning
@@ -249,7 +259,7 @@ public final class WorkspaceStore {
     public var hasSearchResults: Bool { hosts.contains { !projects(on: $0.id).isEmpty } }
 
     public var waitingSessions: [Session] {
-        sessions.filter(\.activity.isWaitingForUser).sorted { $0.lastActivity > $1.lastActivity }
+        sessions.filter { activity(of: $0).isWaitingForUser }.sorted { $0.lastActivity > $1.lastActivity }
     }
 
     public var openTabCount: Int { tabGroups.reduce(0) { $0 + $1.tabs.count } }
@@ -259,8 +269,8 @@ public final class WorkspaceStore {
         case .all: true
         case .recent7Days: session.lastActivity > Date.now.addingTimeInterval(-7 * 86_400)
         case .cli(let cli): session.cli == cli
-        case .running: session.activity.isRunning
-        case .waitingForYou: session.activity.isWaitingForUser
+        case .running: activity(of: session).isRunning
+        case .waitingForYou: activity(of: session).isWaitingForUser
         }
     }
 
@@ -369,9 +379,7 @@ public final class WorkspaceStore {
         for g in tabGroups.indices {
             if let i = tabGroups[g].tabs.firstIndex(where: { $0.id == id }) {
                 tabGroups[g].tabs[i].activity = activity
-                if case .session(let sid, _) = tabGroups[g].tabs[i].kind, let k = sessions.firstIndex(where: { $0.id == sid }) {
-                    sessions[k].activity = activity
-                }
+                if let sid = tabGroups[g].tabs[i].kind.sessionID, session(sid) != nil { data.activity[sid] = activity }
             }
         }
     }

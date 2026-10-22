@@ -195,9 +195,8 @@ public extension WorkspaceStore {
             return appIsActive ? ids : []
         }()
 
-        var updated = sessions             // 改完一次写回（逐个改 sessions[i] 每次都整组拷贝）
-        for i in updated.indices {
-            let s = updated[i]
+        var updated = data.activity        // 改完一次写回：每写一次都要重算会话索引、通知视图
+        for s in sessions {
             // 多窗口：每个会话只由一个窗口算（标签在哪个窗口归哪个），不然几个窗口互相改、通知发好几遍
             guard ownsActivity(of: s) else { continue }
             let tab = tab(for: s)
@@ -212,7 +211,7 @@ public extension WorkspaceStore {
             } else {
                 next = .notRunning
             }
-            let previous = s.activity
+            let previous = updated[s.id] ?? .notRunning
             let seen = tab.map { visibleTabs.contains($0.id) } ?? false
             // 跑完一轮：之前在干活 / 等你，现在空闲，而你没在看 → 蓝点 + 通知
             if next == .idle, previous == .working || previous == .waitingForAnswer {
@@ -226,16 +225,16 @@ public extension WorkspaceStore {
             if next == .waitingForAnswer, previous != .waitingForAnswer, !seen {
                 changes.append(ActivityChange(kind: .needsInput, sessionID: s.id))
             }
-            if next != previous { updated[i].activity = next }
+            if next != previous { updated[s.id] = next == .notRunning ? nil : next }   // 没在跑的不记
         }
-        if updated != sessions { sessions = updated }
+        if updated != data.activity { data.activity = updated }
 
         // 标签上的灯跟会话一致
         for g in tabGroups.indices {
             for t in tabGroups[g].tabs.indices {
                 let tab = tabGroups[g].tabs[t]
                 var a = tabActivity[tab.id] ?? .idle
-                if let s = session(for: tab), a == .idle, s.activity == .doneUnseen { a = .doneUnseen }
+                if let s = session(for: tab), a == .idle, activity(of: s) == .doneUnseen { a = .doneUnseen }
                 if tab.activity != a { tabGroups[g].tabs[t].activity = a }
             }
         }
@@ -244,9 +243,7 @@ public extension WorkspaceStore {
 
     /// 选中一个标签：它的「没看过的完成」变成已看
     func markSeen(_ tab: TerminalTab) {
-        guard let s = session(for: tab), let i = sessions.firstIndex(where: { $0.id == s.id }),
-              sessions[i].activity == .doneUnseen else { return }
-        sessions[i].activity = .idle
-        setActivity(.idle, forTab: tab.id)
+        guard let s = session(for: tab), activity(of: s) == .doneUnseen else { return }
+        setActivity(.idle, forTab: tab.id)      // 会话那份也一起改
     }
 }

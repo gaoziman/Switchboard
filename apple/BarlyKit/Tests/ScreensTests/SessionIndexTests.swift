@@ -8,14 +8,15 @@ import Testing
     private let now = Date(timeIntervalSince1970: 1_000_000)
 
     private func store() -> WorkspaceStore {
-        func s(_ id: String, _ path: String, _ age: TimeInterval, parent: String? = nil, archived: Bool = false, activity: Activity = .notRunning) -> Session {
+        func s(_ id: String, _ path: String, _ age: TimeInterval, parent: String? = nil, archived: Bool = false) -> Session {
             Session(id: id, cli: .claude, hostID: Host.localID, projectPath: path, title: id, lastActivity: now.addingTimeInterval(-age),
-                    messageCount: 1, parentSessionID: parent, isArchived: archived, activity: activity)
+                    messageCount: 1, parentSessionID: parent, isArchived: archived)
         }
         return WorkspaceStore(hosts: [MockData.local],
                               projects: [Project(hostID: Host.localID, path: "/a"), Project(hostID: Host.localID, path: "/b")],
-                              sessions: [s("a1", "/a", 100), s("a2", "/a", 10, activity: .working), s("a3", "/a", 5, parent: "a2"),
-                                         s("a4", "/a", 1, archived: true), s("b1", "/b", 50, activity: .waitingForAnswer)])
+                              sessions: [s("a1", "/a", 100), s("a2", "/a", 10), s("a3", "/a", 5, parent: "a2"),
+                                         s("a4", "/a", 1, archived: true), s("b1", "/b", 50)],
+                              activity: ["a2": .working, "b1": .waitingForAnswer])
     }
 
     @Test func perProjectFigures() throws {
@@ -37,8 +38,7 @@ import Testing
         let a = try #require(st.projects.first { $0.path == "/a" })
         let b = try #require(st.projects.first { $0.path == "/b" })
         _ = st.activity(of: a)                                              // 先建好索引
-        let i = try #require(st.sessions.firstIndex { $0.id == "a2" })
-        st.sessions[i].activity = .notRunning
+        st.data.activity["a2"] = nil                                        // 状态变了，项目的灯跟着变
         #expect(st.activity(of: a) == .notRunning)
         st.sessions.append(Session(id: "b2", cli: .codex, hostID: Host.localID, projectPath: "/b", title: "b2", lastActivity: now,
                                    messageCount: 1))

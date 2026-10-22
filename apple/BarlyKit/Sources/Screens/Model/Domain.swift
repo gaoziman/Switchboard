@@ -183,14 +183,13 @@ public struct Session: Identifiable, Hashable, Sendable {
     public var parentSessionID: String?
     public var isPinned: Bool
     public var isArchived: Bool
-    public var activity: Activity
     /// 会话文件（OpenCode 是它的数据库）；mock 数据为 nil
     public var sourcePath: String?
 
     public init(id: String, cli: CLIKind, hostID: String, projectPath: String, title: String,
                 localName: String? = nil, model: String? = nil, lastActivity: Date, messageCount: Int,
                 parentSessionID: String? = nil, isPinned: Bool = false, isArchived: Bool = false,
-                activity: Activity = .notRunning, sourcePath: String? = nil) {
+                sourcePath: String? = nil) {
         self.id = id
         self.cli = cli
         self.hostID = hostID
@@ -203,7 +202,6 @@ public struct Session: Identifiable, Hashable, Sendable {
         self.parentSessionID = parentSessionID
         self.isPinned = isPinned
         self.isArchived = isArchived
-        self.activity = activity
         self.sourcePath = sourcePath
     }
 

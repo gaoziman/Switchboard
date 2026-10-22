@@ -36,36 +36,45 @@ public enum MockData {
 
     static func s(_ id: String, _ cli: CLIKind, _ path: String, _ title: String, _ minutes: Double,
                   model: String? = nil, messages: Int = 40, host: String = Host.localID,
-                  activity: Activity = .notRunning, pinned: Bool = false) -> Session {
+                  pinned: Bool = false) -> Session {
         Session(id: id, cli: cli, hostID: host, projectPath: path, title: title, model: model,
-                lastActivity: ago(minutes), messageCount: messages, isPinned: pinned, activity: activity)
+                lastActivity: ago(minutes), messageCount: messages, isPinned: pinned)
     }
+
+    /// 截图里各个会话的状态灯（状态不挂在 Session 上，见 WorkspaceData.activity）
+    static let sessionActivity: [String: Activity] = [
+        "4f1a9c2e": .working,
+        "7b20e4d1": .waitingForAnswer,
+        "0c93aa51": .doneUnseen,
+        "e2d7b630": .idle,
+        "b1f0a7c4": .idle,
+        "f5e3a1b4": .working,
+        "ea1d8f09": .working,
+        "long0": .waitingForAnswer,
+    ]
 
     public static let sessions: [Session] = [
         s("4f1a9c2e", .claude, relay, "上架 haiku-5-5 并核对两档计费", 0.5, model: "claude-opus-5-5",
-          messages: 212, activity: .working),
+          messages: 212),
         s("7b20e4d1", .codex, relay, "渠道优先级回退时日志里缺少上游名", 6, model: "gpt-6.1 · high",
-          messages: 58, activity: .waitingForAnswer),
-        s("0c93aa51", .claude, relay, "首页价格表改成按分组展示", 42, model: "claude-opus-5-5", messages: 96,
-          activity: .doneUnseen, pinned: true),
+          messages: 58),
+        s("0c93aa51", .claude, relay, "首页价格表改成按分组展示", 42, model: "claude-opus-5-5", messages: 96, pinned: true),
         s("e2d7b630", .omp, relay, "压测 /v1/messages 在 200 并发下的 P99", 95, model: "gemini-4-argon",
-          messages: 31, activity: .idle),
+          messages: 31),
         s("91be0f47", .claude, relay, "注册页加邀请码校验，过期给明确提示", 60 * 20, model: "claude-opus-5-5", messages: 74),
         s("5aa1c8e9", .opencode, relay, "迁移脚本：把旧 tokens 表的分组字段补齐", 60 * 26, messages: 22),
         s("33f0d2b8", .claude, relay, "日志面板加按上游筛选", 60 * 49, messages: 15),
-        s("b1f0a7c4", .claude, notes, "笔记站的全文搜索换成 SQLite FTS5", 3, model: "claude-opus-5-5", messages: 64,
-          activity: .idle),
+        s("b1f0a7c4", .claude, notes, "笔记站的全文搜索换成 SQLite FTS5", 3, model: "claude-opus-5-5", messages: 64),
         s("c2aa9e10", .codex, notes, "把文章页的目录改成跟随滚动高亮", 60 * 3, model: "gpt-6.1 · medium"),
         s("d3c18f22", .omp, notes, "试一下 gemini-4-argon 的长上下文", 60 * 9),
         s("e4d2c0a3", .claude, notes, "合并重复的标签，并给旧链接做重定向", 60 * 30),
         s("f5e3a1b4", .claude, market, "消息议价改成 WebSocket 推送，断线后补拉未读", 25, model: "claude-opus-5-5",
-          messages: 140, activity: .working),
+          messages: 140),
         s("a6f4b2c5", .codex, market, "订单列表分页在最后一页多出一条", 60 * 5),
         s("b7a5c3d6", .claude, shelf, "拖放货架在多显示器下的坐标换算", 60 * 26),
         s("c8b6d4e7", .opencode, imagery, "生图降级链的超时重试", 60 * 50),
         s("d9c7e5f8", .claude, board, "看板拖动排序后状态没回写", 60 * 24 * 6),
-        s("ea1d8f09", .claude, billing, "缓存 TTL 覆盖标记位失效的排查", 12, model: "claude-sonnet-5-5", host: "devbox",
-          activity: .working),
+        s("ea1d8f09", .claude, billing, "缓存 TTL 覆盖标记位失效的排查", 12, model: "claude-sonnet-5-5", host: "devbox"),
         s("fb2e9a1a", .codex, billing, "运维日志表加 30 天保留策略", 60 * 7, host: "devbox"),
         s("0c3fab2b", .claude, "/home/leo/proxy-hub", "升级到 0.9.7 后的配置迁移", 60 * 24 * 2, host: "devbox"),
     ]
@@ -106,7 +115,7 @@ public enum MockData {
     static let extremeSessions: [Session] = [
         s("long0", .claude, relay,
           "把整个计费模块从按次改成按 token 分档，并保证旧账单可以重新计算，同时给运营后台加一个对账导出，导出要能按渠道和分组筛选",
-          1, messages: 12_480, activity: .waitingForAnswer),
+          1, messages: 12_480),
     ] + (1..<40).map { i in
         s("long\(i)", CLIKind.allCases[i % 4], relay, "批量任务 #\(1200 + i)：核对第 \(i) 批上游渠道的模型列表",
           Double(60 * 24 * (i + 3)), messages: 30 + i)
@@ -226,10 +235,11 @@ public extension WorkspaceStore {
         case "long":
             store = WorkspaceStore(hosts: MockData.hosts, projects: MockData.projects + MockData.extremeProjects,
                                    sessions: MockData.sessions + MockData.extremeSessions,
-                                   tabGroups: MockData.extremeTabGroups)
+                                   tabGroups: MockData.extremeTabGroups, activity: MockData.sessionActivity)
         default:
             store = WorkspaceStore(hosts: MockData.hosts, projects: MockData.projects, sessions: MockData.sessions,
-                                   tabGroups: MockData.tabGroups, transcripts: ["0c93aa51": MockData.transcript])
+                                   tabGroups: MockData.tabGroups, transcripts: ["0c93aa51": MockData.transcript],
+                                   activity: MockData.sessionActivity)
         }
         store.expandedProjectIDs = MockData.expanded
         switch state {

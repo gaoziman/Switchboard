@@ -62,14 +62,8 @@ public extension WorkspaceStore {
             result.sessions = FolderLibrary.sessions(result.sessions, in: library.folderIDs)
             result.projects = SessionDiscovery.projects(for: result.sessions)
         }
-        let previous = Dictionary(sessions.map { ($0.id, $0.activity) }, uniquingKeysWith: { a, _ in a })
-        // 只替换本机的；SSH 主机的会话由 refreshHost 管
-        let fresh = result.sessions.map { s in
-            var s = s
-            s.activity = previous[s.id] ?? .notRunning   // 刷新不打断状态灯
-            return s
-        }
-        sessions = keepingOpenTabSessions(fresh, on: Host.localID) + sessions.filter { $0.hostID != Host.localID }
+        // 只替换本机的；SSH 主机的会话由 refreshHost 管。状态灯按会话 ID 存，刷新不打断
+        replaceSessions(on: Host.localID, with: keepingOpenTabSessions(result.sessions, on: Host.localID))
         projects = result.projects + projects.filter { $0.hostID != Host.localID }
         applyLibraryState()
         installedCLIs = result.installed

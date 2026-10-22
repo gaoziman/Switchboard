@@ -13,7 +13,7 @@ struct SessionMenu: View {
     var body: some View { items.labelStyle(.titleAndIcon) }
 
     @ViewBuilder private var items: some View {
-        let running = session.activity.isRunning || store.tab(for: session) != nil
+        let running = store.activity(of: session).isRunning || store.tab(for: session) != nil
         let canBranch = session.cli.branchArguments(session.id) != nil
         if !running {
             Button { store.resume(session) } label: { Label("继续", systemImage: "play") }
