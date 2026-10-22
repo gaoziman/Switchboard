@@ -55,7 +55,7 @@ public extension WorkspaceStore {
             tabGroups[g].isCollapsed = false
         } else {
             let name = (t.tab.projectPath as NSString).lastPathComponent
-            tabGroups.append(TabGroup(projectID: projectID, name: name.isEmpty ? "/" : name, tint: Self.tint(for: projectID, avoiding: Set(tabGroups.map(\.tint))), tabs: [t.tab]))
+            tabGroups.append(TabGroup(projectID: projectID, name: name.isEmpty ? "/" : name, tint: Self.tint(for: projectID.raw, avoiding: Set(tabGroups.map(\.tint))), tabs: [t.tab]))
         }
         launches[t.tab.id] = t.launch
         tabBanners[t.tab.id] = t.banner

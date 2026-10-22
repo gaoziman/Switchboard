@@ -142,7 +142,7 @@ public struct Host: Identifiable, Hashable, Sendable {
 
 /// 一个项目文件夹（某台主机上的绝对路径）
 public struct Project: Identifiable, Hashable, Sendable {
-    public var id: String { "\(hostID):\(path)" }
+    public var id: ProjectID { ProjectID(host: hostID, path: path) }
     public let hostID: String
     public let path: String
     public var customName: String?
@@ -208,7 +208,7 @@ public struct Session: Identifiable, Hashable, Sendable {
     }
 
     public var displayTitle: String { localName ?? title }
-    public var projectID: String { "\(hostID):\(projectPath)" }
+    public var projectID: ProjectID { ProjectID(host: hostID, path: projectPath) }
 }
 
 /// 窗口里的一个终端标签
@@ -246,21 +246,21 @@ public struct TerminalTab: Identifiable, Hashable, Sendable {
         self.activity = activity
     }
 
-    public var projectID: String { "\(hostID):\(projectPath)" }
+    public var projectID: ProjectID { ProjectID(host: hostID, path: projectPath) }
     public var isPlainTerminal: Bool { kind == .plainTerminal }
 }
 
 /// 标签栏里按项目分的一组（类 Chrome 标签组）
 public struct TabGroup: Identifiable, Hashable, Sendable {
-    public var id: String { projectID }
-    public let projectID: String
+    public var id: ProjectID { projectID }
+    public let projectID: ProjectID
     public let name: String
     /// 组色序号（按项目稳定分配）
     public let tint: Int
     public var tabs: [TerminalTab]
     public var isCollapsed: Bool
 
-    public init(projectID: String, name: String, tint: Int, tabs: [TerminalTab], isCollapsed: Bool = false) {
+    public init(projectID: ProjectID, name: String, tint: Int, tabs: [TerminalTab], isCollapsed: Bool = false) {
         self.projectID = projectID
         self.name = name
         self.tint = tint
@@ -304,4 +304,30 @@ public struct TranscriptEntry: Identifiable, Hashable, Sendable {
         case .image(let c): c
         }
     }
+}
+
+/// 项目 ID：哪台主机上的哪个文件夹。拼成字符串「主机:路径」只在存盘（library.json 的置顶、归档、改名、会话库文件夹）和拖放时用，
+/// 拆回来也只在这里拆（按第一个冒号：主机别名里没有冒号，路径里可能有）
+public struct ProjectID: Hashable, Sendable, Comparable, CustomStringConvertible, ExpressibleByStringLiteral {
+    public let host: String
+    public let path: String
+
+    public init(host: String, path: String) {
+        self.host = host
+        self.path = path
+    }
+
+    public init?(raw: String) {
+        guard let colon = raw.firstIndex(of: ":") else { return nil }
+        self.init(host: String(raw[..<colon]), path: String(raw[raw.index(after: colon)...]))
+    }
+
+    /// 单测、截图数据里直接写 "local:/p"
+    public init(stringLiteral value: String) {
+        self = ProjectID(raw: value) ?? ProjectID(host: value, path: "")
+    }
+
+    public var raw: String { "\(host):\(path)" }
+    public var description: String { raw }
+    public static func < (a: ProjectID, b: ProjectID) -> Bool { a.raw < b.raw }
 }

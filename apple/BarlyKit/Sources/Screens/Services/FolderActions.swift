@@ -4,28 +4,23 @@ import Foundation
 @MainActor
 public extension WorkspaceStore {
     /// 某台主机上添加过的文件夹路径
-    func folderPaths(on hostID: String) -> Set<String> {
-        Set(library.folders.compactMap { id in
-            guard let colon = id.firstIndex(of: ":"), id[..<colon] == hostID else { return nil }
-            return String(id[id.index(after: colon)...])
-        })
-    }
+    func folderPaths(on hostID: String) -> Set<String> { Set(folderIDs(on: hostID).map(\.path)) }
 
-    func isInLibrary(_ projectID: String) -> Bool { library.folders.contains(projectID) }
+    func isInLibrary(_ projectID: ProjectID) -> Bool { library.folders.contains(projectID.raw) }
 
-    /// 某台主机上添加过的文件夹的项目 ID
-    func folderIDs(on hostID: String) -> Set<String> { Set(library.folders.filter { $0.hasPrefix(hostID + ":") }) }
+    /// 某台主机上添加过的文件夹的项目 ID（library.json 里存的是字符串）
+    func folderIDs(on hostID: String) -> Set<ProjectID> { Set(library.folders.compactMap(ProjectID.init(raw:)).filter { $0.host == hostID }) }
 
     /// 加一个文件夹进会话库（本机路径规范化；已经在了就只展开）。加完读一次它的会话
     func addFolder(_ path: String, on hostID: String = Host.localID, refreshNow: Bool = true) {
         let p = hostID == Host.localID ? ((path as NSString).expandingTildeInPath as NSString).standardizingPath : path
         guard p.hasPrefix("/") else { return }
-        let id = "\(hostID):\(p)"
+        let id = ProjectID(host: hostID, path: p)
         expandedProjectIDs.insert(id)
         guard !isInLibrary(id) else { return }
         updateLibrary { s in
-            s.folders.append(id)
-            s.dismissedFolders.remove(id)
+            s.folders.append(id.raw)
+            s.dismissedFolders.remove(id.raw)
         }
         outsideRunning.removeAll { $0.id == id }
         guard isLive, refreshNow else { return }
@@ -49,7 +44,7 @@ public extension WorkspaceStore {
 
     /// 从会话库拿掉：只是不显示，会话文件一个不动；置顶、重命名、归档的记录留着，以后加回来还在
     func removeFolder(_ project: Project) {
-        updateLibrary { s in s.folders.removeAll { $0 == project.id } }
+        updateLibrary { s in s.folders.removeAll { $0 == project.id.raw } }
         projects.removeAll { $0.id == project.id }
         let open = openTabSessionIDs
         sessions.removeAll { $0.projectID == project.id && !open.contains($0.id) }
@@ -60,18 +55,18 @@ public extension WorkspaceStore {
     // MARK: 升级挑选
 
     /// 升级后第一次：用全量扫描的结果给出候选和默认勾选（置顶 / 上次开着标签 / 最近 14 天）
-    func prepareMigration(index: [FolderLibrary.Candidate], openTabs: Set<String>) {
+    func prepareMigration(index: [FolderLibrary.Candidate], openTabs: Set<ProjectID>) {
         guard !index.isEmpty else {
             updateLibrary { $0.finishFolderMigration(picked: []) }
             return
         }
-        data.migrationPicks = FolderLibrary.defaultPicks(index, pinned: Set(library.pinnedProjects), openTabs: openTabs)
+        data.migrationPicks = FolderLibrary.defaultPicks(index, pinned: Set(library.pinnedProjectIDs), openTabs: openTabs)
         data.migrationCandidates = index
     }
 
     /// 挑完了（全都不要 = 空数组）
-    func finishMigration(picked: [String]) {
-        updateLibrary { $0.finishFolderMigration(picked: picked) }
+    func finishMigration(picked: [ProjectID]) {
+        updateLibrary { $0.finishFolderMigration(picked: picked.map(\.raw)) }
         data.migrationCandidates = nil
         if let first = picked.first { expandedProjectIDs.insert(first) }
         // 启动时挑选还没做完，那次恢复标签时会话库是空的，什么都没接回来：挑完再恢复一次
@@ -79,7 +74,7 @@ public extension WorkspaceStore {
     }
 
     var migrationCandidates: [FolderLibrary.Candidate]? { data.migrationCandidates }
-    var migrationPicks: [String] { data.migrationPicks }
+    var migrationPicks: [ProjectID] { data.migrationPicks }
 
     // MARK: 候选索引（按需）
 
@@ -111,18 +106,18 @@ public extension WorkspaceStore {
     func checkOutsideRunning() {
         guard library.foldersMigrated else { return }
         let running = ActivityMonitor.claudeRunning().map { ($0.sessionID, ($0.cwd as NSString).standardizingPath) }
-        let found = FolderLibrary.runningOutside(running, folders: Set(library.folders), dismissed: library.dismissedFolders)
+        let found = FolderLibrary.runningOutside(running, folders: library.folderIDs, dismissed: library.dismissedFolderIDs)
         if found != outsideRunning { outsideRunning = found }
     }
 
     /// 「忽略」：这个文件夹以后不再提示
     func dismissOutside(_ outside: FolderLibrary.Outside) {
-        updateLibrary { s in s.dismissedFolders.insert(outside.id) }
+        updateLibrary { s in s.dismissedFolders.insert(outside.id.raw) }
         outsideRunning.removeAll { $0.id == outside.id }
     }
 
     /// 上次开着的标签所在的本机文件夹（启动时自动加回库里；升级挑选时默认勾上）
-    func savedTabFolders() -> Set<String> {
+    func savedTabFolders() -> Set<ProjectID> {
         Self.localFolders(of: data.persistence.loadTabs())
     }
 }

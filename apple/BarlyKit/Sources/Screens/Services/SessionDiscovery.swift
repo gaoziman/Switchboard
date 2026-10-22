@@ -28,7 +28,7 @@ public enum SessionDiscovery {
     /// SSH 主机上的目录不在这里检查，终端启动时主机会报
     static func projects(for sessions: [Session]) -> [Project] {
         let fm = FileManager.default
-        var seen = Set<String>()
+        var seen = Set<ProjectID>()
         return sessions.compactMap { s in
             guard seen.insert(s.projectID).inserted else { return nil }
             let local = s.hostID == Host.localID

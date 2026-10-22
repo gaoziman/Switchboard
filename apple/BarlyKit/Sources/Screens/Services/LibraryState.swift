@@ -26,9 +26,15 @@ public struct LibraryState: Codable, Equatable, Sendable {
 
     public init() {}
 
+    // library.json 里项目 ID 存成字符串「主机:路径」（格式不变）；用的时候转成 ProjectID
+    var folderIDs: Set<ProjectID> { Set(folders.compactMap(ProjectID.init(raw:))) }
+    var pinnedProjectIDs: [ProjectID] { pinnedProjects.compactMap(ProjectID.init(raw:)) }
+    var archivedProjectIDs: Set<ProjectID> { Set(archivedProjects.compactMap(ProjectID.init(raw:))) }
+    var dismissedFolderIDs: Set<ProjectID> { Set(dismissedFolders.compactMap(ProjectID.init(raw:))) }
+
     /// 升级挑选完成：挑中的 + 旧版本手动加的，去重保序
     mutating func finishFolderMigration(picked: [String]) {
-        for id in picked + addedProjects.map({ "\(Host.localID):\($0)" }) where !folders.contains(id) { folders.append(id) }
+        for id in picked + addedProjects.map({ ProjectID(host: Host.localID, path: $0).raw }) where !folders.contains(id) { folders.append(id) }
         addedProjects = []
         foldersMigrated = true
     }
@@ -58,18 +64,16 @@ public extension WorkspaceStore {
         var projects = self.projects
         var known = Set(projects.map(\.id))
         // 会话库里的文件夹还没有会话也列出来
-        for id in state.folders where !known.contains(id) {
-            guard let colon = id.firstIndex(of: ":") else { continue }
-            let host = String(id[..<colon]), path = String(id[id.index(after: colon)...])
-            let local = host == Host.localID
-            projects.append(Project(hostID: host, path: path, folderExists: !local || FileManager.default.fileExists(atPath: path)))
+        for id in state.folders.compactMap(ProjectID.init(raw:)) where !known.contains(id) {   // 按添加顺序
+            let local = id.host == Host.localID
+            projects.append(Project(hostID: id.host, path: id.path, folderExists: !local || FileManager.default.fileExists(atPath: id.path)))
             known.insert(id)
         }
-        let pinnedProjects = Set(state.pinnedProjects)
+        let pinnedProjects = Set(state.pinnedProjectIDs), archivedProjects = state.archivedProjectIDs
         for i in projects.indices {
             projects[i].isPinned = pinnedProjects.contains(projects[i].id)
-            projects[i].isArchived = state.archivedProjects.contains(projects[i].id)
-            projects[i].customName = state.projectNames[projects[i].id]
+            projects[i].isArchived = archivedProjects.contains(projects[i].id)
+            projects[i].customName = state.projectNames[projects[i].id.raw]
         }
         var sessions = self.sessions
         let pinnedSessions = Set(state.pinnedSessions)
@@ -97,7 +101,7 @@ public extension WorkspaceStore {
 
     func togglePin(_ project: Project) {
         updateLibrary { s in
-            if let i = s.pinnedProjects.firstIndex(of: project.id) { s.pinnedProjects.remove(at: i) } else { s.pinnedProjects.append(project.id) }
+            if let i = s.pinnedProjects.firstIndex(of: project.id.raw) { s.pinnedProjects.remove(at: i) } else { s.pinnedProjects.append(project.id.raw) }
         }
     }
 
@@ -121,7 +125,7 @@ public extension WorkspaceStore {
 
     func setArchived(_ project: Project, _ archived: Bool) {
         updateLibrary { s in
-            if archived { s.archivedProjects.insert(project.id) } else { s.archivedProjects.remove(project.id) }
+            if archived { s.archivedProjects.insert(project.id.raw) } else { s.archivedProjects.remove(project.id.raw) }
         }
     }
 

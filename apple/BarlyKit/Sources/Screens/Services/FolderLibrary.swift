@@ -5,7 +5,7 @@ import Foundation
 public enum FolderLibrary {
     /// 一个发现过会话的文件夹（添加列表、升级挑选、空状态推荐用）
     public struct Candidate: Identifiable, Hashable, Sendable {
-        public var id: String { "\(hostID):\(path)" }
+        public var id: ProjectID { ProjectID(host: hostID, path: path) }
         public let hostID: String
         public let path: String
         public let sessionCount: Int
@@ -16,7 +16,7 @@ public enum FolderLibrary {
 
     /// 库外有会话在跑的文件夹
     public struct Outside: Identifiable, Hashable, Sendable {
-        public var id: String { "\(Host.localID):\(path)" }
+        public var id: ProjectID { ProjectID(host: Host.localID, path: path) }
         public let path: String
         public let count: Int
         public var name: String { (path as NSString).lastPathComponent.isEmpty ? path : (path as NSString).lastPathComponent }
@@ -31,7 +31,7 @@ public enum FolderLibrary {
     }
 
     /// 只留添加过的文件夹里的会话（项目 ID 精确匹配）
-    public static func sessions(_ all: [Session], in folders: Set<String>) -> [Session] {
+    public static func sessions(_ all: [Session], in folders: Set<ProjectID>) -> [Session] {
         all.filter { folders.contains($0.projectID) }
     }
 
@@ -58,7 +58,7 @@ public enum FolderLibrary {
     }
 
     /// 升级时默认勾上：置顶的、有标签开着的、最近 14 天有活动且不是临时目录且文件夹还在的
-    public static func defaultPicks(_ index: [Candidate], pinned: Set<String>, openTabs: Set<String>, now: Date = .now) -> [String] {
+    public static func defaultPicks(_ index: [Candidate], pinned: Set<ProjectID>, openTabs: Set<ProjectID>, now: Date = .now) -> [ProjectID] {
         let recent = now.addingTimeInterval(-14 * 86_400)
         return index.filter { c in
             if pinned.contains(c.id) || openTabs.contains(c.id) { return true }
@@ -68,9 +68,9 @@ public enum FolderLibrary {
     }
 
     /// 后台在跑、但文件夹没添加也没被忽略的会话（会话 ID, cwd）→ 每个文件夹几个；多的在前
-    public static func runningOutside(_ running: [(String, String)], folders: Set<String>, dismissed: Set<String>) -> [Outside] {
+    public static func runningOutside(_ running: [(String, String)], folders: Set<ProjectID>, dismissed: Set<ProjectID>) -> [Outside] {
         let outside = running.filter { _, cwd in
-            let id = "\(Host.localID):\(cwd)"
+            let id = ProjectID(host: Host.localID, path: cwd)
             return !folders.contains(id) && !dismissed.contains(id)
         }
         return Dictionary(grouping: outside, by: \.1).map { Outside(path: $0.key, count: $0.value.count) }

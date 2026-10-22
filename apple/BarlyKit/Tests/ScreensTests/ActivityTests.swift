@@ -53,7 +53,7 @@ struct UnseenTurnTests {
         let t1 = TerminalTab(kind: .session(id: "oc-1", cli: .opencode), projectPath: "/p", title: "a", activity: .working)
         let t2 = TerminalTab(kind: .session(id: "oc-2", cli: .opencode), projectPath: "/p", title: "b", activity: .idle)
         let store = WorkspaceStore(hosts: [MockData.local], projects: [Project(hostID: Host.localID, path: "/p")], sessions: [s1, s2],
-                                   tabGroups: [TabGroup(projectID: "\(Host.localID):/p", name: "p", tint: 0, tabs: [t1, t2])])
+                                   tabGroups: [TabGroup(projectID: ProjectID(host: Host.localID, path: "/p"), name: "p", tint: 0, tabs: [t1, t2])])
         store.selection = .tab(selected ? t1.id : t2.id)
         return (store, t1, t2)
     }
@@ -147,7 +147,7 @@ struct ActivityPollTests {
                         sourcePath: "/tmp/rollout-cx-1.jsonl")
         let t = TerminalTab(kind: .session(id: "cx-1", cli: .codex), projectPath: "/p", title: "c", activity: .idle)
         let store = WorkspaceStore(hosts: [MockData.local], projects: [Project(hostID: Host.localID, path: "/p")], sessions: [s],
-                                   tabGroups: [TabGroup(projectID: "\(Host.localID):/p", name: "p", tint: 0, tabs: [t])])
+                                   tabGroups: [TabGroup(projectID: ProjectID(host: Host.localID, path: "/p"), name: "p", tint: 0, tabs: [t])])
         store.selection = .tab(t.id)
         if let title { store.terminalTitles[t.id] = title }
         return (store, t)

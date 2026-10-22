@@ -51,7 +51,7 @@ public extension WorkspaceStore {
     /// 重命名项目：只改 Switchboard 里显示的名字；留空恢复文件夹名
     func rename(_ project: Project, to name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        updateLibrary { s in s.projectNames[project.id] = trimmed.isEmpty ? nil : trimmed }
+        updateLibrary { s in s.projectNames[project.id.raw] = trimmed.isEmpty ? nil : trimmed }
     }
 
     /// 删除确认里点了「删除」：删完再归档（「归档项目并删除所有会话」）

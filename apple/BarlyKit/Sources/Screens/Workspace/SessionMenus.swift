@@ -201,7 +201,7 @@ struct NewSessionItems: View {
         }
         Divider()
         Button {
-            NotificationCenter.default.post(name: .switchboardNewSession, object: project.id)
+            NotificationCenter.default.post(.newSession(in: project.id))
         } label: { Label("更多选项…", systemImage: "slider.horizontal.3") }
     }
 }

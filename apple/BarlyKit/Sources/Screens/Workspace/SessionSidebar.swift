@@ -111,7 +111,7 @@ public struct SessionSidebar: View {
                                   allowsPath: true, loading: !store.folderCandidatesLoaded(on: alias),
                                   secondaryTitle: L("取消"), onSecondary: { store.presentation = nil }) { picked, path in
                     store.presentation = nil
-                    for id in picked { store.addFolder(String(id.dropFirst(alias.count + 1)), on: alias, refreshNow: false) }
+                    for id in picked { store.addFolder(id.path, on: alias, refreshNow: false) }
                     Task {
                         if let path { await store.addRemoteFolder(path, on: alias, refreshNow: false) }
                         await store.reloadHostSessions(alias)
@@ -220,10 +220,11 @@ public struct SessionSidebar: View {
                         }
                         .id(LibraryRow.project(project.id))
                         .contextMenu { ProjectMenu(store: store, project: project) }
-                        .draggable("project:" + project.id)
+                        .draggable("project:" + project.id.raw)
                         .dropDestination(for: String.self) { ids, _ in
-                            guard project.isPinned, let id = ids.first, id.hasPrefix("project:") else { return false }
-                            store.movePinnedProject(String(id.dropFirst(8)), before: project.id)
+                            guard project.isPinned, let id = ids.first, id.hasPrefix("project:"),
+                                  let dragged = ProjectID(raw: String(id.dropFirst(8))) else { return false }
+                            store.movePinnedProject(dragged, before: project.id)
                             return true
                         }
                         if store.isExpanded(project) {

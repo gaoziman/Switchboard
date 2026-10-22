@@ -47,7 +47,7 @@ public extension WorkspaceStore {
         // 启动恢复标签：上次开着的文件夹自动加回库里（升级挑选时默认勾上）
         let savedTabs = restoringTabs ? savedTabFolders() : []
         if library.foldersMigrated, savedTabs.contains(where: { !isInLibrary($0) }) {
-            updateLibrary { s in for id in savedTabs.sorted() where !s.folders.contains(id) { s.folders.append(id) } }
+            updateLibrary { s in for id in savedTabs.sorted() where !s.folders.contains(id.raw) { s.folders.append(id.raw) } }
         }
         // 只读会话库里的本机文件夹；还没升级挑选过：全量读一次，给挑选窗口用
         var result: SessionDiscovery.Result
@@ -59,7 +59,7 @@ public extension WorkspaceStore {
             let index = FolderLibrary.index(result.sessions) { FileManager.default.fileExists(atPath: $0) }
             data.folderCandidates[Host.localID] = index
             prepareMigration(index: index, openTabs: savedTabs)
-            result.sessions = FolderLibrary.sessions(result.sessions, in: Set(library.folders))
+            result.sessions = FolderLibrary.sessions(result.sessions, in: library.folderIDs)
             result.projects = SessionDiscovery.projects(for: result.sessions)
         }
         let previous = Dictionary(sessions.map { ($0.id, $0.activity) }, uniquingKeysWith: { a, _ in a })
@@ -315,7 +315,7 @@ public extension WorkspaceStore {
             tabGroups[i].isCollapsed = false
         } else {
             let name = (tab.projectPath as NSString).lastPathComponent
-            tabGroups.append(TabGroup(projectID: projectID, name: name.isEmpty ? "/" : name, tint: Self.tint(for: projectID, avoiding: Set(tabGroups.map(\.tint))), tabs: [tab]))
+            tabGroups.append(TabGroup(projectID: projectID, name: name.isEmpty ? "/" : name, tint: Self.tint(for: projectID.raw, avoiding: Set(tabGroups.map(\.tint))), tabs: [tab]))
         }
         selection = .tab(tab.id)
         markRunning()
@@ -550,8 +550,8 @@ public extension WorkspaceStore {
     }
 
     /// 本机标签所在的文件夹（项目 ID）。主机上的路径不能当本机文件夹加进库里
-    internal static func localFolders(of records: [TabRecord]) -> Set<String> {
-        Set(records.filter { $0.host == Host.localID }.map { "\(Host.localID):\(($0.projectPath as NSString).standardizingPath)" })
+    internal static func localFolders(of records: [TabRecord]) -> Set<ProjectID> {
+        Set(records.filter { $0.host == Host.localID }.map { ProjectID(host: Host.localID, path: ($0.projectPath as NSString).standardizingPath) })
     }
 
     /// 要写下的：开着的标签 + 主机还没连上、还没恢复的远程标签（不写就丢了）

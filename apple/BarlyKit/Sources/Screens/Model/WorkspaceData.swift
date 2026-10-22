@@ -21,7 +21,7 @@ public final class WorkspaceData {
     /// 升级到「手动添加文件夹」：不为空时弹一次挑选
     public var migrationCandidates: [FolderLibrary.Candidate]?
     /// 升级挑选的默认勾选
-    public var migrationPicks: [String] = []
+    public var migrationPicks: [ProjectID] = []
     /// 库外有会话在跑的文件夹（侧栏底部提示）
     public var outsideRunning: [FolderLibrary.Outside] = []
     @ObservationIgnored private var cachedIndex: SessionIndex?
@@ -74,18 +74,18 @@ struct SessionIndex {
     /// 会话 ID → 在 sessions 里的位置（同 ID 取第一个，和 first(where:) 一样）
     let positions: [String: Int]
     /// 项目 ID → 会话（含子代理、归档，保持原顺序）
-    let byProject: [String: [Session]]
+    let byProject: [ProjectID: [Session]]
     /// 父会话 ID → 子代理
     let children: [String: [Session]]
-    let lastActivity: [String: Date]
+    let lastActivity: [ProjectID: Date]
     /// 组内最急的状态
-    let activity: [String: Activity]
+    let activity: [ProjectID: Activity]
     /// 不算子代理和归档
-    let count: [String: Int]
+    let count: [ProjectID: Int]
 
     init(_ sessions: [Session]) {
-        var positions: [String: Int] = [:], byProject: [String: [Session]] = [:], children: [String: [Session]] = [:]
-        var lastActivity: [String: Date] = [:], activity: [String: Activity] = [:], count: [String: Int] = [:]
+        var positions: [String: Int] = [:], byProject: [ProjectID: [Session]] = [:], children: [String: [Session]] = [:]
+        var lastActivity: [ProjectID: Date] = [:], activity: [ProjectID: Activity] = [:], count: [ProjectID: Int] = [:]
         for (i, s) in sessions.enumerated() {
             if positions[s.id] == nil { positions[s.id] = i }
             let p = s.projectID

@@ -8,7 +8,7 @@ import Testing
     }
 
     func store(_ tabs: [TerminalTab]) -> WorkspaceStore {
-        let groups = Dictionary(grouping: tabs, by: \.projectID).map { TabGroup(projectID: $0.key, name: $0.key, tint: 0, tabs: $0.value) }
+        let groups = Dictionary(grouping: tabs, by: \.projectID).map { TabGroup(projectID: $0.key, name: $0.key.raw, tint: 0, tabs: $0.value) }
             .sorted { $0.projectID < $1.projectID }
         let s = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [], tabGroups: groups)
         s.selection = tabs.first.map { .tab($0.id) }

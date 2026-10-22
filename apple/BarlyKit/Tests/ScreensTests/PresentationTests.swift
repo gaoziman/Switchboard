@@ -16,7 +16,7 @@ struct PresentationTests {
             Session(id: $0, cli: .claude, hostID: host, projectPath: "/srv", title: $0, lastActivity: .now, messageCount: 1)
         }
         let st = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: sessions,
-                                tabGroups: [TabGroup(projectID: "\(host):/srv", name: "srv", tint: 0, tabs: [a, b])])
+                                tabGroups: [TabGroup(projectID: ProjectID(host: host, path: "/srv"), name: "srv", tint: 0, tabs: [a, b])])
         for t in [a, b] {
             st.launches[t.id] = .remote(tabID: t.id, alias: host, command: ["claude"], directory: "/srv", tmuxName: "claude-\(t.title)")
         }

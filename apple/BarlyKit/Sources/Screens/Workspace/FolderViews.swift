@@ -74,22 +74,22 @@ struct FolderPickerSheet: View {
     let subtitle: String
     let candidates: [FolderLibrary.Candidate]
     /// 已经在会话库里的：勾着、灰掉
-    var added: Set<String> = []
+    var added: Set<ProjectID> = []
     /// SSH 主机：允许手动输入一个路径（主机上还没会话的文件夹）
     var allowsPath = false
     /// 正在读候选（SSH 主机镜像）
     var loading = false
     let secondaryTitle: String
     let onSecondary: () -> Void
-    let onDone: ([String], String?) -> Void
-    @State private var picked: Set<String>
+    let onDone: ([ProjectID], String?) -> Void
+    @State private var picked: Set<ProjectID>
     @State private var query = ""
     @State private var path = ""
     @Environment(\.barly) private var t
 
-    init(title: String, subtitle: String, candidates: [FolderLibrary.Candidate], initial: [String] = [],
-         added: Set<String> = [], allowsPath: Bool = false, loading: Bool = false,
-         secondaryTitle: String, onSecondary: @escaping () -> Void, onDone: @escaping ([String], String?) -> Void) {
+    init(title: String, subtitle: String, candidates: [FolderLibrary.Candidate], initial: [ProjectID] = [],
+         added: Set<ProjectID> = [], allowsPath: Bool = false, loading: Bool = false,
+         secondaryTitle: String, onSecondary: @escaping () -> Void, onDone: @escaping ([ProjectID], String?) -> Void) {
         self.title = title
         self.subtitle = subtitle
         self.candidates = candidates
@@ -108,7 +108,7 @@ struct FolderPickerSheet: View {
     }
 
     /// 保持候选列表的顺序（最近的在前）
-    private var pickedInOrder: [String] { candidates.map(\.id).filter { picked.contains($0) && !added.contains($0) } }
+    private var pickedInOrder: [ProjectID] { candidates.map(\.id).filter { picked.contains($0) && !added.contains($0) } }
 
     private var manualPath: String? {
         let p = path.trimmingCharacters(in: .whitespaces)

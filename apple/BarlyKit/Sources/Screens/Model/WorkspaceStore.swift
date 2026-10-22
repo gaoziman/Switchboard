@@ -61,7 +61,7 @@ public final class WorkspaceStore {
     public var isSearching = false
     public var filter = SessionFilter.all
     public var showsArchived = false
-    public var expandedProjectIDs: Set<String> = []
+    public var expandedProjectIDs: Set<ProjectID> = []
     /// 收起的主机（记在 UserDefaults）
     public var collapsedHostIDs: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "collapsedHosts") ?? []) {
         didSet { if isLive { UserDefaults.standard.set(Array(collapsedHostIDs), forKey: "collapsedHosts") } }
@@ -75,7 +75,7 @@ public final class WorkspaceStore {
         }
     }
     /// 每个项目默认列出的会话数，「再显示 20 个」按项目累加
-    public var visibleLimits: [String: Int] = [:]
+    public var visibleLimits: [ProjectID: Int] = [:]
     /// 分屏：左右两个标签；right 为 nil = 右边还在「选一个标签」
     public var split: SplitState?
     /// 侧栏「已打开」视图里多选的标签（⌘-click / ⇧-click）
@@ -184,7 +184,7 @@ public final class WorkspaceStore {
         let latest = data.sessionIndex.lastActivity
         return matched.sorted { lhs, rhs in
             if lhs.isPinned != rhs.isPinned { return lhs.isPinned }
-            if lhs.isPinned, let a = library.pinnedProjects.firstIndex(of: lhs.id), let b = library.pinnedProjects.firstIndex(of: rhs.id) { return a < b }
+            if lhs.isPinned, let a = library.pinnedProjects.firstIndex(of: lhs.id.raw), let b = library.pinnedProjects.firstIndex(of: rhs.id.raw) { return a < b }
             return latest[lhs.id] ?? .distantPast > latest[rhs.id] ?? .distantPast
         }
     }
@@ -389,7 +389,7 @@ public enum Presentation: Equatable, Sendable {
     case renameSession(Session)
     case renameProject(Project)
     /// 删除确认；archivingProject：删完再归档这个项目（「归档项目并删除所有会话」）
-    case confirmDelete([Session], archivingProject: String? = nil)
+    case confirmDelete([Session], archivingProject: ProjectID? = nil)
     case hostSheet(HostSheet)
     /// Connect…：在对话框里交互登录这台主机
     case connect(host: String)
@@ -399,7 +399,7 @@ public enum Presentation: Equatable, Sendable {
     public var renamingSession: Session? { if case .renameSession(let s) = self { s } else { nil } }
     public var renamingProject: Project? { if case .renameProject(let p) = self { p } else { nil } }
     public var deleting: [Session]? { if case .confirmDelete(let s, _) = self { s } else { nil } }
-    public var archivingProject: String? { if case .confirmDelete(_, let p) = self { p } else { nil } }
+    public var archivingProject: ProjectID? { if case .confirmDelete(_, let p) = self { p } else { nil } }
     public var hostSheet: HostSheet? { if case .hostSheet(let h) = self { h } else { nil } }
     public var connectingHost: String? { if case .connect(let h) = self { h } else { nil } }
     public var closingTab: TerminalTab? { if case .closeTab(let t) = self { t } else { nil } }

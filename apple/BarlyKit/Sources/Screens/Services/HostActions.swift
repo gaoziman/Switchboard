@@ -202,7 +202,7 @@ public extension WorkspaceStore {
     func reloadHostSessions(_ alias: String) async {
         let all = await SessionDiscovery.runRemote(alias)
         data.folderCandidates[alias] = FolderLibrary.index(all) { _ in true }
-        let remote = FolderLibrary.sessions(all, in: Set(library.folders))
+        let remote = FolderLibrary.sessions(all, in: library.folderIDs)
         let previous = Dictionary(sessions.filter { $0.hostID == alias }.map { ($0.id, $0.activity) }, uniquingKeysWith: { a, _ in a })
         let fresh = keepingOpenTabSessions(remote.map { s in var s = s; s.activity = previous[s.id] ?? .notRunning; return s }, on: alias)
         sessions.removeAll { $0.hostID == alias }
@@ -210,7 +210,7 @@ public extension WorkspaceStore {
         projects.removeAll { $0.hostID == alias }
         projects += SessionDiscovery.projects(for: remote)
         applyLibraryState()
-        if let recent = projects(on: alias).first, !expandedProjectIDs.contains(where: { $0.hasPrefix(alias + ":") }) {
+        if let recent = projects(on: alias).first, !expandedProjectIDs.contains(where: { $0.host == alias }) {
             expandedProjectIDs.insert(recent.id)
         }
         restoreRemoteTabs(on: alias)

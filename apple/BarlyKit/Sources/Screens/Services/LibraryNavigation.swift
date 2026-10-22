@@ -2,7 +2,7 @@ import Foundation
 
 /// 侧栏的一行（键盘导航用）
 public enum LibraryRow: Hashable, Sendable {
-    case project(String)
+    case project(ProjectID)
     case session(String)
 }
 
@@ -154,11 +154,11 @@ public extension WorkspaceStore {
         updateLibrary { $0.pinnedSessions = order }
     }
 
-    func movePinnedProject(_ dragged: String, before target: String) {
+    func movePinnedProject(_ dragged: ProjectID, before target: ProjectID) {
         guard dragged != target else { return }
-        var order = library.pinnedProjects.filter { $0 != dragged }
-        let i = order.firstIndex(of: target) ?? order.count
-        order.insert(dragged, at: i)
+        var order = library.pinnedProjects.filter { $0 != dragged.raw }
+        let i = order.firstIndex(of: target.raw) ?? order.count
+        order.insert(dragged.raw, at: i)
         updateLibrary { $0.pinnedProjects = order }
     }
 

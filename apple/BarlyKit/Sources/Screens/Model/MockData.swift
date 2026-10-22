@@ -29,8 +29,8 @@ public enum MockData {
         Project(hostID: "devbox", path: "/home/leo/proxy-hub"),
     ]
 
-    public static let focusedProjectID = "\(Host.localID):\(relay)"
-    static let expanded: Set<String> = [focusedProjectID, "\(Host.localID):\(notes)", "devbox:\(billing)"]
+    public static let focusedProjectID = ProjectID(host: Host.localID, path: relay)
+    static let expanded: Set<ProjectID> = [focusedProjectID, ProjectID(host: Host.localID, path: notes), ProjectID(host: "devbox", path: billing)]
 
     static func ago(_ minutes: Double) -> Date { Date.now.addingTimeInterval(-minutes * 60) }
 
@@ -71,7 +71,7 @@ public enum MockData {
     ]
 
     static let tabGroups: [TabGroup] = [
-        TabGroup(projectID: "\(Host.localID):\(notes)", name: "notes-site", tint: 2, tabs: [
+        TabGroup(projectID: ProjectID(host: Host.localID, path: notes), name: "notes-site", tint: 2, tabs: [
             TerminalTab(kind: .session(id: "b1f0a7c4", cli: .claude), projectPath: notes,
                         title: "笔记站的全文搜索换成 SQLite FTS5", activity: .idle),
             TerminalTab(kind: .plainTerminal, projectPath: notes, title: "zsh", activity: .idle),
@@ -86,11 +86,11 @@ public enum MockData {
             TerminalTab(kind: .session(id: "e2d7b630", cli: .omp), projectPath: relay,
                         title: "压测 /v1/messages 在 200 并发下的 P99", activity: .idle),
         ]),
-        TabGroup(projectID: "\(Host.localID):\(market)", name: "secondhand-market", tint: 4, tabs: [
+        TabGroup(projectID: ProjectID(host: Host.localID, path: market), name: "secondhand-market", tint: 4, tabs: [
             TerminalTab(kind: .session(id: "f5e3a1b4", cli: .claude), projectPath: market,
                         title: "消息议价改成 WebSocket 推送，断线后补拉未读", activity: .working),
         ]),
-        TabGroup(projectID: "devbox:\(billing)", name: "billing-api", tint: 3, tabs: [
+        TabGroup(projectID: ProjectID(host: "devbox", path: billing), name: "billing-api", tint: 3, tabs: [
             TerminalTab(kind: .session(id: "ea1d8f09", cli: .claude), hostID: "devbox", projectPath: billing,
                         title: "缓存 TTL 覆盖标记位失效的排查", activity: .working),
         ], isCollapsed: true),
@@ -115,7 +115,7 @@ public enum MockData {
     ]
 
     static let extremeTabGroups: [TabGroup] = tabGroups + [
-        TabGroup(projectID: "\(Host.localID):\(shelf)", name: "shelf-app", tint: 1,
+        TabGroup(projectID: ProjectID(host: Host.localID, path: shelf), name: "shelf-app", tint: 1,
                  tabs: (0..<9).map { i in
                      TerminalTab(kind: .session(id: "long\(i + 1)", cli: .claude), projectPath: shelf,
                                  title: "一个很长很长的标签标题，用来看标签收窄后的渐隐 \(i)", activity: .idle)
@@ -262,7 +262,7 @@ public extension WorkspaceStore {
                 store.setActivity(.ended, forTab: tab.id)
             case "reconnecting":
                 store.tabBanners[tab.id] = .reconnecting(attempt: 3, nextIn: 12)
-                if let i = store.tabGroups.firstIndex(where: { $0.projectID == "devbox:\(MockData.billing)" }) {
+                if let i = store.tabGroups.firstIndex(where: { $0.projectID == ProjectID(host: "devbox", path: MockData.billing) }) {
                     store.tabGroups[i].isCollapsed = false
                 }
             default: store.deletion = DeletionProgress(done: 37, total: 140)
@@ -287,7 +287,7 @@ public extension WorkspaceStore {
             }
             store.isBellOpen = true
         case "long":
-            store.expandedProjectIDs.insert("\(Host.localID):\(MockData.extremeProjects[0].path)")
+            store.expandedProjectIDs.insert(ProjectID(host: Host.localID, path: MockData.extremeProjects[0].path))
             if let tab = store.tabGroups.last?.tabs.first { store.selection = .tab(tab.id) }
         default:
             if let tab = store.tabGroups.first(where: { $0.projectID == MockData.focusedProjectID })?.tabs.first {

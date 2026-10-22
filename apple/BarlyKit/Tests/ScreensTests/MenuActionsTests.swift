@@ -23,10 +23,10 @@ import Testing
         let p = Project(hostID: Host.localID, path: "/code/app")
         let s = WorkspaceStore(hosts: [MockData.local], projects: [p], sessions: [])
         s.rename(p, to: "  我的应用 ")
-        #expect(s.library.projectNames[p.id] == "我的应用")
+        #expect(s.library.projectNames[p.id.raw] == "我的应用")
         #expect(s.projects.first?.name == "我的应用")
         s.rename(p, to: "")
-        #expect(s.library.projectNames[p.id] == nil)
+        #expect(s.library.projectNames[p.id.raw] == nil)
         #expect(s.projects.first?.name == "app")
     }
 

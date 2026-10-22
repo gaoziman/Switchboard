@@ -19,9 +19,10 @@ public struct WorkspaceView: View {
     }
 
     /// ⌘N / +：默认用当前标签或预览的项目和 CLI
-    private func beginNewSession() { beginNewSession(folder: nil) }
+    private func beginNewSession() { beginNewSession(in: nil) }
 
-    private func beginNewSession(folder: String?) {
+    /// project：项目菜单里点的「在这里新建」（通知带过来的 ProjectID）
+    private func beginNewSession(in project: ProjectID?) {
         if let onNewSession { onNewSession(); return }
         var draft = NewSessionDraft()
         if let tab = store.selectedTab {
@@ -33,10 +34,10 @@ public struct WorkspaceView: View {
             draft.hostID = s.hostID
             draft.target = .cli(s.cli)
         }
-        // 项目菜单传来的是「主机:路径」
-        if let folder, let colon = folder.firstIndex(of: ":") {
-            draft.hostID = String(folder[..<colon])
-            draft.folder = String(folder[folder.index(after: colon)...])
+        // 项目菜单传来的项目
+        if let project {
+            draft.hostID = project.host
+            draft.folder = project.path
         }
         if case .cli(let cli) = draft.target { draft.savedCommand = store.savedCommand(for: cli) }
         let home = NSHomeDirectory()
@@ -119,7 +120,7 @@ public struct WorkspaceView: View {
                             })
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardNewSession)) { note in
-            if isKeyWindow { beginNewSession(folder: note.object as? String) }
+            if isKeyWindow { beginNewSession(in: note.newSessionProject) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchboardCloseTab)) { _ in
             if isKeyWindow, let tab = store.selectedTab { store.requestClose(tab) }
@@ -293,6 +294,12 @@ extension WorkspaceView {
         TerminalPane(tab: tab, banner: store.tabBanners[tab.id])
         #endif
     }
+}
+
+public extension Notification {
+    /// 「新会话…」：project = 项目菜单里点的那个（新会话对话框预选它）；菜单栏的 ⌘N / ⌘T 不带
+    static func newSession(in project: ProjectID?) -> Notification { Notification(name: .switchboardNewSession, object: project) }
+    var newSessionProject: ProjectID? { object as? ProjectID }
 }
 
 public extension Notification.Name {
