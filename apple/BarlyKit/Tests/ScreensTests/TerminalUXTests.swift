@@ -145,7 +145,7 @@ struct TabNavigationTests {
 
     @Test("新会话标签认领目录里之后出现的同类会话")
     func claim() {
-        let tab = TerminalTab(kind: .session(id: "new-x", cli: .claude), projectPath: "/work/app", title: "新的 Claude Code 会话", activity: .working)
+        let tab = TerminalTab(kind: .pending(cli: .claude), projectPath: "/work/app", title: "新的 Claude Code 会话", activity: .working)
         let start = Date()
         let s = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [
             Session(id: "old", cli: .claude, hostID: Host.localID, projectPath: "/work/app", title: "旧的", lastActivity: start.addingTimeInterval(-3600), messageCount: 1),

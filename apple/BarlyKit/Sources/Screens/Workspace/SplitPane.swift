@@ -105,7 +105,7 @@ private struct TabChooser: View {
                 ForEach(Array(candidates.enumerated()), id: \.element.id) { index, tab in
                     let group = groupFor(tab)
                     HStack(spacing: 10) {
-                        if case .session(_, let cli) = tab.kind {
+                        if let cli = tab.kind.cli {
                             CLIMark(cli)
                         } else {
                             Image(systemName: "terminal").font(.system(size: BarlyScale.pt(10))).foregroundStyle(t.text3).frame(width: 16)

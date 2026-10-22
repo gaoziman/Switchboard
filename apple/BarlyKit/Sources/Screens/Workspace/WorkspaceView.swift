@@ -27,7 +27,7 @@ public struct WorkspaceView: View {
         if let tab = store.selectedTab {
             draft.folder = tab.projectPath
             draft.hostID = tab.hostID
-            if case .session(_, let cli) = tab.kind { draft.target = .cli(cli) }
+            if let cli = tab.kind.cli { draft.target = .cli(cli) }
         } else if let s = store.previewedSession {
             draft.folder = s.projectPath
             draft.hostID = s.hostID

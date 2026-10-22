@@ -32,7 +32,7 @@ struct PanelHeader: View {
     @Environment(\.barly) private var t
 
     private var cli: CLIKind? {
-        if case .session(_, let cli) = tab.kind { return cli }
+        if let cli = tab.kind.cli { return cli }
         return nil
     }
 

@@ -114,7 +114,7 @@ public extension WorkspaceStore {
             "echo \"TERM=$TERM  PATH 里有 claude: $(command -v claude)\"; echo; printf '\\033[38;5;208m256 色\\033[0m  \\033[1m粗体\\033[0m  中文对齐测试｜'; echo; sleep 600"
         guard let launch = TerminalLaunch.cli(tabID: tabID, command: ["/bin/sh", "-c", script], directory: NSHomeDirectory(),
                                               tmuxName: "selftest") else { return }
-        addTab(TerminalTab(id: tabID, kind: .session(id: "new-selftest", cli: .claude), projectPath: NSHomeDirectory(),
+        addTab(TerminalTab(id: tabID, kind: .pending(cli: .claude), projectPath: NSHomeDirectory(),
                            title: L("Switchboard 自检"), activity: .working), launch: launch)
     }
 
@@ -167,7 +167,7 @@ public extension WorkspaceStore {
             launch = cliLaunch(tabID: tabID, cli: cli, hostID: Host.localID, directory: folder,
                                tmuxName: Tmux.name(for: cli, sessionID: "new-\(tabID.uuidString.prefix(8))"),
                                arguments: prompt.map { [$0] } ?? [], filter: filterArguments)
-            kind = .session(id: "new-\(tabID.uuidString)", cli: cli)
+            kind = .pending(cli: cli)
             title = L("新的 \(cli.title) 会话")
         }
         guard let launch else { return }
@@ -228,7 +228,7 @@ public extension WorkspaceStore {
         case .cli(let cli):
             launch = cliLaunch(tabID: tabID, cli: cli, hostID: alias, directory: folder,
                                tmuxName: Tmux.name(for: cli, sessionID: "new-\(tabID.uuidString.prefix(8))"), arguments: [])
-            kind = .session(id: "new-\(tabID.uuidString)", cli: cli)
+            kind = .pending(cli: cli)
             title = L("新的 \(cli.title) 会话")
         }
         guard let launch else { return }
@@ -288,7 +288,7 @@ public extension WorkspaceStore {
         let tabID = UUID()
         guard let launch = cliLaunch(tabID: tabID, cli: session.cli, hostID: session.hostID, directory: session.projectPath,
                                      tmuxName: tmuxName, arguments: arguments) else { return }
-        let kind: TerminalTab.Kind = linkSession ? .session(id: session.id, cli: session.cli) : .session(id: "fork-\(tabID)", cli: session.cli)
+        let kind: TerminalTab.Kind = linkSession ? .session(id: session.id, cli: session.cli) : .pending(cli: session.cli)
         addTab(TerminalTab(id: tabID, kind: kind, hostID: session.hostID, projectPath: session.projectPath,
                            title: title ?? session.displayTitle, activity: .working), launch: launch)
     }
@@ -306,7 +306,7 @@ public extension WorkspaceStore {
 
     private func addTab(_ tab: TerminalTab, launch: TerminalLaunch) {
         var launch = launch
-        if case .session(_, let cli) = tab.kind { launch.cli = cli }
+        if let cli = tab.kind.cli { launch.cli = cli }
         launch.projectPath = tab.projectPath
         launches[tab.id] = launch
         let projectID = tab.projectID
@@ -564,7 +564,7 @@ public extension WorkspaceStore {
         // 所有窗口的标签记在一起，下次启动都恢复到第一个窗口
         let records = (isLive ? WorkspaceWindows.live : [self]).flatMap { store in
             store.allTabs.compactMap { tab -> TabRecord? in
-                guard case .session(let id, let cli) = tab.kind, !id.hasPrefix("new-"), !id.hasPrefix("fork-") else { return nil }
+                guard case .session(let id, let cli) = tab.kind else { return nil }   // 新建、分叉的接不回来，不记
                 return TabRecord(cli: cli.rawValue, sessionID: id, projectPath: tab.projectPath, title: tab.title,
                                  tmuxName: store.launches[tab.id]?.tmuxName, selected: store === self && selectedTab?.id == tab.id,
                                  hostID: tab.hostID == Host.localID ? nil : tab.hostID)
@@ -609,7 +609,7 @@ public extension WorkspaceStore {
     /// 所有窗口里开着标签的会话
     internal var openTabSessionIDs: Set<String> {
         Set((isLive ? WorkspaceWindows.live : [self]).flatMap(\.allTabs).compactMap { tab -> String? in
-            if case .session(let id, _) = tab.kind { id } else { nil }
+            tab.kind.sessionID
         })
     }
 }

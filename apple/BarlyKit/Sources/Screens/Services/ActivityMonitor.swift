@@ -176,12 +176,14 @@ public extension WorkspaceStore {
         var tabActivity: [UUID: Activity] = [:]
         for tab in allTabs {
             if tabBanners[tab.id] != nil { tabActivity[tab.id] = .ended; continue }
-            guard case .session(let id, let cli) = tab.kind else { tabActivity[tab.id] = .idle; continue }
+            // 还没对上会话的（新建、分叉）只有 Codex 的终端标题报得出状态
+            guard let cli = tab.kind.cli else { tabActivity[tab.id] = .idle; continue }
+            let id = tab.kind.sessionID
             let reported: Activity? = switch cli {
-            case .claude: claude[id]
+            case .claude: id.flatMap { claude[$0] }
             case .codex: codexTitles[tab.id].flatMap(ActivityMonitor.codexActivity)
-                ?? rollout(session(id))
-            case .opencode, .omp: reported[id]
+                ?? rollout(id.flatMap(session))
+            case .opencode, .omp: id.flatMap { reported[$0] }
             }
             tabActivity[tab.id] = reported ?? .idle
         }

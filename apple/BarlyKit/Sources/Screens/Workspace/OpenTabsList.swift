@@ -97,7 +97,7 @@ private struct OpenTabRow: View {
                     Image(systemName: "checkmark").font(.system(size: BarlyScale.pt(9), weight: .bold)).foregroundStyle(t.text)
                         .frame(width: 16, height: 16)
                         .background(t.fill3, in: RoundedRectangle(cornerRadius: 3))
-                } else if case .session(_, let cli) = tab.kind {
+                } else if let cli = tab.kind.cli {
                     CLIMark(cli)
                 } else {
                     Image(systemName: "terminal").font(.system(size: BarlyScale.pt(10))).foregroundStyle(t.text3).frame(width: 16)

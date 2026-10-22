@@ -215,7 +215,18 @@ public struct Session: Identifiable, Hashable, Sendable {
 public struct TerminalTab: Identifiable, Hashable, Sendable {
     public enum Kind: Hashable, Sendable {
         case session(id: String, cli: CLIKind)
+        /// CLI 开着，但还没对上会话文件：新建的（等认领，见 pendingClaims）、分叉出来的（刷新后作为新会话出现在侧栏）
+        case pending(cli: CLIKind)
         case plainTerminal
+
+        public var cli: CLIKind? {
+            switch self {
+            case .session(_, let cli), .pending(let cli): cli
+            case .plainTerminal: nil
+            }
+        }
+
+        public var sessionID: String? { if case .session(let id, _) = self { id } else { nil } }
     }
 
     public let id: UUID
