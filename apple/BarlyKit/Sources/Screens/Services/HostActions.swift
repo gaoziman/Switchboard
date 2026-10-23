@@ -14,6 +14,15 @@ public struct SignInConfig: Codable, Equatable, Sendable {
         self.hours = hours
         self.lastSignIn = lastSignIn
     }
+
+    /// hours 缺了按 10 读（自动合成的解码不认属性默认值，缺一个字段整个 hosts.json 都读不出来）
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        command = try c.decode(String.self, forKey: .command)
+        check = try c.decodeIfPresent(String.self, forKey: .check)
+        hours = try c.decodeIfPresent(Double.self, forKey: .hours) ?? 10
+        lastSignIn = try c.decodeIfPresent(Date.self, forKey: .lastSignIn)
+    }
 }
 
 @MainActor

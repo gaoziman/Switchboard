@@ -39,9 +39,8 @@ public final class WorkspacePersistence {
 
     // MARK: hosts.json
 
-    func loadHosts() -> [HostRecord] {
-        read("hosts.json").flatMap { try? JSONDecoder().decode([HostRecord].self, from: $0) } ?? []
-    }
+    /// 读不出来和 library.json 一样先改名留着：不然下一次保存（加主机、断开）就把所有主机和重新登录设置盖掉
+    func loadHosts() -> [HostRecord] { decodeOrSetAside("hosts.json") ?? [] }
 
     func saveHosts(_ records: [HostRecord]) {
         if let data = try? JSONEncoder().encode(records) { write("hosts.json", data) }
@@ -49,9 +48,7 @@ public final class WorkspacePersistence {
 
     // MARK: tabs.json
 
-    func loadTabs() -> [WorkspaceStore.TabRecord] {
-        read("tabs.json").flatMap { try? JSONDecoder().decode([WorkspaceStore.TabRecord].self, from: $0) } ?? []
-    }
+    func loadTabs() -> [WorkspaceStore.TabRecord] { decodeOrSetAside("tabs.json") ?? [] }
 
     func saveTabs(_ records: [WorkspaceStore.TabRecord]) {
         if let data = try? JSONEncoder().encode(records) { write("tabs.json", data) }
@@ -74,6 +71,13 @@ public final class WorkspacePersistence {
         case .memory:
             blobs[name] = data
         }
+    }
+
+    private func decodeOrSetAside<T: Decodable>(_ name: String) -> T? {
+        guard let data = read(name) else { return nil }
+        if let value = try? JSONDecoder().decode(T.self, from: data) { return value }
+        setAside(name)
+        return nil
     }
 
     private func setAside(_ name: String) {

@@ -115,8 +115,11 @@ public enum Tmux {
         guard let tmux = executable else { return nil }
         let shellCommand = command.map(shellQuote).joined(separator: " ")
         let env = environment.sorted { $0.key < $1.key }.flatMap { ["-e", "\($0.key)=\($0.value)"] }
-        return (tmux, ["-L", socket, "-f", configFile, "new-session", "-A", "-s", name, "-c", directory] + env + [shellCommand])
+        return (tmux, ["-L", socket, "-f", configFile, "new-session", "-A", "-s", formatLiteral(name), "-c", formatLiteral(directory)] + env + [shellCommand])
     }
+
+    /// new-session 的 -s、-c 会当 tmux 格式串展开：目录叫 `#(命令)` 就会执行那条命令。# 写成 ## 才是原样的 #
+    static func formatLiteral(_ s: String) -> String { s.replacingOccurrences(of: "#", with: "##") }
 
     /// -t 的会话名按全名精确匹配：不加 = 的话 tmux 找不到同名会话时会退回前缀和通配匹配，可能结束掉别的会话
     static func target(_ name: String) -> String { "=" + name }

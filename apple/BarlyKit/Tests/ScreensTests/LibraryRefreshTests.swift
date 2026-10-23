@@ -83,6 +83,20 @@ struct LibraryRefreshTests {
         #expect(d.sessions.map(\.id) == ["r1"])
     }
 
+    @Test("镜像途中点了断开：镜像跑完不把主机改回已连接")
+    func disconnectDuringMirror() async {
+        let src = FakeSessions(), hosts = FakeHosts()
+        await hosts.gate(true)
+        let d = data(src, hosts)
+        let st = WorkspaceStore(data: d)
+        let refresh = Task { await d.refresh(.host("devbox")) }
+        #expect(await eventually { await hosts.parkedCount == 1 })
+        st.setDisconnected("devbox", true)
+        await hosts.release()
+        await refresh.value
+        #expect(d.hosts.last?.connection == .disconnected)
+    }
+
     @Test("多窗口：每个窗口都认领自己的新会话标签；展开项目、恢复远程标签只在主窗口")
     func fansOutToWindows() async {
         let src = FakeSessions(), hosts = FakeHosts()

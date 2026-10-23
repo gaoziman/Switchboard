@@ -247,7 +247,8 @@ extension WorkspaceData {
                 self.hosts[j].connection = .refreshing(done: done, total: total)
             }
         }
-        guard let j = hosts.firstIndex(where: { $0.id == alias }) else { return }
+        // 镜像途中点了断开（或删了主机）：别把它改回已连接，也别恢复它的远程标签
+        guard let j = hosts.firstIndex(where: { $0.id == alias }), hosts[j].connection != .disconnected else { return }
         if let error {
             hosts[j].connection = error.contains("Permission denied") || error.contains("Host key verification")
                 ? .needsConnect : .unreachable(error)

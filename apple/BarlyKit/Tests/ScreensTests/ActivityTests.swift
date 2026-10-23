@@ -131,6 +131,16 @@ struct LiveReportingTests {
         #expect(args.last == "omp")
     }
 
+    @Test("目录名、会话名里的 # 原样传给 tmux（不当格式串展开：#(命令) 会被执行）")
+    func tmuxFormatLiteral() {
+        #expect(Tmux.formatLiteral("/tmp/#(touch x)") == "/tmp/##(touch x)")
+        #expect(Tmux.formatLiteral("/a/#{pane_id}/##") == "/a/##{pane_id}/####")
+        #expect(Tmux.formatLiteral("/plain/path") == "/plain/path")
+        guard let (_, args) = Tmux.attachOrCreate(name: "s#1", directory: "/tmp/#(touch x)", command: ["omp"]) else { return }
+        #expect(args[args.firstIndex(of: "-c")! + 1] == "/tmp/##(touch x)")
+        #expect(args[args.firstIndex(of: "-s")! + 1] == "s##1")
+    }
+
     @Test("omp 带扩展参数，Claude / Codex 不带")
     func additions() {
         #expect(LiveReporting.launchAdditions(for: .claude) == nil)

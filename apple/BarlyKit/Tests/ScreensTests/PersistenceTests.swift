@@ -82,6 +82,32 @@ struct PersistenceTests {
         #expect(files.contains { $0.hasPrefix("library.json.bak") } && !files.contains("library.json"))
     }
 
+    @Test("hosts.json、tabs.json 坏了：先改名留着，不让下一次保存把主机和标签盖掉")
+    func corruptHostsAndTabsAreBackedUp() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sb-persist-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try Data("[{ not json".utf8).write(to: dir.appendingPathComponent("hosts.json"))
+        try Data("[{ not json".utf8).write(to: dir.appendingPathComponent("tabs.json"))
+        let p = WorkspacePersistence.disk(dir)
+        #expect(p.loadHosts().isEmpty)
+        #expect(p.loadTabs().isEmpty)
+        let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        #expect(files.contains { $0.hasPrefix("hosts.json.bak") } && !files.contains("hosts.json"))
+        #expect(files.contains { $0.hasPrefix("tabs.json.bak") } && !files.contains("tabs.json"))
+    }
+
+    @Test("重新登录设置缺 hours：按默认 10 小时读，不让整个 hosts.json 读不出来")
+    func signInWithoutHours() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sb-persist-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try Data(#"[{"alias":"devbox","signIn":{"command":"kinit me"}}]"#.utf8).write(to: dir.appendingPathComponent("hosts.json"))
+        let hosts = WorkspacePersistence.disk(dir).loadHosts()
+        #expect(hosts.map(\.alias) == ["devbox"])
+        #expect(hosts.first?.signIn?.hours == 10)
+    }
+
     @Test("截图、单测用的 store 默认存在内存里，不碰你的真实数据")
     func defaultIsMemory() {
         let st = WorkspaceStore(hosts: [MockData.local], projects: [], sessions: [])
