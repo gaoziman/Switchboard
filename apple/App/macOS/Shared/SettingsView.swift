@@ -99,7 +99,6 @@ private struct AppearanceSettings: View {
     @AppStorage(AppAppearance.defaultsKey) private var appearance = AppAppearance.defaultValue
     @AppStorage("appTheme") private var theme = AppTheme.switchboard.rawValue
     @AppStorage(BarlyScale.defaultsKey) private var interfaceScale = 1.0
-    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         Form {
@@ -110,20 +109,30 @@ private struct AppearanceSettings: View {
                     Text("深色").tag("dark")
                 }
                 .pickerStyle(.segmented)
-                Picker("主题", selection: $theme) {
-                    ForEach(AppTheme.allCases) { item in
-                        HStack(spacing: 8) {
-                            ThemeChip(colors: item.swatch(dark: scheme == .dark))
-                            Text(item.title)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("主题")
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 18), count: 3), spacing: 14) {
+                        ForEach(AppTheme.allCases) { item in
+                            VStack(spacing: 6) {
+                                ThemePreviewCard(theme: item, selected: item.rawValue == theme)
+                                Text(item.title)
+                                    .font(.callout.weight(item.rawValue == theme ? .semibold : .regular))
+                                    .foregroundStyle(item.rawValue == theme ? .primary : .secondary)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { theme = item.rawValue }
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(item.title)
+                            .accessibilityAddTraits(item.rawValue == theme ? [.isButton, .isSelected] : .isButton)
+                            .accessibilityAction { theme = item.rawValue }
                         }
-                        .tag(item.rawValue)
                     }
+                    .padding(.vertical, 4)
                 }
-                .pickerStyle(.radioGroup)
             } header: {
                 Text("App")
             } footer: {
-                Text("每套主题都有浅色和深色。终端配色默认跟着主题，也可以在「终端」里单独选。").foregroundStyle(.secondary)
+                Text("每套主题都有浅色和深色：卡片左上是浅色、右下是深色，上面的「明暗」决定用哪一半。终端配色默认跟着主题，也可以在「终端」里单独选。").foregroundStyle(.secondary)
             }
             ThemeColorsSection(theme: AppTheme(rawValue: theme) ?? .switchboard)
             Section {
@@ -204,19 +213,6 @@ private struct ThemeColorsSection: View {
         guard let c = NSColor(color).usingColorSpace(.sRGB) else { return nil }
         func ch(_ v: CGFloat) -> UInt32 { UInt32((min(max(v, 0), 1) * 255).rounded()) }
         return ch(c.redComponent) << 16 | ch(c.greenComponent) << 8 | ch(c.blueComponent)
-    }
-}
-
-/// 主题小样：底 · 面板 · 强调色三块
-private struct ThemeChip: View {
-    let colors: [Color]
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(colors.enumerated()), id: \.offset) { Rectangle().fill($0.element) }
-        }
-        .frame(width: 36, height: 14)
-        .clipShape(RoundedRectangle(cornerRadius: 3))
-        .overlay(RoundedRectangle(cornerRadius: 3).stroke(.quaternary))
     }
 }
 

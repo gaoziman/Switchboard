@@ -4,21 +4,27 @@ import BarlyKit
 import AppKit
 #endif
 
-/// App 主题（设置 · 外观）：6 套，各有深色和浅色。Switchboard 是身份本身；其他 5 套只换外壳的底色、文字和边框，
-/// 强调色全局只有一个（见 accent(dark:)），代码高亮、图表色、状态色保留身份的。终端配色默认跟着它（见 TerminalScheme）
+/// App 主题（设置 · 外观）：12 套，各有深色和浅色。Switchboard 是身份本身，强调色跟全局那一个（见 accent(dark:)）；
+/// 另外 11 套各带自己的强调色，同一屏仍只有这一个强调色。代码高亮、图表色、状态色保留身份的。终端配色默认跟着它（见 TerminalScheme）
 public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
-    case switchboard, github, atom, tokyo, catppuccin, gruvbox
+    case switchboard, bamboo, xuan, mist, amber, moss, polar, dune, celadon, verdigris, slate, mono
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
         case .switchboard: "Switchboard"
-        case .github: "GitHub"
-        case .atom: "Atom One"
-        case .tokyo: "Tokyo Night"
-        case .catppuccin: "Catppuccin"
-        case .gruvbox: "Gruvbox"
+        case .bamboo: L("墨竹")
+        case .xuan: L("宣纸")
+        case .mist: L("晨雾")
+        case .amber: L("琥珀")
+        case .moss: L("苔原")
+        case .polar: L("北极")
+        case .dune: L("沙丘")
+        case .celadon: L("青瓷")
+        case .verdigris: L("铜绿")
+        case .slate: L("石板")
+        case .mono: L("素")
         }
     }
 
@@ -32,14 +38,14 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
     /// 主题本身的颜色
     public func baseSpec(dark: Bool) -> Spec { spec(dark: dark) }
 
-    /// 主题的颜色：底色、文字、边框用主题自己的，强调色换成全局那一个
+    /// 主题的颜色。Switchboard 的强调色换成全局那一个（和系统控件同色），其他主题用自己的
     public func spec(dark: Bool) -> Spec {
         var s = ownSpec(dark: dark)
-        s.accent = Self.accent(dark: dark)
+        if self == .switchboard { s.accent = Self.accent(dark: dark) }
         return s
     }
 
-    /// 强调色全局只有一个：就是系统控件（开关、焦点环、设置窗口的标签图标）读的颜色——app 包里的 AccentColor
+    /// Switchboard 主题的强调色：就是系统控件（开关、焦点环、设置窗口的标签图标）读的颜色——app 包里的 AccentColor
     /// （身份色，系统强调色设成「多彩」时生效），用户在系统设置里选了别的强调色就是那个。
     /// 自绘的按钮、状态灯、选中条和系统控件因此永远同一个颜色，换主题也不会出现两种主体色
     public static func accent(dark: Bool) -> UInt32 {
@@ -57,7 +63,7 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
         #endif
     }
 
-    /// 各主题原本的配色（强调色一栏只是它原来的样子，实际用的是 accent(dark:)）。
+    /// 各主题自己的配色（Switchboard 的强调色一栏只是它原来的样子，实际用的是 accent(dark:)）。
     /// Switchboard 是身份本身：石墨底，面板比窗口底亮一档
     private func ownSpec(dark: Bool) -> Spec {
         switch (self, dark) {
@@ -65,26 +71,50 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
                                         text: 0xECEDEE, text2: 0xA9ABAF, text3: 0x75787D, text4: 0x45484C, accent: 0x19B3A6)
         case (.switchboard, false): Spec(canvas: 0xFFFFFF, sidebar: 0xF2F3F3, surface: 0xF4F5F5, border: 0xE3E6E6,
                                          text: 0x0E1212, text2: 0x565A5B, text3: 0x989C9D, text4: 0xC8CCCC, accent: 0x12A094)
-        case (.github, true): Spec(canvas: 0x0D1117, sidebar: 0x010409, surface: 0x161B22, border: 0x30363D,
-                                   text: 0xE6EDF3, text2: 0xC9D1D9, text3: 0x8B949E, text4: 0x6E7681, accent: 0x2F81F7)
-        case (.github, false): Spec(canvas: 0xFFFFFF, sidebar: 0xF6F8FA, surface: 0xF6F8FA, border: 0xD0D7DE,
-                                    text: 0x1F2328, text2: 0x424A53, text3: 0x656D76, text4: 0x8C959F, accent: 0x0969DA)
-        case (.atom, true): Spec(canvas: 0x282C34, sidebar: 0x21252B, surface: 0x2C313A, border: 0x3E4451,
-                                 text: 0xD7DAE0, text2: 0xABB2BF, text3: 0x7F848E, text4: 0x5C6370, accent: 0x61AFEF)
-        case (.atom, false): Spec(canvas: 0xFAFAFA, sidebar: 0xEAEAEB, surface: 0xF0F0F1, border: 0xDBDBDC,
-                                  text: 0x383A42, text2: 0x4F525D, text3: 0x696C77, text4: 0xA0A1A7, accent: 0x4078F2)
-        case (.tokyo, true): Spec(canvas: 0x1A1B26, sidebar: 0x16161E, surface: 0x1F2335, border: 0x292E42,
-                                  text: 0xC0CAF5, text2: 0xA9B1D6, text3: 0x737AA2, text4: 0x565F89, accent: 0x7AA2F7)
-        case (.tokyo, false): Spec(canvas: 0xE1E2E7, sidebar: 0xD0D5E3, surface: 0xE9E9ED, border: 0xC4C8DA,
-                                   text: 0x343B58, text2: 0x3760BF, text3: 0x6172B0, text4: 0x8990B3, accent: 0x2E7DE9)
-        case (.catppuccin, true): Spec(canvas: 0x1E1E2E, sidebar: 0x181825, surface: 0x313244, border: 0x45475A,
-                                       text: 0xCDD6F4, text2: 0xBAC2DE, text3: 0x9399B2, text4: 0x6C7086, accent: 0xCBA6F7)
-        case (.catppuccin, false): Spec(canvas: 0xEFF1F5, sidebar: 0xE6E9EF, surface: 0xDCE0E8, border: 0xBCC0CC,
-                                        text: 0x4C4F69, text2: 0x5C5F77, text3: 0x7C7F93, text4: 0x9CA0B0, accent: 0x8839EF)
-        case (.gruvbox, true): Spec(canvas: 0x282828, sidebar: 0x1D2021, surface: 0x32302F, border: 0x504945,
-                                    text: 0xEBDBB2, text2: 0xD5C4A1, text3: 0xA89984, text4: 0x7C6F64, accent: 0xFE8019)
-        case (.gruvbox, false): Spec(canvas: 0xFBF1C7, sidebar: 0xF2E5BC, surface: 0xEBDBB2, border: 0xD5C4A1,
-                                     text: 0x3C3836, text2: 0x504945, text3: 0x7C6F64, text4: 0xA89984, accent: 0xAF3A03)
+        case (.bamboo, true): Spec(canvas: 0x1D2320, sidebar: 0x161B18, surface: 0x262E2A, border: 0x343F39,
+                    text: 0xE7E9E8, text2: 0xB9C0BD, text3: 0x858E8A, text4: 0x545A57, accent: 0x3DBE8B)
+        case (.bamboo, false): Spec(canvas: 0xFBFCFB, sidebar: 0xEEF1F0, surface: 0xF2F5F4, border: 0xDADFDD,
+                    text: 0x1C211F, text2: 0x4C5752, text3: 0x7E8B85, text4: 0xB7BDBA, accent: 0x1F8F63)
+        case (.xuan, true): Spec(canvas: 0x24211C, sidebar: 0x1B1915, surface: 0x2F2B25, border: 0x403B32,
+                    text: 0xEAE8E6, text2: 0xC1BEB9, text3: 0x8F8B84, text4: 0x5A5853, accent: 0xE0533F)
+        case (.xuan, false): Spec(canvas: 0xF7F4F0, sidebar: 0xEFEAE1, surface: 0xF2EDE6, border: 0xDFD8CB,
+                    text: 0x221F1B, text2: 0x58534B, text3: 0x8C877D, text4: 0xBDBBB7, accent: 0xC23B2A)
+        case (.mist, true): Spec(canvas: 0x1C2124, sidebar: 0x15191B, surface: 0x252B2F, border: 0x323B40,
+                    text: 0xE6E8EA, text2: 0xB9BDC1, text3: 0x848B8F, text4: 0x53575A, accent: 0x5AA9C4)
+        case (.mist, false): Spec(canvas: 0xFBFBFC, sidebar: 0xEEF0F2, surface: 0xF2F4F5, border: 0xD9DDE0,
+                    text: 0x1B1F22, text2: 0x4B5358, text3: 0x7D868C, text4: 0xB7BBBD, accent: 0x2A7E9B)
+        case (.amber, true): Spec(canvas: 0x22201D, sidebar: 0x1A1816, surface: 0x2D2A27, border: 0x3E3935,
+                    text: 0xE9E8E7, text2: 0xBFBDBA, text3: 0x8D8A86, text4: 0x595754, accent: 0xF0A63A)
+        case (.amber, false): Spec(canvas: 0xFCFBFB, sidebar: 0xF2F0EE, surface: 0xF5F4F2, border: 0xE0DDD9,
+                    text: 0x211F1C, text2: 0x56524D, text3: 0x898580, text4: 0xBCBAB8, accent: 0xB06C0B)
+        case (.moss, true): Spec(canvas: 0x21241C, sidebar: 0x191B15, surface: 0x2B2F25, border: 0x3B4032,
+                    text: 0xE8EAE6, text2: 0xBDC1B9, text3: 0x8B8F84, text4: 0x575A53, accent: 0x9CC55A)
+        case (.moss, false): Spec(canvas: 0xFAFBF9, sidebar: 0xEFF1EC, surface: 0xF3F4F0, border: 0xDCDFD7,
+                    text: 0x1F221B, text2: 0x53584B, text3: 0x868C7D, text4: 0xBBBDB7, accent: 0x5B8723)
+        case (.polar, true): Spec(canvas: 0x1D2123, sidebar: 0x16191B, surface: 0x262B2E, border: 0x343B3F,
+                    text: 0xE7E9E9, text2: 0xB9BEC0, text3: 0x858B8E, text4: 0x54585A, accent: 0x4CB7F5)
+        case (.polar, false): Spec(canvas: 0xFCFDFD, sidebar: 0xEEF2F4, surface: 0xF3F5F7, border: 0xD9E0E3,
+                    text: 0x1C2021, text2: 0x4C5457, text3: 0x7E878B, text4: 0xB7BBBD, accent: 0x1A80C2)
+        case (.dune, true): Spec(canvas: 0x25211B, sidebar: 0x1C1914, surface: 0x312B23, border: 0x433B30,
+                    text: 0xEAE8E6, text2: 0xC2BEB7, text3: 0x918B82, text4: 0x5C5852, accent: 0x3FB3B0)
+        case (.dune, false): Spec(canvas: 0xF6F2EC, sidebar: 0xEFE7DC, surface: 0xF1EBE2, border: 0xDFD5C6,
+                    text: 0x231F1A, text2: 0x5B5348, text3: 0x8E867B, text4: 0xBFBBB6, accent: 0x1E8582)
+        case (.celadon, true): Spec(canvas: 0x1B2422, sidebar: 0x151C1A, surface: 0x24302D, border: 0x31413D,
+                    text: 0xE6EAE9, text2: 0xB8C1BF, text3: 0x83908D, text4: 0x525B59, accent: 0x6CC1AE)
+        case (.celadon, false): Spec(canvas: 0xF9FBFA, sidebar: 0xEBF1F0, surface: 0xF0F5F3, border: 0xD6E0DE,
+                    text: 0x1B2221, text2: 0x4A5A56, text3: 0x7C8D89, text4: 0xB6BEBC, accent: 0x2D8875)
+        case (.verdigris, true): Spec(canvas: 0x1A2626, sidebar: 0x131D1D, surface: 0x223232, border: 0x2E4545,
+                    text: 0xE5EBEB, text2: 0xB6C3C3, text3: 0x809393, text4: 0x515D5D, accent: 0xE09A62)
+        case (.verdigris, false): Spec(canvas: 0xF9FBFB, sidebar: 0xECF1F1, surface: 0xF0F4F4, border: 0xD7DFDF,
+                    text: 0x192424, text2: 0x465D5D, text3: 0x789191, text4: 0xB5C0C0, accent: 0xA9622A)
+        case (.slate, true): Spec(canvas: 0x1D1F23, sidebar: 0x16171B, surface: 0x26292E, border: 0x34373F,
+                    text: 0xE7E8E9, text2: 0xB9BCC0, text3: 0x85888E, text4: 0x54565A, accent: 0x8090F5)
+        case (.slate, false): Spec(canvas: 0xFCFCFD, sidebar: 0xEFF0F3, surface: 0xF4F4F6, border: 0xDBDDE1,
+                    text: 0x1C1E21, text2: 0x4C5057, text3: 0x7E838B, text4: 0xB7B9BD, accent: 0x4B5BD6)
+        case (.mono, true): Spec(canvas: 0x202020, sidebar: 0x181818, surface: 0x2A2A2A, border: 0x393939,
+                    text: 0xE8E8E8, text2: 0xBDBDBD, text3: 0x8A8A8A, text4: 0x575757, accent: 0xEDEDED)
+        case (.mono, false): Spec(canvas: 0xFEFEFE, sidebar: 0xF2F2F2, surface: 0xF6F6F6, border: 0xDFDFDF,
+                    text: 0x1F1F1F, text2: 0x525252, text3: 0x858585, text4: 0xBABABA, accent: 0x161616)
         }
     }
 
@@ -131,7 +161,12 @@ public enum AppTheme: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// 当前设置：主题 + 明暗（system 跟随系统）
-    public static var current: AppTheme { AppTheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "") ?? .switchboard }
+    public static var current: AppTheme { current(.standard) }
+
+    /// 存的是已经删掉的主题（老版本的 GitHub、Atom One 之类）：当没设过，用 Switchboard
+    public static func current(_ defaults: UserDefaults) -> AppTheme {
+        AppTheme(rawValue: defaults.string(forKey: "appTheme") ?? "") ?? .switchboard
+    }
 }
 
 /// 「外观」设置：light / dark / system。外壳的 @AppStorage、终端、AppKit 面板读同一个默认值，

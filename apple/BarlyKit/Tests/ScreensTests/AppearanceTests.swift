@@ -8,28 +8,28 @@ import BarlyKit
     func defaults() -> UserDefaults { UserDefaults(suiteName: "sb-colors-\(UUID().uuidString)")! }
 
     @Test func untouchedThemeKeepsItsColors() {
-        let base = AppTheme.github.baseSpec(dark: true)
+        let base = AppTheme.bamboo.baseSpec(dark: true)
         let s = ThemeColors.apply([:], to: base, dark: true)
         #expect(s.canvas == base.canvas && s.text3 == base.text3 && s.accent == base.accent)
     }
 
     @Test func changesAreSeparatePerVersionAndTheme() {
         let d = defaults()
-        ThemeColors.set(0x112233, for: .accent, theme: .github, dark: true, defaults: d)
-        #expect(ThemeColors.changes(.github, dark: true, defaults: d) == [.accent: 0x112233])
-        #expect(ThemeColors.changes(.github, dark: false, defaults: d).isEmpty)
-        #expect(ThemeColors.changes(.atom, dark: true, defaults: d).isEmpty)
-        ThemeColors.set(nil, for: .accent, theme: .github, dark: true, defaults: d)
-        #expect(!ThemeColors.hasChanges(.github, defaults: d))
+        ThemeColors.set(0x112233, for: .accent, theme: .bamboo, dark: true, defaults: d)
+        #expect(ThemeColors.changes(.bamboo, dark: true, defaults: d) == [.accent: 0x112233])
+        #expect(ThemeColors.changes(.bamboo, dark: false, defaults: d).isEmpty)
+        #expect(ThemeColors.changes(.xuan, dark: true, defaults: d).isEmpty)
+        ThemeColors.set(nil, for: .accent, theme: .bamboo, dark: true, defaults: d)
+        #expect(!ThemeColors.hasChanges(.bamboo, defaults: d))
     }
 
     @Test func resetClearsBothVersions() {
         let d = defaults()
-        ThemeColors.set(0xFFFFFF, for: .canvas, theme: .tokyo, dark: true, defaults: d)
-        ThemeColors.set(0x000000, for: .text, theme: .tokyo, dark: false, defaults: d)
+        ThemeColors.set(0xFFFFFF, for: .canvas, theme: .mist, dark: true, defaults: d)
+        ThemeColors.set(0x000000, for: .text, theme: .mist, dark: false, defaults: d)
         let before = d.integer(forKey: ThemeColors.revisionKey)
-        ThemeColors.reset(.tokyo, defaults: d)
-        #expect(!ThemeColors.hasChanges(.tokyo, defaults: d))
+        ThemeColors.reset(.mist, defaults: d)
+        #expect(!ThemeColors.hasChanges(.mist, defaults: d))
         #expect(d.integer(forKey: ThemeColors.revisionKey) > before)
     }
 

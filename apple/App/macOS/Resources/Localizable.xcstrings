@@ -2023,6 +2023,16 @@
         }
       }
     },
+    "北极" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polar"
+          }
+        }
+      }
+    },
     "升级 tmux 后旧服务器还在跑，它的会话能继续跑但打不开，新标签会马上报错退出。用启动它的那个 tmux 重新接上，或结束这些会话后重开。" : {
       "localizations" : {
         "en" : {
@@ -2743,6 +2753,16 @@
         }
       }
     },
+    "墨竹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bamboo"
+          }
+        }
+      }
+    },
     "复制" : {
       "localizations" : {
         "en" : {
@@ -2899,6 +2919,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Actual Size"
+          }
+        }
+      }
+    },
+    "宣纸" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xuan Paper"
           }
         }
       }
@@ -3757,6 +3787,16 @@
         }
       }
     },
+    "晨雾" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Morning Mist"
+          }
+        }
+      }
+    },
     "更多" : {
       "localizations" : {
         "en" : {
@@ -4311,12 +4351,12 @@
         }
       }
     },
-    "每套主题都有浅色和深色。终端配色默认跟着主题，也可以在「终端」里单独选。" : {
+    "每套主题都有浅色和深色：卡片左上是浅色、右下是深色，上面的「明暗」决定用哪一半。终端配色默认跟着主题，也可以在「终端」里单独选。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Every theme has a light and a dark version. The terminal color scheme follows the theme by default, or you can choose one separately in “Terminal”."
+            "value" : "Every theme has a light and a dark version: the top-left of each card is light, the bottom-right is dark, and Appearance above decides which half is used. The terminal follows the theme by default; you can pick its colors separately under Terminal."
           }
         }
       }
@@ -4337,6 +4377,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ask Each Time"
+          }
+        }
+      }
+    },
+    "沙丘" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dune"
           }
         }
       }
@@ -4643,6 +4693,16 @@
         }
       }
     },
+    "琥珀" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amber"
+          }
+        }
+      }
+    },
     "用 %@ 打开" : {
       "localizations" : {
         "en" : {
@@ -4779,6 +4839,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "See what ssh said below, fix it, then connect again."
+          }
+        }
+      }
+    },
+    "石板" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slate"
           }
         }
       }
@@ -4993,6 +5063,16 @@
         }
       }
     },
+    "素" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mono"
+          }
+        }
+      }
+    },
     "纯文本…" : {
       "localizations" : {
         "en" : {
@@ -5149,6 +5229,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Color Intensity"
+          }
+        }
+      }
+    },
+    "苔原" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moss"
           }
         }
       }
@@ -5893,6 +5983,16 @@
         }
       }
     },
+    "铜绿" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verdigris"
+          }
+        }
+      }
+    },
     "间隔" : {
       "localizations" : {
         "en" : {
@@ -5909,6 +6009,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hide Sidebar"
+          }
+        }
+      }
+    },
+    "青瓷" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Celadon"
           }
         }
       }

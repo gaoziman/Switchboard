@@ -146,16 +146,44 @@ public struct TabBar: View {
     }
 }
 
-/// 组色：标签栏组头、已打开视图共用的 5 种项目色（不是强调色）。
-/// 不用蓝 / 靛（深色底上发闷）；也离开强调色的青绿（175°）≥ 50°，组头不会被看成状态灯。
+/// 组色：标签栏组头、已打开视图共用的项目色（不是强调色）。
+/// 不用蓝 / 靛（深色底上发闷）；离当前主题的强调色 ≥ 40°（每套主题强调色不同，靠近的那一两个跳过），组头不会被看成状态灯。
 /// 彩度压低一档，只给小字和细线用，不抢状态灯；深色提亮、浅色压暗，小字都读得清
+enum GroupColors {
+    //                         珊瑚       金        玫红      紫        橄榄绿     青（备用：前面有被跳过的才轮到）
+    static let dark:  [UInt32] = [0xE39A72, 0xD9B864, 0xE48BB0, 0xB49AE8, 0xA9C46E, 0x6CC4B8]
+    static let light: [UInt32] = [0xB5582A, 0x8E6B12, 0xB3456F, 0x7556C4, 0x5F7A1C, 0x1F7F74]
+    static let minDistance: Double = 40
+
+    /// 色相（度）；灰（饱和度太低）没有色相，返回 nil
+    static func hue(of color: Color) -> Double? {
+        #if os(macOS)
+        guard let c = NSColor(color).usingColorSpace(.sRGB), c.saturationComponent > 0.2 else { return nil }
+        return Double(c.hueComponent) * 360
+        #else
+        return nil
+        #endif
+    }
+
+    /// 这个强调色下能用的组色，按上面的顺序取 5 个
+    static func colors(avoiding accent: Color, dark: Bool) -> [UInt32] {
+        let all = dark ? Self.dark : Self.light
+        guard let a = hue(of: accent) else { return Array(all.prefix(5)) }
+        let ok = all.filter { hex in
+            guard let h = hue(of: Color(hex: hex)) else { return true }
+            return abs((h - a + 540).truncatingRemainder(dividingBy: 360) - 180) >= minDistance
+        }
+        return Array(ok.prefix(5))
+    }
+
+    static func count(avoiding accent: Color, dark: Bool) -> Int { colors(avoiding: accent, dark: dark).count }
+}
+
 extension BarlyPalette {
     func groupColor(_ tint: Int) -> Color {
-        //            珊瑚       金        玫红      紫        橄榄绿
-        let dark:  [UInt32] = [0xE39A72, 0xD9B864, 0xE48BB0, 0xB49AE8, 0xA9C46E]
-        let light: [UInt32] = [0xB5582A, 0x8E6B12, 0xB3456F, 0x7556C4, 0x5F7A1C]
-        let i = ((tint % dark.count) + dark.count) % dark.count
-        return Color(hex: isDark ? dark[i] : light[i])
+        let list = GroupColors.colors(avoiding: accent, dark: isDark)
+        let i = ((tint % list.count) + list.count) % list.count
+        return Color(hex: list[i])
     }
 }
 

@@ -16,21 +16,14 @@ struct ThemeTests {
         }
     }
 
-    @Test("强调色全局只有一个：6 套主题深浅两版都用同一个（和系统控件读的颜色一致）")
-    func oneAccent() {
-        for dark in [true, false] {
-            for theme in AppTheme.allCases {
-                #expect(theme.spec(dark: dark).accent == AppTheme.accent(dark: dark), "\(theme) \(dark)")
-            }
-        }
-    }
-
-    @Test("Switchboard 主题：窗口底比面板暗（面板浮在上面）")
-    func switchboardSpec() {
+    @Test("每套主题：窗口底比面板暗（面板浮在上面）")
+    func panelsFloat() {
         let luma = { (c: UInt32) in Double((c >> 16) & 0xFF) * 0.299 + Double((c >> 8) & 0xFF) * 0.587 + Double(c & 0xFF) * 0.114 }
-        for d in [true, false] {
-            let s = AppTheme.switchboard.spec(dark: d)
-            #expect(luma(s.sidebar) < luma(s.canvas), "\(d)")
+        for theme in AppTheme.allCases {
+            for d in [true, false] {
+                let s = theme.spec(dark: d)
+                #expect(luma(s.sidebar) < luma(s.canvas), "\(theme) \(d)")
+            }
         }
     }
 
@@ -44,9 +37,9 @@ struct ThemeTests {
                 #expect(c.background == (theme == .switchboard ? 0x111111 : theme.spec(dark: dark).canvas))
             }
         }
-        #expect(TerminalColors.resolve(scheme: "dracula", appTheme: .github, dark: false, appCanvas: 0, appText: 0).background == 0x282A36)
-        #expect(TerminalColors.resolve(scheme: "app", appTheme: .gruvbox, dark: true, appCanvas: 0, appText: 0).background == 0x282828)
-        #expect(TerminalColors.resolve(scheme: "tokyo", appTheme: .github, dark: true, appCanvas: 0, appText: 0).background == 0x1A1B26)
+        #expect(TerminalColors.resolve(scheme: "dracula", appTheme: .bamboo, dark: false, appCanvas: 0, appText: 0).background == 0x282A36)
+        #expect(TerminalColors.resolve(scheme: "app", appTheme: .amber, dark: true, appCanvas: 0, appText: 0).background == AppTheme.amber.spec(dark: true).canvas)
+        #expect(TerminalColors.resolve(scheme: "mist", appTheme: .bamboo, dark: true, appCanvas: 0, appText: 0).background == AppTheme.mist.spec(dark: true).canvas)
     }
 
     @Test("色彩强度：100% 原样；灰色不变；更强 = 离灰更远")
