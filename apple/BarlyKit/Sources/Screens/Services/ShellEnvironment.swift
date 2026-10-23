@@ -111,8 +111,8 @@ public enum Tmux {
     /// `tmux -L switchboard -f <配置> new-session -A -s <名字> -c <目录> <命令>`：已经在跑就直接 attach（重新接上），否则新建
     /// environment 用 `-e` 交给这个会话：已经在跑的 tmux server 看不到客户端新加的环境变量
     public static func attachOrCreate(name: String, directory: String, command: [String],
-                                      environment: [String: String] = [:]) -> (String, [String])? {
-        guard let tmux = executable else { return nil }
+                                      environment: [String: String] = [:], tmux: String? = executable) -> (String, [String])? {
+        guard let tmux else { return nil }
         let shellCommand = command.map(shellQuote).joined(separator: " ")
         let env = environment.sorted { $0.key < $1.key }.flatMap { ["-e", "\($0.key)=\($0.value)"] }
         return (tmux, ["-L", socket, "-f", configFile, "new-session", "-A", "-s", formatLiteral(name), "-c", formatLiteral(directory)] + env + [shellCommand])

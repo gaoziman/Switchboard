@@ -82,16 +82,19 @@ public final class WorkspaceData {
     /// 读会话文件、跑 rsync / ssh：真实运行用磁盘和 ssh，截图、单测用不碰外面的（见 SessionReader / HostLink）
     let reader: SessionReader
     let link: HostLink
+    /// 找 tmux 和 CLI：真实运行查这台机器，截图、单测当 CLI 都装了（见 Toolbox）
+    let tools: Toolbox
 
     /// library.json、hosts.json、tabs.json 存在哪：shared 存磁盘，其余（截图、单测）存内存
     public let persistence: WorkspacePersistence
 
     public init(hosts: [Host], projects: [Project], sessions: [Session], transcripts: [String: [TranscriptEntry]] = [:],
                 loadState: LoadState = .loaded, persistence: WorkspacePersistence? = nil, activity: [String: Activity] = [:],
-                reader: SessionReader = .empty, link: HostLink = .offline) {
+                reader: SessionReader = .empty, link: HostLink = .offline, tools: Toolbox = .pretendInstalled) {
         self.persistence = persistence ?? .memory()
         self.reader = reader
         self.link = link
+        self.tools = tools
         self.activity = activity
         self.hosts = hosts
         self.storedProjects = projects
@@ -129,7 +132,7 @@ public final class WorkspaceData {
 
     public static let shared = WorkspaceData(hosts: [Host(id: Host.localID, kind: .local, displayName: L("这台 Mac"))],
                                              projects: [], sessions: [], loadState: .loading, persistence: .applicationSupport,
-                                             reader: .live, link: .live)
+                                             reader: .live, link: .live, tools: .live)
 }
 
 /// 会话列表的查询索引（WorkspaceData.sessionIndex）

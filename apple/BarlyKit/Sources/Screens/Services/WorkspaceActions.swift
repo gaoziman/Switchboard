@@ -53,7 +53,7 @@ public extension WorkspaceStore {
             "echo \"status=$(tmux show -gv status) prefix=$(tmux show -gv prefix) mouse=$(tmux show -gv mouse)\"; " +
             "echo \"TERM=$TERM  PATH 里有 claude: $(command -v claude)\"; echo; printf '\\033[38;5;208m256 色\\033[0m  \\033[1m粗体\\033[0m  中文对齐测试｜'; echo; sleep 600"
         guard let launch = TerminalLaunch.cli(tabID: tabID, command: ["/bin/sh", "-c", script], directory: NSHomeDirectory(),
-                                              tmuxName: "selftest") else { return }
+                                              tmuxName: "selftest", tools: data.tools) else { return }
         addTab(TerminalTab(id: tabID, kind: .pending(cli: .claude), projectPath: NSHomeDirectory(),
                            title: L("Switchboard 自检"), activity: .working), launch: launch)
     }

@@ -125,7 +125,8 @@ struct LiveReportingTests {
 
     @Test("tmux 新会话带上环境变量（-e）")
     func tmuxEnvironment() {
-        guard let (_, args) = Tmux.attachOrCreate(name: "x", directory: "/tmp", command: ["omp"], environment: ["B": "2", "A": "1"]) else { return }
+        guard let (_, args) = Tmux.attachOrCreate(name: "x", directory: "/tmp", command: ["omp"], environment: ["B": "2", "A": "1"],
+                                                  tmux: "/x/tmux") else { Issue.record("没有生成 tmux 参数"); return }
         let i = args.firstIndex(of: "-e")!
         #expect(Array(args[i..<(i + 4)]) == ["-e", "A=1", "-e", "B=2"])
         #expect(args.last == "omp")
@@ -136,7 +137,8 @@ struct LiveReportingTests {
         #expect(Tmux.formatLiteral("/tmp/#(touch x)") == "/tmp/##(touch x)")
         #expect(Tmux.formatLiteral("/a/#{pane_id}/##") == "/a/##{pane_id}/####")
         #expect(Tmux.formatLiteral("/plain/path") == "/plain/path")
-        guard let (_, args) = Tmux.attachOrCreate(name: "s#1", directory: "/tmp/#(touch x)", command: ["omp"]) else { return }
+        guard let (_, args) = Tmux.attachOrCreate(name: "s#1", directory: "/tmp/#(touch x)", command: ["omp"],
+                                                  tmux: "/x/tmux") else { Issue.record("没有生成 tmux 参数"); return }
         #expect(args[args.firstIndex(of: "-c")! + 1] == "/tmp/##(touch x)")
         #expect(args[args.firstIndex(of: "-s")! + 1] == "s##1")
     }

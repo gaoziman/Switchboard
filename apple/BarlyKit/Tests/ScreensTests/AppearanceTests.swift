@@ -86,7 +86,9 @@ import BarlyKit
 
     @Test("系统明暗按全局设置读（不看 app 自己的外观，app 被设成深色时也读得到系统是浅色）")
     func systemFromGlobalDefaults() {
+        // 两个值都显式设：没设时 suite 会回落到全局设置，结果就取决于这台机器现在是深色还是浅色
         let d = UserDefaults(suiteName: "sb-sys-\(UUID().uuidString)")!
+        d.set("Light", forKey: "AppleInterfaceStyle")
         #expect(AppAppearance.systemIsDark(d) == false)
         d.set("Dark", forKey: "AppleInterfaceStyle")
         #expect(AppAppearance.systemIsDark(d) == true)

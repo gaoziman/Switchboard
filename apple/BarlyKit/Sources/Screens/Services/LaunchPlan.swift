@@ -30,7 +30,8 @@ extension WorkspaceStore {
                                       additions: remote ? nil : LiveReporting.launchAdditions(for: cli), filter: filter, arguments: arguments)
         var launch = remote
             ? TerminalLaunch.remote(tabID: tabID, alias: hostID, command: plan.command, directory: directory, tmuxName: tmuxName)
-            : TerminalLaunch.cli(tabID: tabID, command: plan.command, directory: directory, tmuxName: tmuxName, environment: plan.environment)
+            : TerminalLaunch.cli(tabID: tabID, command: plan.command, directory: directory, tmuxName: tmuxName, environment: plan.environment,
+                                 tools: data.tools)
         launch?.cli = cli
         launch?.projectPath = directory
         return launch

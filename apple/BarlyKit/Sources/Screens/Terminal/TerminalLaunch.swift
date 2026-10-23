@@ -25,14 +25,15 @@ public struct TerminalLaunch: Equatable, Sendable {
 
     /// 恢复 / 新建一个 CLI 会话：有 tmux 就包一层 tmux，同一个会话名再次打开会直接接上
     public static func cli(tabID: UUID, command: [String], directory: String, tmuxName: String,
-                           environment: [String: String] = [:]) -> TerminalLaunch? {
-        if let (tmux, args) = Tmux.attachOrCreate(name: tmuxName, directory: directory, command: command, environment: environment) {
+                           environment: [String: String] = [:], tools: Toolbox = .live) -> TerminalLaunch? {
+        if let (tmux, args) = Tmux.attachOrCreate(name: tmuxName, directory: directory, command: command, environment: environment,
+                                                  tmux: tools.tmux()) {
             var env: [String: String] = environment
             if let terminfo = Tmux.terminfo { env["TERMINFO_DIRS"] = terminfo + ":/usr/share/terminfo" }
             return TerminalLaunch(tabID: tabID, executable: tmux, arguments: args, directory: directory,
                                   environment: env, tmuxName: tmuxName)
         }
-        guard let exe = command.first.flatMap(ShellEnvironment.shared.which) else { return nil }
+        guard let exe = command.first.flatMap(tools.which) else { return nil }
         return TerminalLaunch(tabID: tabID, executable: exe, arguments: Array(command.dropFirst()), directory: directory,
                               environment: environment, tmuxName: nil)
     }

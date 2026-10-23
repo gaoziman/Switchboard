@@ -26,6 +26,16 @@ public struct HostLink: Sendable {
     public static let offline = HostLink(mirror: { _, _ in "offline" }, snapshot: { _ in nil })
 }
 
+/// 找 tmux 和 CLI 的可执行文件。真实运行查这台机器（内置 tmux → PATH）；截图、单测默认 .pretendInstalled：
+/// 当 CLI 都装在 /usr/local/bin、没有 tmux，结果不取决于跑测试的机器装了什么
+public struct Toolbox: Sendable {
+    var tmux: @Sendable () -> String?
+    var which: @Sendable (_ name: String) -> String?
+
+    public static let live = Toolbox(tmux: { Tmux.executable }, which: { ShellEnvironment.shared.which($0) })
+    public static let pretendInstalled = Toolbox(tmux: { nil }, which: { $0.hasPrefix("/") ? $0 : "/usr/local/bin/\($0)" })
+}
+
 /// 刷新什么
 public enum RefreshScope: Hashable, Sendable {
     /// 本机会话库（走摘要缓存，很快）
