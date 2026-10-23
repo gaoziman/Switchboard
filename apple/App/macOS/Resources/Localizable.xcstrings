@@ -1,398 +1,6 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
-    "换成" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Or"
-          }
-        }
-      }
-    },
-    "· 默认" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "· default"
-          }
-        }
-      }
-    },
-    "· 你保存的" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "· saved"
-          }
-        }
-      }
-    },
-    "来自当前标签「%@」" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "From the current tab “%@”"
-          }
-        }
-      }
-    },
-    "来自正在看的会话「%@」" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "From the session you're reading “%@”"
-          }
-        }
-      }
-    },
-    "来自项目「%@」的菜单" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "From the “%@” project menu"
-          }
-        }
-      }
-    },
-    "代码" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Code"
-          }
-        }
-      }
-    },
-    "复制" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copy"
-          }
-        }
-      }
-    },
-    "已复制" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copied"
-          }
-        }
-      }
-    },
-    "只看对话" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conversation"
-          }
-        }
-      }
-    },
-    "只看工具" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tools"
-          }
-        }
-      }
-    },
-    "轮对话" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "turns"
-          }
-        }
-      }
-    },
-    "次工具" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tool calls"
-          }
-        }
-      }
-    },
-    "分钟" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "min"
-          }
-        }
-      }
-    },
-    "个文件改动" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "files changed"
-          }
-        }
-      }
-    },
-    "只算已加载的" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "loaded messages only"
-          }
-        }
-      }
-    },
-    "放大字号" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Larger Text"
-          }
-        }
-      }
-    },
-    "缩小字号" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Smaller Text"
-          }
-        }
-      }
-    },
-    "恢复默认字号" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Default Text Size"
-          }
-        }
-      }
-    },
-    "字号（%lld）" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Text size (%lld)"
-          }
-        }
-      }
-    },
-    "还有 %lld 个工具调用" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld more tool calls"
-          }
-        }
-      }
-    },
-    "最新消息 · %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Latest message · %@"
-          }
-        }
-      }
-    },
-    "今天" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Today"
-          }
-        }
-      }
-    },
-    "会话" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Session"
-          }
-        }
-      }
-    },
-    "%lld 次工具调用" : {
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : { "stringUnit" : { "state" : "translated", "value" : "%lld tool call" } },
-              "other" : { "stringUnit" : { "state" : "translated", "value" : "%lld tool calls" } }
-            }
-          }
-        }
-      }
-    },
-    "本机" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This Mac"
-          }
-        }
-      }
-    },
-    "已断开" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Offline"
-          }
-        }
-      }
-    },
-    "在跑" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "running"
-          }
-        }
-      }
-    },
-    "小贴士" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tip"
-          }
-        }
-      }
-    },
-    "最近用过" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent"
-          }
-        }
-      }
-    },
-    "你" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You"
-          }
-        }
-      }
-    },
-    "有问题" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Problem"
-          }
-        }
-      }
-    },
-    "注意" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warning"
-          }
-        }
-      }
-    },
-    "正常" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
-          }
-        }
-      }
-    },
-    "端口" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Port"
-          }
-        }
-      }
-    },
-    "程序" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Program"
-          }
-        }
-      }
-    },
-    "用途" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What"
-          }
-        }
-      }
-    },
-    "ED25519 指纹" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ED25519 fingerprint"
-          }
-        }
-      }
-    },
-    "第 %lld / %lld 步" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Step %1$lld of %2$lld"
-          }
-        }
-      }
-    },
     "  主机输出：%@" : {
       "localizations" : {
         "en" : {
@@ -735,6 +343,16 @@
         }
       }
     },
+    "CLI 会在后台继续运行，之后点会话就能接上。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The CLI keeps running in the background. Click the session later to pick it up again."
+          }
+        }
+      }
+    },
     "CLI 停下来等我回答" : {
       "localizations" : {
         "en" : {
@@ -761,16 +379,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "What to do when the CLI is still running in tmux. Checking “Don’t ask again” in the close-tab dialog also changes this."
-          }
-        }
-      }
-    },
-    "CLI 正在 tmux 里运行。让它继续跑的话，关掉标签、退出 Switchboard 都不影响；之后点这个会话就会重新接上。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The CLI is running in tmux. If you keep it running, closing the tab or quitting Switchboard won’t stop it; click the session later to reattach."
           }
         }
       }
@@ -831,6 +439,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connect… (Interactive Sign-In)"
+          }
+        }
+      }
+    },
+    "ED25519 指纹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ED25519 fingerprint"
           }
         }
       }
@@ -1145,12 +763,22 @@
         }
       }
     },
-    "— 最新消息 · %@ —" : {
+    "· 你保存的" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "— Latest Message · %@ —"
+            "value" : "· saved"
+          }
+        }
+      }
+    },
+    "· 默认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "· default"
           }
         }
       }
@@ -1325,6 +953,16 @@
         }
       }
     },
+    "不再询问" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don't ask again"
+          }
+        }
+      }
+    },
     "不分屏了" : {
       "localizations" : {
         "en" : {
@@ -1361,6 +999,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not Now"
+          }
+        }
+      }
+    },
+    "个文件改动" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "files changed"
           }
         }
       }
@@ -1535,6 +1183,16 @@
         }
       }
     },
+    "今天" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        }
+      }
+    },
     "仍然添加" : {
       "localizations" : {
         "en" : {
@@ -1605,6 +1263,26 @@
         }
       }
     },
+    "代码" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code"
+          }
+        }
+      }
+    },
+    "会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session"
+          }
+        }
+      }
+    },
     "会话 %@" : {
       "localizations" : {
         "en" : {
@@ -1661,6 +1339,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sessions can’t be mirrored. On Debian / Ubuntu, install it with: sudo apt install rsync"
+          }
+        }
+      }
+    },
+    "你" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You"
           }
         }
       }
@@ -1887,16 +1575,6 @@
         }
       }
     },
-    "关闭「%@」？" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close “%@”?"
-          }
-        }
-      }
-    },
     "关闭会话标签时" : {
       "localizations" : {
         "en" : {
@@ -2105,6 +1783,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Group▏"
+          }
+        }
+      }
+    },
+    "分钟" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "min"
           }
         }
       }
@@ -2565,6 +2253,36 @@
         }
       }
     },
+    "只看对话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conversation"
+          }
+        }
+      }
+    },
+    "只看工具" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tools"
+          }
+        }
+      }
+    },
+    "只算已加载的" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "loaded messages only"
+          }
+        }
+      }
+    },
     "只读，不改主机上的任何东西。慢的那一步会显示耗时。" : {
       "localizations" : {
         "en" : {
@@ -2661,6 +2379,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Background refresh can't type for you. Click “Connect…” to sign in once. Refreshes, tabs, and deletions then reuse that login without asking again."
+          }
+        }
+      }
+    },
+    "后台运行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Running"
           }
         }
       }
@@ -2835,12 +2563,12 @@
         }
       }
     },
-    "在%@上不再询问，以后照这次的选择做" : {
+    "在%@上以后照这次的选择做，可以在设置里改回来" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Don't ask again on %@; use this choice from now on"
+            "value" : "Remember this choice for %@— you can change it in Settings."
           }
         }
       }
@@ -2935,16 +2663,6 @@
         }
       }
     },
-    "在独立窗口里阅读" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read in Separate Window"
-          }
-        }
-      }
-    },
     "在终端里试：" : {
       "localizations" : {
         "en" : {
@@ -2971,6 +2689,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Report in Finder"
+          }
+        }
+      }
+    },
+    "在跑" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "running"
           }
         }
       }
@@ -3015,12 +2743,12 @@
         }
       }
     },
-    "复制命令" : {
+    "复制" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy Command"
+            "value" : "Copy"
           }
         }
       }
@@ -3135,6 +2863,16 @@
         }
       }
     },
+    "字号（%lld）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text size (%lld)"
+          }
+        }
+      }
+    },
     "完全磁盘访问" : {
       "localizations" : {
         "en" : {
@@ -3185,22 +2923,22 @@
         }
       }
     },
-    "展开" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expand"
-          }
-        }
-      }
-    },
     "导出对话" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export Conversation"
+          }
+        }
+      }
+    },
+    "小贴士" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tip"
           }
         }
       }
@@ -3245,6 +2983,16 @@
         }
       }
     },
+    "已复制" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied"
+          }
+        }
+      }
+    },
     "已展开" : {
       "localizations" : {
         "en" : {
@@ -3271,6 +3019,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Collapsed"
+          }
+        }
+      }
+    },
+    "已断开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline"
           }
         }
       }
@@ -3519,6 +3277,16 @@
         }
       }
     },
+    "恢复默认字号" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default Text Size"
+          }
+        }
+      }
+    },
     "打开" : {
       "localizations" : {
         "en" : {
@@ -3689,6 +3457,16 @@
         }
       }
     },
+    "换成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Or"
+          }
+        }
+      }
+    },
     "接着跑" : {
       "localizations" : {
         "en" : {
@@ -3749,12 +3527,12 @@
         }
       }
     },
-    "放大字号（⌘+）" : {
+    "放大字号" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Increase Font Size (⌘+)"
+            "value" : "Larger Text"
           }
         }
       }
@@ -4029,12 +3807,32 @@
         }
       }
     },
+    "最新消息 · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest message · %@"
+          }
+        }
+      }
+    },
     "最近 7 天" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Last 7 Days"
+          }
+        }
+      }
+    },
+    "最近用过" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent"
           }
         }
       }
@@ -4081,6 +3879,16 @@
         }
       }
     },
+    "有问题" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Problem"
+          }
+        }
+      }
+    },
     "服务器上的会话也能管" : {
       "localizations" : {
         "en" : {
@@ -4121,6 +3929,16 @@
         }
       }
     },
+    "本机" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Mac"
+          }
+        }
+      }
+    },
     "本机端口" : {
       "localizations" : {
         "en" : {
@@ -4147,6 +3965,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Permissions"
+          }
+        }
+      }
+    },
+    "来自当前标签「%@」" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From the current tab “%@”"
+          }
+        }
+      }
+    },
+    "来自正在看的会话「%@」" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From the session you're reading “%@”"
+          }
+        }
+      }
+    },
+    "来自项目「%@」的菜单" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From the “%@” project menu"
           }
         }
       }
@@ -4311,6 +4159,16 @@
         }
       }
     },
+    "次工具" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tool calls"
+          }
+        }
+      }
+    },
     "正在从主机拉取会话…" : {
       "localizations" : {
         "en" : {
@@ -4407,6 +4265,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connecting…"
+          }
+        }
+      }
+    },
+    "正常" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
           }
         }
       }
@@ -4573,22 +4441,22 @@
         }
       }
     },
+    "注意" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warning"
+          }
+        }
+      }
+    },
     "浅色" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Light"
-          }
-        }
-      }
-    },
-    "没能导出「%@」" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t export “%@”"
           }
         }
       }
@@ -4815,6 +4683,16 @@
         }
       }
     },
+    "用途" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What"
+          }
+        }
+      }
+    },
     "界面大小" : {
       "localizations" : {
         "en" : {
@@ -4965,6 +4843,16 @@
         }
       }
     },
+    "程序" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Program"
+          }
+        }
+      }
+    },
     "空着就用默认命令。这个 CLI 在这台主机上恢复、分叉都会用它。" : {
       "localizations" : {
         "en" : {
@@ -4991,6 +4879,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reconnect Now"
+          }
+        }
+      }
+    },
+    "端口" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port"
+          }
+        }
+      }
+    },
+    "第 %lld / %lld 步" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step %1$lld of %2$lld"
           }
         }
       }
@@ -5155,16 +5063,6 @@
         }
       }
     },
-    "继续运行" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keep Running"
-          }
-        }
-      }
-    },
     "编辑" : {
       "localizations" : {
         "en" : {
@@ -5175,12 +5073,12 @@
         }
       }
     },
-    "缩小字号（⌘−）" : {
+    "缩小字号" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Decrease Font Size (⌘−)"
+            "value" : "Smaller Text"
           }
         }
       }
@@ -5415,26 +5313,6 @@
         }
       }
     },
-    "跳到最新" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jump to Latest"
-          }
-        }
-      }
-    },
-    "跳到第一条" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jump to First"
-          }
-        }
-      }
-    },
     "跳过" : {
       "localizations" : {
         "en" : {
@@ -5495,6 +5373,16 @@
         }
       }
     },
+    "轮对话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "turns"
+          }
+        }
+      }
+    },
     "辅助功能" : {
       "localizations" : {
         "en" : {
@@ -5541,6 +5429,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reset"
+          }
+        }
+      }
+    },
+    "还有 %lld 个工具调用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld more tool calls"
           }
         }
       }
@@ -6001,16 +5899,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Interval"
-          }
-        }
-      }
-    },
-    "阅读列宽 / 整窗宽" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reading Width / Full Width"
           }
         }
       }

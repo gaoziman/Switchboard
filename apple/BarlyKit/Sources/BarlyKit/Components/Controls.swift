@@ -13,6 +13,8 @@ public enum BarlyButtonVariant: Sendable {
     case outline
     /// outline + 强调色字：卡 / 行内需要提示「下一步」时用，代替实心（buttons.md §3）
     case outlineAccent
+    /// outline + 危险色字：确认气泡里和主按钮并排的「结束 / 删除」（不画红框，屏上只留一个强调色）
+    case outlineDanger
     /// 无底无边（分享、更多、列表内文字操作）
     case ghost
     /// 深色下的 L2 实心灰（Lumix「Generate」次按钮、Copy/Edit）
@@ -94,7 +96,7 @@ public struct BarlyButton: View {
             if t.primary == t.ink { return .inkLike(t.ink, t.inkFg) }
             return .solid(t.primary, t.primaryFg)
         case .ink: return .inkLike(t.ink, t.inkFg)
-        case .outline, .outlineAccent: return .outline
+        case .outline, .outlineAccent, .outlineDanger: return .outline
         case .ghost: return .ghost
         case .filled: return .filled
         case .danger: return .danger
@@ -109,7 +111,7 @@ public struct BarlyButton: View {
     private var fg: Color {
         switch paint {
         case .accentLike(_, let f), .inkLike(_, let f), .solid(_, let f): f
-        case .outline, .filled: variant == .outlineAccent ? t.accentText : t.text
+        case .outline, .filled: variant == .outlineAccent ? t.accentText : variant == .outlineDanger ? t.danger : t.text
         case .ghost: t.text2
         case .danger: t.danger
         case .dangerSolid: .white

@@ -35,6 +35,12 @@ public final class TerminalRegistry {
         return view
     }
 
+    /// 键盘交回这个标签的终端（关标签的确认气泡取消以后）
+    public func focus(_ tabID: UUID) {
+        guard let view = views[tabID] else { return }
+        view.window?.makeFirstResponder(view)
+    }
+
     /// 这个标签用的是哪个引擎（设置里说明「之后新开的标签才换」时用）
     public func engine(of tabID: UUID) -> TerminalEngine? {
         views[tabID].map { $0 is GhosttyTerminalView ? .ghostty : .swiftTerm }

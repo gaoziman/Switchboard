@@ -99,17 +99,10 @@ public struct WorkspaceView: View {
         }
         .ignoresSafeArea()
         .modifier(LibraryDialogs(store: store))
-        .sheet(item: store.presented(\.closingTab)) { tab in
-            CloseTabDialog(tabTitle: tab.title, hostName: tab.hostID == Host.localID ? L("这台 Mac ") : " \(tab.hostID) ",
-                           onEnd: { remember in
-                               if remember { WorkspaceStore.setCloseBehavior("end", for: tab.hostID) }
-                               store.close(tab, keepRunning: false)
-                           },
-                           onCancel: { store.presentation = nil },
-                           onKeep: { remember in
-                               if remember { WorkspaceStore.setCloseBehavior("keep", for: tab.hostID) }
-                               store.close(tab, keepRunning: true)
-                           })
+        .overlayPreferenceValue(TabAnchorKey.self) { anchors in
+            if let tab = store.presentation?.closingTab {
+                CloseTabLayer(store: store, tab: tab, anchors: anchors)
+            }
         }
         .modifier(FolderMigration(store: store))
         .sheet(isPresented: Binding(get: { newSession != nil }, set: { if !$0 { newSession = nil } })) {

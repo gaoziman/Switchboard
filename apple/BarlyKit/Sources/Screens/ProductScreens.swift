@@ -41,9 +41,7 @@ public enum ProductScreens {
             })
         },
         ExampleScreen(id: "mac-close-tab", title: "关闭标签确认", platform: .macos) {
-            AnyView(SheetOverlay { workspace("default") } sheet: {
-                CloseTabDialog(tabTitle: "上架 haiku-5-5 并核对两档计费")
-            })
+            AnyView(workspace("close-tab"))
         },
         // 第 2 批：分屏 · 已打开视图 · 铃铛 · 添加 SSH 主机 · Connect…
         ExampleScreen(id: "mac-split", title: "分屏", platform: .macos) { AnyView(workspace("split")) },

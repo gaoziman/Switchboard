@@ -293,6 +293,11 @@ public extension WorkspaceStore {
             if let tab = store.tabGroups.first(where: { $0.projectID == MockData.focusedProjectID })?.tabs.first {
                 store.selection = .tab(tab.id)
             }
+        case "close-tab":
+            if let tab = store.tabGroups.first(where: { $0.projectID == MockData.focusedProjectID })?.tabs.first {
+                store.selection = .tab(tab.id)
+                store.presentation = .closeTab(tab)
+            }
         case "tip":
             store.tip = "把标签拖到终端区的左右边缘，就能和当前标签并排分屏。"
             if let tab = store.tabGroups.first(where: { $0.projectID == MockData.focusedProjectID })?.tabs.first {

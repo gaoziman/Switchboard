@@ -59,6 +59,7 @@ public struct TabBar: View {
                                             .live { $0.draggable(TabDragItem.self, item: TabDragItem(id: tab.id))
                                                 .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: tab.id) } }
                                             .contextMenu { tabMenu(tab) }
+                                            .tabAnchor(tab.id)
                                         }
                                     }
                                 }
