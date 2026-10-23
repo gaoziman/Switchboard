@@ -73,6 +73,26 @@ import BarlyKit
     }
 }
 
+@Suite struct AppearanceResolveTests {
+    @Test("外壳和终端用同一条规则定明暗：设了浅 / 深就照设置，跟随系统才看 macOS")
+    func sixCombinations() {
+        #expect(AppAppearance.resolveDark("dark", systemDark: false) == true)
+        #expect(AppAppearance.resolveDark("dark", systemDark: true) == true)
+        #expect(AppAppearance.resolveDark("light", systemDark: false) == false)
+        #expect(AppAppearance.resolveDark("light", systemDark: true) == false)
+        #expect(AppAppearance.resolveDark("system", systemDark: false) == false)
+        #expect(AppAppearance.resolveDark("system", systemDark: true) == true)
+    }
+
+    @Test("系统明暗按全局设置读（不看 app 自己的外观，app 被设成深色时也读得到系统是浅色）")
+    func systemFromGlobalDefaults() {
+        let d = UserDefaults(suiteName: "sb-sys-\(UUID().uuidString)")!
+        #expect(AppAppearance.systemIsDark(d) == false)
+        d.set("Dark", forKey: "AppleInterfaceStyle")
+        #expect(AppAppearance.systemIsDark(d) == true)
+    }
+}
+
 @Suite struct IncreasedContrastTests {
     @Test("系统开了「增强对比度」：次要文字各提一档（text4 → text3，text3 → text2）")
     func raisesSecondaryText() {

@@ -60,11 +60,17 @@ public final class TerminalRegistry {
     public func isAlive(_ tabID: UUID) -> Bool { views[tabID]?.isProcessRunning == true }
 
     private var observer: NSObjectProtocol?
+    private var systemObserver: NSObjectProtocol?
 
-    /// 设置一改（配色、字体、字号、主题、明暗），所有开着的终端立刻换
+    /// 设置一改（配色、字体、字号、主题、明暗），所有开着的终端立刻换；
+    /// 「外观」跟随系统时 macOS 换明暗也要换（这个不走 app 的 UserDefaults 通知）
     private func observeSettings() {
         guard observer == nil else { return }
         observer = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { TerminalRegistry.shared.restyleAll() }
+        }
+        systemObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("AppleInterfaceThemeChangedNotification"), object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { TerminalRegistry.shared.restyleAll() }
         }
     }
@@ -98,8 +104,7 @@ public struct TerminalStyle {
 
     public static func current(defaults d: UserDefaults = .standard) -> TerminalStyle {
         let theme = AppTheme.current
-        let appDark = AppAppearance.isDark(AppAppearance.current(d))
-            ?? (NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua)
+        let appDark = AppAppearance.resolveDark(AppAppearance.current(d), systemDark: AppAppearance.systemIsDark(d))
         let dark: Bool = switch d.string(forKey: "terminalBrightness") ?? "app" {
         case "light": false
         case "dark": true

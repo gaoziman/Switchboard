@@ -181,11 +181,22 @@ public enum AppAppearance {
     public static func isDark(_ value: String) -> Bool? {
         switch value { case "light": false; case "dark": true; default: nil }
     }
+
+    /// 外壳、终端、窗口外观都按这一条定明暗：设了浅 / 深就照设置，跟随系统才看 macOS
+    public static func resolveDark(_ value: String, systemDark: Bool) -> Bool { isDark(value) ?? systemDark }
+
+    /// macOS 本身是不是深色：读全局设置，不看 app 的外观（窗口被设成深色时 NSApp 的外观不一定还是系统的）
+    public static func systemIsDark(_ defaults: UserDefaults = .standard) -> Bool {
+        defaults.string(forKey: "AppleInterfaceStyle") == "Dark"
+    }
 }
 
-/// 根视图用：按设置里的主题给整棵视图换色板
+/// 根视图用：按设置里的主题给整棵视图换色板。
+/// 明暗按「外观」设置定（跟随系统才看外面传进来的 colorScheme），再把结果写回 colorScheme：
+/// 主窗口里 preferredColorScheme 不一定传得到（实测设深色、系统浅色时侧栏仍是浅色，终端却是深色），不能靠它
 public struct ThemedRoot: ViewModifier {
     @AppStorage("appTheme") private var theme = AppTheme.switchboard.rawValue
+    @AppStorage(AppAppearance.defaultsKey) private var appearance = AppAppearance.defaultValue
     /// 自定义颜色改了就加一，让色板重算
     @AppStorage(ThemeColors.revisionKey) private var revision = 0
     @Environment(\.colorScheme) private var scheme
@@ -195,10 +206,12 @@ public struct ThemedRoot: ViewModifier {
 
     public func body(content: Content) -> some View {
         _ = revision
-        let dark = scheme == .dark
+        let dark = AppAppearance.resolveDark(appearance, systemDark: scheme == .dark)
         var palette = (AppTheme(rawValue: theme) ?? .switchboard).palette(dark: dark)
         if contrast == .increased { palette = AppTheme.raisingContrast(palette ?? (dark ? BarlyTokens.dark : BarlyTokens.light)) }
-        return content.environment(\.barlyPaletteOverride, palette)
+        return content
+            .environment(\.barlyPaletteOverride, palette)
+            .environment(\.colorScheme, dark ? .dark : .light)
     }
 }
 

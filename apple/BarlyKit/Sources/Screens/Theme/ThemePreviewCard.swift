@@ -2,10 +2,11 @@ import SwiftUI
 import BarlyKit
 
 /// 设置里的主题卡：缩小的工作区窗口（侧栏 · 标签 · 终端里的几行高亮），左上浅色、右下深色，一条斜线分开。
-/// 颜色取这套主题的真实值（含你改过的颜色），终端那几行用它的终端配色
+/// 颜色取这套主题的真实值（含你改过的颜色），终端那几行用它的终端配色；选中的描边用这套主题自己的强调色
 public struct ThemePreviewCard: View {
     let theme: AppTheme
     var selected = false
+    @Environment(\.colorScheme) private var scheme
 
     public init(theme: AppTheme, selected: Bool = false) {
         self.theme = theme
@@ -32,7 +33,7 @@ public struct ThemePreviewCard: View {
         .clipShape(shape)
         .overlay(shape.strokeBorder(.black.opacity(0.14)))
         .padding(3)
-        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Color.accentColor, lineWidth: selected ? 2.5 : 0))
+        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Color(hex: theme.spec(dark: scheme == .dark).accent), lineWidth: selected ? 2.5 : 0))
         .accessibilityHidden(true)
     }
 }
