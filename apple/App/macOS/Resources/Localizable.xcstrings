@@ -1373,6 +1373,16 @@
         }
       }
     },
+    "使用当前标签页创建新的拆分视图" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Split View with This Tab"
+          }
+        }
+      }
+    },
     "使用说明" : {
       "localizations" : {
         "en" : {
@@ -1503,6 +1513,16 @@
         }
       }
     },
+    "全选" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select All"
+          }
+        }
+      }
+    },
     "全部" : {
       "localizations" : {
         "en" : {
@@ -1591,6 +1611,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Close and Delete Session…"
+          }
+        }
+      }
+    },
+    "关闭并结束会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close and End Session"
           }
         }
       }
@@ -5049,6 +5079,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Filter paths"
+          }
+        }
+      }
+    },
+    "粘贴" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste"
           }
         }
       }

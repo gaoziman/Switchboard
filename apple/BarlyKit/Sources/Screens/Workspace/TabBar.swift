@@ -116,18 +116,39 @@ public struct TabBar: View {
         if store.moveTabToNewWindow(id) { openWindow(id: "workspace") }
     }
 
+    /// 和终端区右键同一份（TerminalMenu），少了文字操作；「移到窗口」放在关标签那组上面
     @ViewBuilder private func tabMenu(_ tab: TerminalTab) -> some View {
-        Button("移到新窗口") { tearOff(tab.id) }
-        let others = store.otherWindows
-        if !others.isEmpty {
-            Menu("移到窗口") {
-                ForEach(Array(others.enumerated()), id: \.offset) { _, other in
-                    Button(other.windowTitle) { store.moveTab(tab.id, to: other) }
-                }
+        let sections = TerminalMenu.sections(for: tab, in: store, text: false)
+        Group {
+            ForEach(Array(sections.dropLast().enumerated()), id: \.offset) { _, section in
+                ForEach(Array(section.enumerated()), id: \.offset) { _, item in tabMenuItem(item, tab) }
+                Divider()
             }
+            Button { tearOff(tab.id) } label: { Label("移到新窗口", systemImage: "macwindow.badge.plus") }
+            let others = store.otherWindows
+            if !others.isEmpty {
+                Menu {
+                    ForEach(Array(others.enumerated()), id: \.offset) { _, other in
+                        Button(other.windowTitle) { store.moveTab(tab.id, to: other) }
+                    }
+                } label: { Label("移到窗口", systemImage: "macwindow") }
+            }
+            Divider()
+            ForEach(Array((sections.last ?? []).enumerated()), id: \.offset) { _, item in tabMenuItem(item, tab) }
         }
-        Divider()
-        Button("关闭标签") { store.requestClose(tab) }
+        .labelStyle(.titleAndIcon)      // macOS 的 SwiftUI 菜单默认只显示文字
+    }
+
+    @ViewBuilder private func tabMenuItem(_ item: TerminalMenu.Item, _ tab: TerminalTab) -> some View {
+        if case .export(let formats) = item {
+            Menu {
+                ForEach(Array(formats.enumerated()), id: \.offset) { _, format in
+                    Button(TerminalMenu.exportTitle(format)) { TerminalMenu.export(format, tab: tab, in: store) }
+                }
+            } label: { Label(item.title, systemImage: item.symbol) }
+        } else {
+            Button { TerminalMenu.perform(item, tab: tab, in: store) } label: { Label(item.title, systemImage: item.symbol) }
+        }
     }
 
     /// 单个标签选中，或在当前分屏里

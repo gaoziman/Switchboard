@@ -94,6 +94,17 @@ final class GhosttyTerminalView: AppTerminalView, EngineTerminalView, TerminalSu
         super.paste(sender)
     }
 
+    /// 右键：弹自己的菜单（复制粘贴 + 会话操作），不交给 tmux（它会画一个文字菜单）。
+    /// 按下就弹，松开不再发给 Ghostty：没发过按下，单发一个松开 CLI 会收到半截鼠标事件
+    override func rightMouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        NSMenu.popUpContextMenu(TerminalMenu.menu(for: self), with: event, for: self)
+    }
+
+    override func rightMouseUp(with event: NSEvent) {}
+
+    override func menu(for event: NSEvent) -> NSMenu? { TerminalMenu.menu(for: self) }
+
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
         sender.draggingPasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) ? .copy : []
     }

@@ -32,6 +32,9 @@ final class SBTerminalView: LocalProcessTerminalView, EngineTerminalView {
         send(source: self, data: bytes[...])
     }
 
+    /// 右键：复制粘贴 + 会话操作（SwiftTerm 不把右键报给程序，NSView 默认就弹这里的菜单）
+    override func menu(for event: NSEvent) -> NSMenu? { TerminalMenu.menu(for: self) }
+
     // MARK: EngineTerminalView
 
     var isProcessRunning: Bool { process?.running == true }
