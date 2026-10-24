@@ -5,7 +5,7 @@ import SwiftUI
 import BarlyKit
 
 /// 状态灯（接线台的信号灯）：只用一个强调色，靠形状区分。工作中 = 实心点，等你回答 = 实心点 + 一圈呼吸光晕，
-/// 没看过的完成 = 强调色空心圈，回合结束 = 淡灰勾，已结束 = 灰色空心圈
+/// 没看过的完成 = 强调色空心圈，回合结束 = 灰勾，已结束 = 灰色空心圈（灰用 text3：text4 在深色底上只有 1.9:1）
 public struct ActivityLamp: View {
     let activity: Activity
     var size: CGFloat
@@ -30,9 +30,9 @@ public struct ActivityLamp: View {
             case .idle:
                 Image(systemName: "checkmark")
                     .font(.system(size: glyph * 0.7, weight: .semibold))
-                    .foregroundStyle(t.text4)
+                    .foregroundStyle(t.text3)
             case .doneUnseen: Circle().strokeBorder(t.accent, lineWidth: 1.5).frame(width: dot + 2, height: dot + 2)
-            case .ended: Circle().strokeBorder(t.text4, lineWidth: 1.2).frame(width: dot + 1, height: dot + 1)
+            case .ended: Circle().strokeBorder(t.text3, lineWidth: 1.2).frame(width: dot + 1, height: dot + 1)
             }
         }
         .frame(width: glyph, height: glyph)

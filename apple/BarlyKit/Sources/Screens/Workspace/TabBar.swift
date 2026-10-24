@@ -16,15 +16,17 @@ struct TabDragItem: Codable, Transferable, Identifiable {
     static var transferRepresentation: some TransferRepresentation { CodableRepresentation(contentType: .switchboardTab) }
 }
 
-/// 顶部标签栏：按项目分组。每组上面一行「跨栏组头」——组色小字项目名 + 一根同色细线横跨整组（点一下折叠），
-/// 下面一行是这组的标签（26pt，同组之间细竖线，选中是一块浅底）。项目名在标签之上、不和标签抢同一行，
-/// 一个项目开多个对话也一眼看出归属。标签随数量收窄，到最窄后横向滚动。
+/// 顶部标签栏：按项目分组。每组是一个「描边托盘」——淡组色细框围住这组的标签，组色项目名嵌在上框线里（点一下折叠），
+/// 组色落在整组上但只是一圈线。选中的标签是浮起的小卡片（实底 + 细边 + 一点阴影），没选中的用 text2，都看得清。
+/// 标签随数量收窄，到最窄后横向滚动。
 public struct TabBar: View {
     @Bindable var store: WorkspaceStore
     var sidebarHidden: Bool
     var onNewSession: () -> Void
     @Environment(\.barly) private var t
     @Environment(\.openWindow) private var openWindow
+    /// 鼠标下的标签：它两边的分隔线不画
+    @State private var hoveredTab: UUID?
 
     public init(store: WorkspaceStore, sidebarHidden: Bool = false, onNewSession: @escaping () -> Void = {}) {
         self.store = store
@@ -38,37 +40,32 @@ public struct TabBar: View {
             HStack(alignment: .bottom, spacing: 0) {
                 if sidebarHidden { TrafficLights().padding(.leading, 16 - WorkspaceMetrics.gutter).frame(height: WorkspaceMetrics.tabBar) }
                 BarlyScroll(.horizontal) {
-                    HStack(alignment: .bottom, spacing: 14) {
+                    HStack(alignment: .bottom, spacing: 12) {
                         ForEach(store.tabGroups) { group in
-                            if group.isCollapsed {
-                                CollapsedGroup(group: group) { store.toggleCollapsed(group) }
-                            } else {
-                                VStack(alignment: .leading, spacing: 0) {
-                                    GroupHeader(group: group) { store.toggleCollapsed(group) }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    HStack(spacing: 0) {
-                                        ForEach(Array(group.tabs.enumerated()), id: \.element.id) { index, tab in
-                                            let selected = isSelected(tab)
-                                            TabItem(tab: tab, selected: selected,
-                                                    divider: index > 0 && !selected && !isSelected(group.tabs[index - 1]),
-                                                    width: width) {
-                                                store.selection = .tab(tab.id)
-                                            } onClose: {
-                                                store.requestClose(tab)
-                                            }
-                                            .live { $0.draggable(TabDragItem.self, item: TabDragItem(id: tab.id))
-                                                .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: tab.id) } }
-                                            .contextMenu { tabMenu(tab) }
-                                            .tabAnchor(tab.id)
+                            GroupTray(group: group, onToggle: { store.toggleCollapsed(group) }) {
+                                if group.isCollapsed {
+                                    CollapsedSummary(group: group) { store.toggleCollapsed(group) }
+                                } else {
+                                    ForEach(Array(group.tabs.enumerated()), id: \.element.id) { index, tab in
+                                        // 同组相邻的两个标签之间一根短竖线；挨着选中的卡片、悬停的标签时不画
+                                        let quiet: (TerminalTab) -> Bool = { !isSelected($0) && hoveredTab != $0.id }
+                                        TabItem(tab: tab, selected: isSelected(tab), width: width,
+                                                divider: index > 0 && quiet(tab) && quiet(group.tabs[index - 1]),
+                                                onHover: { hoveredTab = $0 ? tab.id : (hoveredTab == tab.id ? nil : hoveredTab) }) {
+                                            store.selection = .tab(tab.id)
+                                        } onClose: {
+                                            store.requestClose(tab)
                                         }
+                                        .live { $0.draggable(TabDragItem.self, item: TabDragItem(id: tab.id))
+                                            .dropDestination(for: TabDragItem.self) { items, _ in drop(items.first?.id, before: tab.id) } }
+                                        .contextMenu { tabMenu(tab) }
+                                        .tabAnchor(tab.id)
                                     }
                                 }
-                                // 组头横跨整组：组宽 = 标签总宽和项目名里较宽的那个，横线铺满
-                                .fixedSize(horizontal: true, vertical: false)
                             }
                         }
                     }
-                    .padding(.bottom, 5)
+                    .padding(.bottom, 4)
                     .frame(height: WorkspaceMetrics.tabBar, alignment: .bottom)
                     .padding(.leading, 6)
                     .live { $0.onDragSessionUpdated(dragUpdated) }
@@ -160,8 +157,8 @@ public struct TabBar: View {
     private func tabWidth(available: CGFloat) -> CGFloat {
         let visible = store.tabGroups.filter { !$0.isCollapsed }.reduce(0) { $0 + $1.tabs.count }
         guard visible > 0 else { return WorkspaceMetrics.tabMax }
-        // 组间距 14；折叠的组只剩一个小块 ≈ 100
-        let labels = store.tabGroups.reduce(CGFloat(0)) { $0 + ($1.isCollapsed ? 114 : 14) }
+        // 每组：组间距 12 + 托盘内边距和框线 10 + 标签间距 2；折叠的组只剩一个小托盘 ≈ 110
+        let labels = store.tabGroups.reduce(CGFloat(0)) { $0 + ($1.isCollapsed ? 122 : 22 + CGFloat($1.tabs.count - 1) * 2) }
         let share = (available - labels - 60) / CGFloat(visible)
         return min(WorkspaceMetrics.tabMax, max(WorkspaceMetrics.tabMin, share))
     }
@@ -208,59 +205,69 @@ extension BarlyPalette {
     }
 }
 
-/// 组头：组色小字项目名 + 一根组色细线横跨整组，右端一个小竖钩收尾（像表格的分组表头）
-private struct GroupHeader: View {
+/// 描边托盘：一圈淡组色细框围住这组的标签，组色项目名像分组框的标题一样嵌在上框线里（背后垫面板底色把线遮住）。
+/// 点项目名折叠 / 展开。托盘至少和项目名一样宽，只开一个短标签时项目名也不会伸出框外
+private struct GroupTray<Content: View>: View {
     let group: TabGroup
-    let action: () -> Void
+    let onToggle: () -> Void
+    @ViewBuilder let content: Content
     @Environment(\.barly) private var t
     @State private var hovered = false
 
+    /// 托盘离标签的内边距
+    private static var inset: CGFloat { 4 }
+
     var body: some View {
         let c = t.groupColor(group.tint)
-        HStack(spacing: 6) {
-            Button(action: action) {
-                Text(group.name)
-                    .barlyText(.product.caption.size(11).weight(500), color: hovered ? c.barlyMix(t.text, 0.35) : c)
-                    .lineLimit(1)
-                    .fixedSize()
+        VStack(alignment: .leading, spacing: 0) {
+            legendText(c).padding(.horizontal, 16).frame(height: 0).hidden()    // 只撑宽度
+            HStack(spacing: 2) { content }
+        }
+        .padding(.horizontal, Self.inset).padding(.top, Self.inset + 1).padding(.bottom, Self.inset)
+        // 框里垫一层很淡的组色：选中的卡片（浅色是白底）才浮得出来
+        .background(c.opacity(t.isDark ? 0.035 : 0.05), in: RoundedRectangle(cornerRadius: WorkspaceMetrics.trackRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: WorkspaceMetrics.trackRadius, style: .continuous).strokeBorder(c.opacity(0.38)))
+        .overlay(alignment: .topLeading) {
+            Button(action: onToggle) {
+                legendText(hovered ? c.barlyMix(t.text, 0.35) : c)
+                    .padding(.horizontal, 5)
+                    .background(t.panelBg)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .onHover { hovered = $0 }
             .handCursor()
-            .help(L("折叠 \(group.name)"))
-            Capsule().fill(c.opacity(0.4)).frame(height: 1.5)
+            .help(group.isCollapsed ? L("展开 \(group.name)") : L("折叠 \(group.name)"))
+            .offset(x: 9, y: -BarlyScale.pt(7))
         }
-        .padding(.leading, 10).padding(.trailing, 4)
-        .frame(height: WorkspaceMetrics.groupHeader - 2, alignment: .center)
+        .fixedSize()
+    }
+
+    private func legendText(_ color: Color) -> some View {
+        Text(group.name)
+            .barlyText(.product.caption.size(11).weight(600), color: color)
+            .lineLimit(1)
+            .fixedSize()
     }
 }
 
-/// 折叠的组：组头那行照样是项目名，下面一行是「N 个 · 最紧急的状态」
-private struct CollapsedGroup: View {
+/// 折叠的组：托盘里只剩「› N 个标签 · 最紧急的状态」
+private struct CollapsedSummary: View {
     let group: TabGroup
     let action: () -> Void
     @Environment(\.barly) private var t
     @State private var hovered = false
 
     var body: some View {
-        let c = t.groupColor(group.tint)
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(group.name).barlyText(.product.caption.size(11).weight(500), color: c)
-                    .padding(.leading, 8)
-                    .frame(height: WorkspaceMetrics.groupHeader - 2)
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.right").font(.system(size: BarlyScale.pt(8), weight: .bold)).foregroundStyle(t.text4)
-                    Text(verbatim: L("\(group.tabs.count) 个标签")).barlyText(.product.caption, color: t.text3)
-                    ActivityLamp(group.mostUrgent, size: 5)
-                }
-                .padding(.horizontal, 8)
-                .frame(height: WorkspaceMetrics.tabHeight)
-                .background(hovered ? t.shellHover : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius, style: .continuous))
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right").font(.system(size: BarlyScale.pt(8), weight: .bold)).foregroundStyle(t.text3)
+                Text(verbatim: L("\(group.tabs.count) 个标签")).barlyText(.product.caption.size(12), color: hovered ? t.text : t.text2)
+                ActivityLamp(group.mostUrgent, size: 5)
             }
-            .padding(.leading, 2)
-            .fixedSize()
+            .padding(.horizontal, 9)
+            .frame(height: WorkspaceMetrics.tabHeight)
+            .background(hovered ? t.shellHover : .clear, in: RoundedRectangle(cornerRadius: WorkspaceMetrics.tabRadius, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -273,29 +280,28 @@ private struct CollapsedGroup: View {
 private struct TabItem: View {
     let tab: TerminalTab
     let selected: Bool
-    /// 左边一根细竖线（同组相邻、两边都没选中）
-    var divider = false
     let width: CGFloat
+    /// 左边一根短竖线（同组相邻、两边都没选中也没悬停）
+    var divider = false
+    var onHover: (Bool) -> Void = { _ in }
     let action: () -> Void
     var onClose: () -> Void = {}
     @Environment(\.barly) private var t
     @State private var hovered = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        let shape = RoundedRectangle(cornerRadius: WorkspaceMetrics.tabRadius, style: .continuous)
+        HStack(spacing: 7) {
             if tab.isPlainTerminal {
                 Image(systemName: "terminal").font(.system(size: BarlyScale.pt(9))).foregroundStyle(t.text3)
             } else {
                 ActivityLamp(tab.activity, size: 5)
             }
-            Color.clear.frame(maxWidth: .infinity).overlay(alignment: .leading) {
-                Text(tab.title)
-                    .barlyText(.product.caption.size(12).weight(selected ? 500 : 400), color: selected ? t.text : hovered ? t.text2 : t.text3)
-                    .lineLimit(1).fixedSize()
-            }
-            .clipped()
-            .mask(LinearGradient(stops: [.init(color: .black, location: 0.8), .init(color: .clear, location: 1)],
-                                 startPoint: .leading, endPoint: .trailing))
+            Text(tab.title)
+                .barlyText(.product.caption.size(12).weight(selected ? 600 : 400), color: selected || hovered ? t.text : t.text2)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if selected || hovered {
                 Image(systemName: "xmark")
                     .font(.system(size: BarlyScale.pt(7), weight: .bold))
@@ -307,16 +313,24 @@ private struct TabItem: View {
                     .help("关闭标签（⌘W）")
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 9)
         .frame(width: width, height: WorkspaceMetrics.tabHeight)
-        .background(selected ? t.shellSelected : hovered ? t.shellHover : .clear,
-                    in: RoundedRectangle(cornerRadius: WorkspaceMetrics.rowRadius, style: .continuous))
+        .background {
+            // 选中：浮起的小卡片（和灯板的浮起面板同一套：实底 + 细边 + 一点阴影）
+            if selected {
+                shape.fill(t.tabCard)
+                    .overlay(shape.strokeBorder(t.tabCardEdge))
+                    .shadow(color: .black.opacity(t.isDark ? 0.45 : 0.14), radius: 1.5, y: 1)
+            } else if hovered {
+                shape.fill(t.shellHover)
+            }
+        }
         .overlay(alignment: .leading) {
-            if divider { Rectangle().fill(t.hairline).frame(width: 1, height: 12) }
+            if divider { Rectangle().fill(t.text4).frame(width: 1, height: 12).offset(x: -1.5) }
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: action)
-        .onHover { hovered = $0 }
+        .onHover { hovered = $0; onHover($0) }
         .handCursor()
         .help(tab.title)
         .accessibilityElement(children: .combine)

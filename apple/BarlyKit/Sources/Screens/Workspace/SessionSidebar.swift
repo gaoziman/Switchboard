@@ -431,10 +431,8 @@ public enum WorkspaceMetrics {
     public static var header: CGFloat { BarlyScale.pt(48) }
     public static var row: CGFloat { BarlyScale.pt(28) }
     public static var tabHeight: CGFloat { BarlyScale.pt(26) }
-    /// 标签栏：上面组头一行 + 下面标签一行，比侧栏栏头高一点，组头不贴窗口顶边
-    public static var tabBar: CGFloat { BarlyScale.pt(52) }
-    /// 标签栏组头（项目名 + 横线）那一行
-    public static var groupHeader: CGFloat { BarlyScale.pt(16) }
+    /// 标签栏：描边托盘（嵌在上框线里的项目名 + 一行标签），上面留出项目名不贴面板顶边
+    public static var tabBar: CGFloat { BarlyScale.pt(50) }
     public static var tabMin: CGFloat { BarlyScale.pt(96) }
     public static var tabMax: CGFloat { BarlyScale.pt(180) }
     /// 终端面板离窗口边、面板之间的距离
@@ -445,6 +443,8 @@ public enum WorkspaceMetrics {
     public static let panelRadius: CGFloat = BarlyRadius.lg
     public static let rowRadius: CGFloat = BarlyRadius.sm
     public static let trackRadius: CGFloat = BarlyRadius.md
+    /// 托盘里的标签：托盘圆角 8 减去 4pt 内边距，内外圆角同心
+    public static let tabRadius: CGFloat = 5
     /// 项目行的文件夹图标宽；会话行的树形引导线对准它的中线。图标跟着界面缩放，引导线也要跟着算
     public static var folderIcon: CGFloat { BarlyScale.pt(16) }
     /// 引导线离行左边的距离：行内边距 8 + 箭头 10 + 间距 6 + 图标一半
@@ -525,6 +525,9 @@ extension BarlyPalette {
     /// 面板上的选中块 / 悬停块
     var shellSelected: Color { isDark ? canvas.barlyMix(.white, 0.07) : canvas.barlyMix(.black, 0.05) }
     var shellHover: Color { isDark ? canvas.barlyMix(.white, 0.04) : canvas.barlyMix(.black, 0.03) }
+    /// 标签栏选中的标签：浮起的小卡片。深色比面板亮一点，浅色就是白底，靠细边和阴影浮起来
+    var tabCard: Color { isDark ? canvas.barlyMix(.white, 0.07) : canvas }
+    var tabCardEdge: Color { isDark ? Color.white.opacity(0.07) : Color.black.opacity(0.08) }
 }
 
 // MARK: - 行
