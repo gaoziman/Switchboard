@@ -174,3 +174,28 @@ public extension WorkspaceStore {
         if expandedSubagentParents.contains(session.id) { expandedSubagentParents.remove(session.id) } else { expandedSubagentParents.insert(session.id) }
     }
 }
+
+@MainActor
+extension WorkspaceStore {
+    /// 切到一个标签时在侧栏找到它：展开主机和项目、会话排在「再显示」后面就放宽到露出来，再滚过去（只滚到刚好看见）。
+    /// 子代理的标签定位到它的主会话；没对上会话的（新会话还没认领、普通终端）定位到项目行。别的项目不收起
+    func revealTab(_ id: UUID) {
+        guard let tab = tab(id) else { return }
+        if collapsedHostIDs.contains(tab.hostID) { collapsedHostIDs.remove(tab.hostID) }
+        guard let found = session(for: tab) else {
+            if !expandedProjectIDs.contains(tab.projectID) { expandedProjectIDs.insert(tab.projectID) }
+            revealedRow = .project(tab.projectID)
+            revealCount += 1
+            return
+        }
+        let target = found.parentSessionID.flatMap { session($0) } ?? found
+        if !expandedProjectIDs.contains(target.projectID) { expandedProjectIDs.insert(target.projectID) }
+        if let project = projects.first(where: { $0.id == target.projectID }),
+           let index = sessions(in: project).firstIndex(where: { $0.id == target.id }),
+           index >= visibleLimits[project.id] ?? Self.defaultVisibleLimit {
+            visibleLimits[project.id] = index + 1
+        }
+        revealedRow = .session(target.id)
+        revealCount += 1
+    }
+}

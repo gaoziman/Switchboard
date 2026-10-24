@@ -68,12 +68,17 @@ public final class WorkspaceStore {
     }
     public var selection: MainSelection? {
         didSet {
+            // 切到标签（点标签、⌘数字、别处跳过来）：侧栏展开它所在的位置
+            if oldValue != selection, case .tab(let id)? = selection { revealTab(id) }
             guard oldValue != selection, let oldValue, !navigatingHistory else { return }
             backStack.append(oldValue)
             if backStack.count > 50 { backStack.removeFirst() }
             forwardStack.removeAll()
         }
     }
+    /// 侧栏要滚到的行（切标签时定位）；revealCount 每次定位加一，同一行再定位一次也会滚
+    public var revealedRow: LibraryRow?
+    public var revealCount = 0
     /// 每个项目默认列出的会话数，「再显示 20 个」按项目累加
     public var visibleLimits: [ProjectID: Int] = [:]
     /// 分屏：左右两个标签；right 为 nil = 右边还在「选一个标签」

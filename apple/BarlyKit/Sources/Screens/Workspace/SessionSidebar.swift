@@ -288,6 +288,11 @@ public struct SessionSidebar: View {
         .onChange(of: store.libraryCursor) { _, row in
             if let row, libraryFocused { proxy.scrollTo(row) }
         }
+        // 切标签时滚到它那一行：等这一轮展开的行排好再滚；不给 anchor = 已经看得见就不动
+        .onChange(of: store.revealCount) { _, _ in
+            guard let row = store.revealedRow, store.sidebarMode == .projects else { return }
+            DispatchQueue.main.async { withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(row) } }
+        }
         }
         // 键盘：↑ ↓ 走、→ 展开 / 进去、← 收起 / 回上一层、Return 打开（WorkspaceStore.libraryKey）
         .modifier(LibraryKeyboard(focused: $libraryFocused) { store.libraryKey($0) })
