@@ -8,7 +8,7 @@ import AppKit
 enum TerminalMenu {
     enum Item: Equatable {
         case copy, paste, selectAll
-        case rename
+        case rename, aiRename
         case copyConversation, export([TranscriptExport.Format]), copySessionID, revealSessionFile
         case split
         case closeTab, endSession, deleteSession
@@ -19,6 +19,7 @@ enum TerminalMenu {
             case .paste: L("粘贴")
             case .selectAll: L("全选")
             case .rename: L("重命名")
+            case .aiRename: L("AI 重命名…")
             case .copyConversation: L("复制对话")
             case .export: L("导出对话")
             case .copySessionID: L("复制会话 ID")
@@ -36,6 +37,7 @@ enum TerminalMenu {
             case .paste: "doc.on.clipboard"
             case .selectAll: "selection.pin.in.out"
             case .rename: "pencil"
+            case .aiRename: "sparkles"
             case .export: "square.and.arrow.up"
             case .revealSessionFile: "doc.text.magnifyingglass"
             case .split: "rectangle.split.2x1"
@@ -52,7 +54,7 @@ enum TerminalMenu {
         var sections: [[Item]] = text ? [[.copy, .paste, .selectAll]] : []
         if let session {
             let hasFile = session.sourcePath != nil && session.cli != .opencode
-            sections.append([.rename])
+            sections.append([.rename, .aiRename])
             sections.append([.copyConversation, .export(hasFile ? [.markdown, .plainText, .original] : [.markdown, .plainText]), .copySessionID]
                             + (hasFile && session.hostID == Host.localID ? [.revealSessionFile] : []))
         }
@@ -83,6 +85,7 @@ enum TerminalMenu {
         let session = store.session(for: tab)
         switch item {
         case .rename: if let session { store.presentation = .renameSession(session) }
+        case .aiRename: if let session { store.presentation = .nameSuggestions(session) }
         case .copyConversation: if let session { Task { await store.copyConversation(session) } }
         case .copySessionID:
             #if os(macOS)

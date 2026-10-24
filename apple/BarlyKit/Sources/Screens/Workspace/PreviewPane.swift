@@ -147,7 +147,7 @@ public struct PreviewPane: View {
                     Text(kicker).lineLimit(1)
                 }
                 .barlyText(.product.caption, color: t.text3)
-                Text(session.displayTitle)
+                SessionName.text(session.displayTitle, separator: t.text4)
                     .barlyText(.product.sectionTitle.weight(600), color: t.text)
                     .lineLimit(1)
                 HStack(spacing: 14) {

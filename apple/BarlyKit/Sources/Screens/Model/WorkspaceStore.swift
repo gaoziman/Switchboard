@@ -112,6 +112,8 @@ public final class WorkspaceStore {
     public var presentation: Presentation?
     /// 上一次删除失败的（会话 ID → 原因）
     public var deleteFailures: [String: String] = [:]
+    /// 上一次批量 AI 起名没起成的（「会话标题：原因」）
+    public var namingFailures: [String] = []
     /// 预览读了文件尾部多少字节
     public var transcriptBudgets: [String: Int] {
         get { data.transcriptBudgets }
@@ -390,6 +392,8 @@ public final class WorkspaceStore {
 /// 工作区窗口上的弹窗。原来是 7 个各自的字段，理论上能同时有好几个；收成一个，类型上就只有一个
 public enum Presentation: Equatable, Sendable {
     case renameSession(Session)
+    /// AI 重命名：3 个候选让用户挑
+    case nameSuggestions(Session)
     case renameProject(Project)
     /// 删除确认；archivingProject：删完再归档这个项目（「归档项目并删除所有会话」）
     case confirmDelete([Session], archivingProject: ProjectID? = nil)
@@ -400,6 +404,7 @@ public enum Presentation: Equatable, Sendable {
     case closeTab(TerminalTab)
 
     public var renamingSession: Session? { if case .renameSession(let s) = self { s } else { nil } }
+    public var suggestingNames: Session? { if case .nameSuggestions(let s) = self { s } else { nil } }
     public var renamingProject: Project? { if case .renameProject(let p) = self { p } else { nil } }
     public var deleting: [Session]? { if case .confirmDelete(let s, _) = self { s } else { nil } }
     public var archivingProject: ProjectID? { if case .confirmDelete(_, let p) = self { p } else { nil } }

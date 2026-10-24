@@ -65,7 +65,7 @@ struct PanelHeader: View {
                     .font(.system(size: BarlyScale.pt(11)))
                     .foregroundStyle(t.text4)
             }
-            Text(tab.title)
+            SessionName.text(tab.title, separator: t.text4)
                 .barlyText(.product.small.weight(500), color: focused ? t.text : t.text2)
                 .lineLimit(1)
                 .layoutPriority(1)

@@ -23,6 +23,8 @@ public struct LibraryState: Codable, Equatable, Sendable {
     public var foldersMigrated = false
     /// 库外有会话在跑时点过「忽略」的文件夹（项目 ID），不再提示
     public var dismissedFolders: Set<String> = []
+    /// 自动起过名的会话（成没成都算）：新会话只自动起一次，之后用户怎么改都不再动
+    public var autoNamed: Set<String> = []
 
     public init() {}
 
@@ -53,6 +55,7 @@ public struct LibraryState: Codable, Equatable, Sendable {
         folders = try c.decodeIfPresent([String].self, forKey: .folders) ?? []
         foldersMigrated = try c.decodeIfPresent(Bool.self, forKey: .foldersMigrated) ?? false
         dismissedFolders = try c.decodeIfPresent(Set<String>.self, forKey: .dismissedFolders) ?? []
+        autoNamed = try c.decodeIfPresent(Set<String>.self, forKey: .autoNamed) ?? []
     }
 }
 

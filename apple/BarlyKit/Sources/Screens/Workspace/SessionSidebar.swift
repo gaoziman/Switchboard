@@ -235,6 +235,7 @@ public struct SessionSidebar: View {
                                 SessionRow(session: session,
                                            selected: store.isSelected(session) || store.selectedSessionIDs.contains(session.id),
                                            activity: store.activity(of: session),
+                                           naming: store.data.naming.contains(session.id),
                                            snippet: store.messageHits[session.id], query: store.trimmedQuery,
                                            childCount: children.count, childrenExpanded: store.expandedSubagentParents.contains(session.id),
                                            onToggleChildren: { store.toggleSubagents(session) }) {
@@ -255,7 +256,8 @@ public struct SessionSidebar: View {
                                     } }
                                 if store.expandedSubagentParents.contains(session.id) {
                                     ForEach(children) { child in
-                                        SessionRow(session: child, selected: store.isSelected(child), activity: store.activity(of: child), indent: 18) {
+                                        SessionRow(session: child, selected: store.isSelected(child), activity: store.activity(of: child),
+                                                   naming: store.data.naming.contains(child.id), indent: 18) {
                                             store.select(child)
                                             store.libraryCursor = .session(child.id)
                                             libraryFocused = true
@@ -715,6 +717,8 @@ struct SessionRow: View {
     let session: Session
     let selected: Bool
     var activity: Activity = .notRunning
+    /// 正在 AI 起名：右边转圈
+    var naming = false
     /// 消息全文搜索命中的那一句，显示在标题下面
     var snippet: String? = nil
     var query = ""
@@ -757,7 +761,7 @@ struct SessionRow: View {
                         .padding(.leading, -18)
                 }
                 CLIMark(session.cli, size: 14)
-                Text(session.displayTitle)
+                SessionName.text(session.displayTitle, separator: t.text4)
                     .barlyText(.product.small.weight(selected ? 500 : 400), color: selected ? t.text : t.text2)
                     .lineLimit(1)
                 if session.isPinned {
@@ -768,7 +772,9 @@ struct SessionRow: View {
                 }
                 Spacer(minLength: 6)
                 Group {
-                    if activity == .notRunning {
+                    if naming {
+                        ProgressView().controlSize(.mini).help("正在起名…")
+                    } else if activity == .notRunning {
                         RelativeAge(session.lastActivity)
                     } else {
                         ActivityLamp(activity)

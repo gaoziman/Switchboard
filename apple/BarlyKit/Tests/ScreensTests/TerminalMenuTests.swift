@@ -14,7 +14,7 @@ struct TerminalMenuTests {
     func localSession() {
         #expect(TerminalMenu.sections(session: session(), runsInTmux: true, canSplit: true) == [
             [.copy, .paste, .selectAll],
-            [.rename],
+            [.rename, .aiRename],
             [.copyConversation, .export([.markdown, .plainText, .original]), .copySessionID, .revealSessionFile],
             [.split],
             [.closeTab, .endSession, .deleteSession],
@@ -38,7 +38,7 @@ struct TerminalMenuTests {
         store.launches[tab.id] = TerminalLaunch(tabID: tab.id, executable: "/tmux", arguments: [], directory: "/p", tmuxName: "claude-a")
 
         let live = TerminalMenu.sections(for: tab, in: store, text: false)
-        #expect(live.first == [.rename])
+        #expect(live.first == [.rename, .aiRename])
         #expect(live.last == [.closeTab, .endSession, .deleteSession])
 
         store.tabBanners[tab.id] = .exited(code: 0)

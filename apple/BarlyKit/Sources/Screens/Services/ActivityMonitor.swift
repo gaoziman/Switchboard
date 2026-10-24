@@ -215,6 +215,7 @@ public extension WorkspaceStore {
             let seen = tab.map { visibleTabs.contains($0.id) } ?? false
             // 跑完一轮：之前在干活 / 等你，现在空闲，而你没在看 → 蓝点 + 通知
             if next == .idle, previous == .working || previous == .waitingForAnswer {
+                Task { await autoNameIfNeeded(s) }     // 新会话第一轮结束：自动起名（不管看没看着）
                 if !seen {
                     next = .doneUnseen
                     changes.append(ActivityChange(kind: .turnFinished, sessionID: s.id))

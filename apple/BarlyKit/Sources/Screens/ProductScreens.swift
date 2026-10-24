@@ -43,6 +43,13 @@ public enum ProductScreens {
         ExampleScreen(id: "mac-close-tab", title: "关闭标签确认", platform: .macos) {
             AnyView(workspace("close-tab"))
         },
+        ExampleScreen(id: "mac-ai-names", title: "AI 起名 · 主题｜动作", platform: .macos) { AnyView(workspace("ai-names")) },
+        ExampleScreen(id: "mac-name-suggestions", title: "AI 重命名 · 候选", platform: .macos) {
+            AnyView(SheetOverlay { workspace("default") } sheet: {
+                NameSuggestionsSheet(session: MockData.sessions[1],
+                                     fixture: ["haiku-5-5 上架｜核对两档计费", "计费档位｜验证 haiku 定价", "haiku-5-5｜上架并实测扣费"])
+            })
+        },
         ExampleScreen(id: "mac-theme-cards", title: "设置 · 主题卡", platform: .macos) { AnyView(ThemeCardsPreview()) },
         // 第 2 批：分屏 · 已打开视图 · 铃铛 · 添加 SSH 主机 · Connect…
         ExampleScreen(id: "mac-split", title: "分屏", platform: .macos) { AnyView(workspace("split")) },

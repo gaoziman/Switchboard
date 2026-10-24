@@ -203,6 +203,7 @@ public extension WorkspaceStore {
             guard let found = candidates.max(by: { $0.lastActivity < $1.lastActivity }) else { continue }
             taken.insert(found.id)
             pendingClaims[tabID] = nil
+            data.freshSessions.insert(found.id)       // 「新会话自动起名」只给这些
             for g in tabGroups.indices {
                 if let t = tabGroups[g].tabs.firstIndex(where: { $0.id == tabID }) {
                     tabGroups[g].tabs[t].kind = .session(id: found.id, cli: found.cli)

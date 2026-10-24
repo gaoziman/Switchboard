@@ -14,6 +14,7 @@ struct BarlySettingsView: View {
             AppearanceSettings().tabItem { Label("外观", systemImage: "paintpalette") }.tag(1)
             TerminalSettings().tabItem { Label("终端", systemImage: "terminal") }.tag(2)
             HostSettings().tabItem { Label("主机", systemImage: "server.rack") }.tag(3)
+            NamingSettingsView().tabItem { Label("AI 起名", systemImage: "sparkles") }.tag(6)
             PermissionSettings().tabItem { Label("权限", systemImage: "lock.shield") }.tag(4)
             HelpSettings().tabItem { Label("帮助", systemImage: "questionmark.circle") }.tag(5)
         }
@@ -332,6 +333,102 @@ private struct HostSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// AI 起名：用哪个模型、模型名、API 的地址和 Key（Key 存钥匙串）、新会话自动起名
+private struct NamingSettingsView: View {
+    @AppStorage("naming.engine") private var engine = NamingEngineKind.auto.rawValue
+    @AppStorage("naming.autoName") private var autoName = false
+    @AppStorage("naming.model.claude") private var claudeModel = ""
+    @AppStorage("naming.model.codex") private var codexModel = ""
+    @State private var installed: [String] = []
+    @State private var testing = false
+    @State private var testResult: String?
+    @State private var testFailed = false
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("用哪个模型", selection: $engine) {
+                    ForEach(NamingEngineKind.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                Toggle("新会话自动起名", isOn: $autoName)
+            } footer: {
+                Text(footer).foregroundStyle(.secondary)
+            }
+            Section("本机 CLI") {
+                TextField("Claude Code 模型", text: $claudeModel, prompt: Text("haiku"))
+                TextField("Codex 模型", text: $codexModel, prompt: Text("留空用 Codex 的默认模型"))
+                Text("Codex 默认模型起一次名要十几秒，建议填一个轻一点的。调用时不给工具、不留会话记录。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            APINamingSection(kind: .openAI, urlPrompt: "https://api.openai.com/v1", modelPrompt: "必填")
+            APINamingSection(kind: .anthropic, urlPrompt: "https://api.anthropic.com", modelPrompt: "claude-haiku-5-5")
+            Section {
+                HStack {
+                    Button(testing ? "正在试…" : "试起一次名") { test() }.disabled(testing)
+                    if testing { ProgressView().controlSize(.small) }
+                    Spacer()
+                }
+                if let testResult {
+                    Text(testResult).foregroundStyle(testFailed ? .red : .secondary).textSelection(.enabled)
+                }
+            } footer: {
+                Text("会把会话开头几条和最近几条消息（几 KB）发给选中的模型。名字只存在 Switchboard 里，不改 CLI 的会话。").foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { installed = NamingCheck.installedCLIs() }
+    }
+
+    private var footer: String {
+        let found = installed.isEmpty ? L("没找到 Claude Code 或 Codex") : L("这台 Mac 上有：\(installed.joined(separator: "、"))")
+        return L("「自动」先用本机的 Claude Code，其次 Codex，再其次下面填了 Key 的 API。\(found)。自动起名只给在 Switchboard 里新建的会话起一次，不覆盖你起的名字。")
+    }
+
+    private func test() {
+        testing = true
+        testResult = nil
+        Task {
+            do {
+                let r = try await NamingCheck.run()
+                testResult = L("\(r.engine)：\(r.name)")
+                testFailed = false
+            } catch {
+                testResult = error.localizedDescription
+                testFailed = true
+            }
+            testing = false
+        }
+    }
+}
+
+/// 一类 API 的 Base URL、模型、Key。Key 输完就存进钥匙串（清空 = 删掉）
+private struct APINamingSection: View {
+    let kind: NamingEngineKind
+    let urlPrompt: String
+    let modelPrompt: String
+    @AppStorage private var baseURL: String
+    @AppStorage private var model: String
+    @State private var key = ""
+
+    init(kind: NamingEngineKind, urlPrompt: String, modelPrompt: String) {
+        self.kind = kind
+        self.urlPrompt = urlPrompt
+        self.modelPrompt = modelPrompt
+        _baseURL = AppStorage(wrappedValue: "", "naming.baseURL.\(kind.rawValue)")
+        _model = AppStorage(wrappedValue: "", "naming.model.\(kind.rawValue)")
+    }
+
+    var body: some View {
+        Section(kind.title) {
+            TextField("Base URL", text: $baseURL, prompt: Text(urlPrompt))
+            TextField("模型", text: $model, prompt: Text(modelPrompt))
+            SecureField("API Key", text: $key, prompt: Text("存在钥匙串里"))
+                .onChange(of: key) { _, value in NamingKeychain.write(value, for: kind) }
+        }
+        .onAppear { key = NamingKeychain.read(kind) ?? "" }
     }
 }
 

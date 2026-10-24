@@ -51,6 +51,7 @@ public struct TabBar: View {
                                         let quiet: (TerminalTab) -> Bool = { !isSelected($0) && hoveredTab != $0.id }
                                         TabItem(tab: tab, selected: isSelected(tab), width: width,
                                                 divider: index > 0 && quiet(tab) && quiet(group.tabs[index - 1]),
+                                                naming: tab.kind.sessionID.map { store.data.naming.contains($0) } ?? false,
                                                 onHover: { hoveredTab = $0 ? tab.id : (hoveredTab == tab.id ? nil : hoveredTab) }) {
                                             store.selection = .tab(tab.id)
                                         } onClose: {
@@ -283,6 +284,8 @@ private struct TabItem: View {
     let width: CGFloat
     /// 左边一根短竖线（同组相邻、两边都没选中也没悬停）
     var divider = false
+    /// 正在 AI 起名：状态灯换成转圈
+    var naming = false
     var onHover: (Bool) -> Void = { _ in }
     let action: () -> Void
     var onClose: () -> Void = {}
@@ -292,12 +295,14 @@ private struct TabItem: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: WorkspaceMetrics.tabRadius, style: .continuous)
         HStack(spacing: 7) {
-            if tab.isPlainTerminal {
+            if naming {
+                ProgressView().controlSize(.mini).frame(width: 10, height: 10)
+            } else if tab.isPlainTerminal {
                 Image(systemName: "terminal").font(.system(size: BarlyScale.pt(9))).foregroundStyle(t.text3)
             } else {
                 ActivityLamp(tab.activity, size: 5)
             }
-            Text(tab.title)
+            SessionName.text(tab.title, separator: t.text4)
                 .barlyText(.product.caption.size(12).weight(selected ? 600 : 400), color: selected || hovered ? t.text : t.text2)
                 .lineLimit(1)
                 .truncationMode(.tail)

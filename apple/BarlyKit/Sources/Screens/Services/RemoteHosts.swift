@@ -224,10 +224,12 @@ public enum SSH {
 
     struct Output { let status: Int32; let stdout: String; let stderr: String }
 
-    static func run(_ argv: [String], timeout: TimeInterval) -> Output? {
+    /// directory：在哪个目录里跑（nil = 继承 app 的当前目录）
+    static func run(_ argv: [String], timeout: TimeInterval, directory: String? = nil) -> Output? {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: argv[0])
         p.arguments = Array(argv.dropFirst())
+        if let directory { p.currentDirectoryURL = URL(fileURLWithPath: directory) }
         var env = ProcessInfo.processInfo.environment
         env["PATH"] = ShellEnvironment.shared.pathString
         p.environment = env

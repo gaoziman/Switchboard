@@ -293,6 +293,13 @@ public extension WorkspaceStore {
             if let tab = store.tabGroups.first(where: { $0.projectID == MockData.focusedProjectID })?.tabs.first {
                 store.selection = .tab(tab.id)
             }
+        case "ai-names":
+            // AI 起好的「主题｜动作」名字（竖线画成浅灰）+ 一个正在起名的
+            let named = store.sessions.filter { $0.projectID == MockData.focusedProjectID }
+            let names = ["定价表｜按分组显示两档价格", "haiku-5-5 上架｜核对两档计费", "渠道重试｜日志里记优先级回退", "压测｜/v1/messages 并发 200"]
+            for (s, n) in zip(named, names) { store.rename(s, to: n) }
+            if named.count > 4 { store.data.naming.insert(named[4].id) }
+            if let tab = store.tabGroups.first(where: { $0.projectID == MockData.focusedProjectID })?.tabs.first { store.selection = .tab(tab.id) }
         case "close-tab":
             if let tab = store.tabGroups.first(where: { $0.projectID == MockData.focusedProjectID })?.tabs.first {
                 store.selection = .tab(tab.id)

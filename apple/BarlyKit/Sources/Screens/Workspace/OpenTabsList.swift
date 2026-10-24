@@ -101,7 +101,7 @@ private struct OpenTabRow: View {
                 } else {
                     Image(systemName: "terminal").font(.system(size: BarlyScale.pt(10))).foregroundStyle(t.text3).frame(width: 16)
                 }
-                Text(tab.title)
+                SessionName.text(tab.title, separator: t.text4)
                     .barlyText(.product.small.weight(current ? 500 : 400), color: current || picked ? t.text : t.text2)
                     .lineLimit(1)
                 Spacer(minLength: 6)

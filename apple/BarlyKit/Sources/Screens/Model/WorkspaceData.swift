@@ -45,6 +45,12 @@ public final class WorkspaceData {
     public var migrationPicks: [ProjectID] = []
     /// 库外有会话在跑的文件夹（侧栏底部提示）
     public var outsideRunning: [FolderLibrary.Outside] = []
+    /// 正在 AI 起名的会话（行里转圈）
+    public var naming: Set<String> = []
+    /// 起名用的模型（截图和单测里是没有可用模型的假的）
+    @ObservationIgnored var namer: SessionNamer = .unavailable
+    /// 这次运行里在 Switchboard 新建、已经认领到的会话：「新会话自动起名」只给它们起
+    @ObservationIgnored var freshSessions: Set<String> = []
     @ObservationIgnored private var cachedIndex: SessionIndex?
     /// 会话按项目、按 ID 分好：侧栏每次重画、轮询每秒都要查，会话列表变了才重算一次
     var sessionIndex: SessionIndex {
@@ -130,9 +136,13 @@ public final class WorkspaceData {
         return (sessions, projects)
     }
 
-    public static let shared = WorkspaceData(hosts: [Host(id: Host.localID, kind: .local, displayName: L("这台 Mac"))],
-                                             projects: [], sessions: [], loadState: .loading, persistence: .applicationSupport,
-                                             reader: .live, link: .live, tools: .live)
+    public static let shared: WorkspaceData = {
+        let data = WorkspaceData(hosts: [Host(id: Host.localID, kind: .local, displayName: L("这台 Mac"))],
+                                 projects: [], sessions: [], loadState: .loading, persistence: .applicationSupport,
+                                 reader: .live, link: .live, tools: .live)
+        data.namer = .live
+        return data
+    }()
 }
 
 /// 会话列表的查询索引（WorkspaceData.sessionIndex）

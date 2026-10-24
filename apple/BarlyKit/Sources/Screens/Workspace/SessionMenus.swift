@@ -27,6 +27,7 @@ struct SessionMenu: View {
         }
         Divider()
         Button { store.presentation = .renameSession(session) } label: { Label("重命名", systemImage: "pencil") }
+        Button { store.presentation = .nameSuggestions(session) } label: { Label("AI 重命名…", systemImage: "sparkles") }
         Button { store.togglePin(session) } label: {
             Label(session.isPinned ? "取消置顶会话" : "置顶会话", systemImage: session.isPinned ? "pin.slash" : "pin")
         }
@@ -103,6 +104,7 @@ struct MultiSessionMenu: View {
         Button("归档 \(picked.count) 个会话") { store.setArchived(picked.map(\.id), true); store.clearMultiSelection() }
         Button("取消归档") { store.setArchived(picked.map(\.id), false); store.clearMultiSelection() }
         Button("置顶 \(picked.count) 个") { for s in picked where !s.isPinned { store.togglePin(s) } }
+        Button("AI 重命名 \(picked.count) 个会话") { Task { await store.aiRename(picked) }; store.clearMultiSelection() }
         Divider()
         Button("删除 \(picked.count) 个会话…", role: .destructive) {
             store.presentation = .confirmDelete(picked)
@@ -319,6 +321,20 @@ struct LibraryDialogs: ViewModifier {
                 Text("只改 Switchboard 里显示的名字，不改 CLI 的会话。留空恢复原标题。")
             }
             .onChange(of: store.presentation?.renamingSession?.id) { _, _ in name = store.presentation?.renamingSession?.displayTitle ?? "" }
+            .sheet(isPresented: store.isPresenting(\.suggestingNames)) {
+                if let s = store.presentation?.suggestingNames {
+                    NameSuggestionsSheet(session: s, load: { try await store.nameSuggestions(for: s) }) { picked in
+                        if let current = store.session(s.id), let clean = SessionName.clean(picked) { store.rename(current, to: clean) }
+                        store.presentation = nil
+                    } onCancel: { store.presentation = nil }
+                }
+            }
+            .alert("有 \(store.namingFailures.count) 个会话没起成名字", isPresented: Binding(get: { !store.namingFailures.isEmpty },
+                                                                                set: { if !$0 { store.namingFailures = [] } })) {
+                Button("好") { store.namingFailures = [] }
+            } message: {
+                Text(store.namingFailures.prefix(3).joined(separator: "\n"))
+            }
             .alert("重命名项目", isPresented: store.isPresenting(\.renamingProject)) {
                 TextField("名字", text: $name)
                 Button("取消", role: .cancel) { store.presentation = nil }
